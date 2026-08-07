@@ -1,0 +1,40 @@
+{%- comment -%}
+  這是用來在主題編輯器中拖曳的「區塊外殼」
+  它負責呼叫 Snippets 資料夾中的 breadcrumbs.liquid 檔案，並提供編輯器設定
+{%- endcomment -%}
+
+<div class="breadcrumbs-block-wrapper" style="padding-top: {{ block.settings.padding_top }}px; padding-bottom: {{ block.settings.padding_bottom }}px;">
+  {%- render 'breadcrumbs' -%}
+</div>
+
+{% schema %}
+{
+  "name": "麵包屑導航 (Breadcrumbs)",
+  "settings": [
+    {
+      "type": "header",
+      "content": "間距設定"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "上方間距 (Padding Top)",
+      "default": 10
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "下方間距 (Padding Bottom)",
+      "default": 10
+    }
+  ]
+}
+{% endschema %}

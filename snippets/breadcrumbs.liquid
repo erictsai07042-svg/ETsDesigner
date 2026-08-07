@@ -1,0 +1,78 @@
+<nav class="breadcrumbs" role="navigation" aria-label="Breadcrumb">
+  <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+    <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+      <a href="{{ routes.root_url }}" itemprop="item">
+        <span itemprop="name">Home</span>
+      </a>
+      <meta itemprop="position" content="1" />
+    {% if template contains 'product' and product %}
+      <!-- 🌟 來趣滑雪：本機沙盒雙重護盾（型態判定 + 模糊比對） -->
+      {%- if product.type == 'Course' or product.handle contains 'course' or product.title contains '課程' -%}
+        {%- assign course_anchor = '' -%}
+        {%- if product.handle contains 'fullday' or product.title contains '全天' -%}
+          {%- assign course_anchor = '#fullday' -%}
+        {%- elsif product.handle contains 'halfday' or product.title contains '半天' -%}
+          {%- assign course_anchor = '#halfday' -%}
+        {%- endif -%}
+        
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <a href="/pages/course-introduction{{ course_anchor }}" itemprop="item">
+            <span itemprop="name">課程介紹</span>
+          </a>
+          <meta itemprop="position" content="2" />
+        </li>
+      {%- else -%}
+        <!-- 原廠標準非課程商品麵包屑邏輯 -->
+        {% if collection %}
+          <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="{% if collection.handle contains 'equipment-rental' or collection.handle contains 'gear' %}/pages/equipment-rental{% else %}{{ collection.url }}{% endif %}" itemprop="item">
+              <span itemprop="name">{{ collection.title }}</span>
+            </a>
+            <meta itemprop="position" content="2" />
+          </li>
+        {% elsif product.collections.size > 0 %}
+          {% assign first_collection = product.collections | first %}
+          <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <a href="{% if first_collection.handle contains 'equipment-rental' or first_collection.handle contains 'gear' %}/pages/equipment-rental{% else %}{{ first_collection.url }}{% endif %}" itemprop="item">
+              <span itemprop="name">{{ first_collection.title }}</span>
+            </a>
+            <meta itemprop="position" content="2" />
+          </li>
+        {% endif %}
+      {%- endif -%}
+
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <span itemprop="name">{{ product.title }}</span>
+        <meta itemprop="position" content="3" />
+      </li>
+    {% elsif template contains 'collection' and collection %}
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <span itemprop="name">{{ collection.title }}</span>
+        <meta itemprop="position" content="2" />
+      </li>
+    {% elsif template contains 'page' and page %}
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <span itemprop="name">{{ page.title }}</span>
+        <meta itemprop="position" content="2" />
+      </li>
+    {% elsif template contains 'blog' %}
+      {% if article %}
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <a href="{{ blog.url }}" itemprop="item">
+            <span itemprop="name">{{ blog.title }}</span>
+          </a>
+          <meta itemprop="position" content="2" />
+        </li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <span itemprop="name">{{ article.title }}</span>
+          <meta itemprop="position" content="3" />
+        </li>
+      {% else %}
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <span itemprop="name">{{ blog.title }}</span>
+          <meta itemprop="position" content="2" />
+        </li>
+      {% endif %}
+    {% endif %}
+  </ol>
+</nav>

@@ -1,0 +1,766 @@
+{% comment %}
+  【來趣滑雪】2026-07-28 UX 重構完全體 - 去重複、進度條、品牌字級修正
+  snippets/course-booking-form.liquid
+{% endcomment %}
+
+<style>
+
+/* ==========================================================================
+   🎨 【來趣滑雪】2026-07-28 終極美學大改組：4:6 黃金非對稱網格控制系統
+   ========================================================================== */
+:root {
+  --color-primary-navy: #1A2E4A;
+  --color-secondary-blue: #2D5F8A;
+  --color-frost: #B8D9ED;
+  --color-snow-white: #E8F4FA;
+  --color-slope-black: #111111;
+  --color-stone-gray: #5A6A78;
+  --premium-card-shadow: 0 10px 30px -5px rgba(26, 46, 74, 0.05);
+
+  /* Fallbacks for preserved CSS */
+  --cbf-navy: #1A2E4A;
+  --cbf-mountain: #2D5F8A;
+  --cbf-sky: #3A7AB5;
+  --cbf-ice: #7AB3D4;
+  --cbf-frost: #B8D9ED;
+  --cbf-snow: #E8F4FA;
+  --cbf-stone: #5A6A78;
+  --cbf-black: #111111;
+  --cbf-white: #ffffff;
+}
+
+/* 🚫 全域排他網盾：強制摧毀原廠下滑全域懸浮條與 You may also like 推薦商品區塊 */
+.product-recommendations, #shopify-section-product-recommendations, 
+sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
+  display: none !important; opacity: 0 !important; visibility: hidden !important;
+}
+
+/* 🚫 物理隱藏原廠的相關殘餘干擾元素，確保本旗艦容器擁有純淨無瑕的舞台 */
+.product-information__media,
+.product-single__media-group,
+.product__media-wrapper,
+[data-testid="product-information-media"] {
+  display: none !important;
+}
+
+/* 原生兩欄版位收合成單欄：媒體圖庫已隱藏，讓 product-details（含 form／variant-picker／buy-buttons）佔滿寬度。
+   保留 DOM 結構不變（不用 JS 搬移），純視覺調整，確保 BTA 錨點與表單巢狀關係不受影響。 */
+.product-information__grid {
+  grid-template-columns: 1fr !important;
+}
+.product-information__grid .product-details {
+  grid-column: 1 / -1 !important;
+}
+
+/* 隱藏原生標題／價格區塊（與 STEP UI 自己的 hero banner 重複），保留 form、variant-picker、buy-buttons 不動 */
+.product-details [data-block-id$="__group_icgrde"] {
+  display: none !important;
+}
+.product-details [class*="__divider_VJhene"] {
+  display: none !important;
+}
+
+/* 一切回歸中道：預訂漏斗外殼完全依照品牌規範齊寬對齊 (不使用滿版) */
+.ski-booking-funnel-wrapper {
+  font-family: var(--brand-font-family, 'PingFang TC', 'Microsoft JhengHei', sans-serif) !important;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto 60px auto;
+  padding: 0 24px;
+  box-sizing: border-box;
+  color: var(--color-slope-black, #111111);
+}
+
+/* ==========================================================================
+   🌟 1. 頂部滑雪情境橫幅 Banner (容器寬度 + 圓角 + 漸變遮罩 + 白色字)
+   ========================================================================== */
+.course-hero-banner {
+  position: relative;
+  width: 100%;
+  min-height: 260px;
+  max-height: 320px;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  background-color: var(--brand-deep-navy, #1A2E4A);
+  margin-bottom: 32px;
+  box-shadow: 0 14px 36px rgba(26, 46, 74, 0.15);
+}
+
+.course-hero-banner__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  z-index: 1;
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.course-hero-banner:hover .course-hero-banner__img {
+  transform: scale(1.02);
+}
+
+.course-hero-banner__fallback-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1A2E4A 0%, #2D5F8A 50%, #7AB3D4 100%);
+  z-index: 1;
+}
+
+/* 左側半透明深色遮罩：優雅漸變襯托白字，確保閱讀辨識度百分之百 */
+.course-hero-banner__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(26, 46, 74, 0.94) 0%, rgba(26, 46, 74, 0.78) 50%, rgba(26, 46, 74, 0.15) 100%);
+  z-index: 2;
+}
+
+.course-hero-banner__content {
+  position: relative;
+  z-index: 3;
+  padding: 44px 52px;
+  max-width: 680px;
+  color: #ffffff !important;
+}
+
+.course-hero-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.course-hero-title {
+  font-family: var(--brand-font-family) !important;
+  font-size: clamp(24px, 4vw, 36px) !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  color: #ffffff !important;
+  margin: 0 0 16px 0 !important;
+  letter-spacing: 0.02em;
+}
+
+.course-hero-price {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 8px 18px;
+  border-radius: 8px;
+  border-left: 4px solid var(--brand-ice-blue, #7AB3D4);
+  width: fit-content;
+}
+
+.course-hero-price .price-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #B8D9ED;
+  letter-spacing: 0.04em;
+}
+
+.course-hero-price .price-value,
+.course-hero-price .price-value * {
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+/* ==========================================================================
+   🌟 2. 主內容兩欄網格：左側 65% (資訊說明) + 右側 35% (預訂卡片)
+   ========================================================================== */
+.course-main-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+  gap: 36px;
+  align-items: start;
+}
+@media (max-width: 991px) {
+  .course-main-layout-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+}
+
+/* ==========================================================================
+   📜 3. 左側文字資訊區塊 (65% 欄位) 樣式
+   ========================================================================== */
+.course-info-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  min-width: 0;
+}
+
+.info-block-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+/* 依照表單與品牌規範：標題加上 Sky Blue 左邊線與 0.04em 字距 */
+.info-block-title {
+  color: var(--brand-deep-navy, #1A2E4A) !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  padding-left: 14px !important;
+  border-left: 4px solid var(--brand-sky-blue, #3A7AB5) !important;
+  margin: 0 0 24px 0 !important;
+  line-height: 1.3 !important;
+}
+
+.info-highlight-box {
+  background: var(--brand-snow, #E8F4FA);
+  border: 1px solid var(--brand-frost, #B8D9ED);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.info-highlight-box .box-tag {
+  display: inline-block;
+  background: var(--brand-deep-navy, #1A2E4A);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.info-highlight-box .box-main {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--brand-deep-navy, #1A2E4A);
+  margin: 0 0 6px 0;
+}
+.info-highlight-box .box-sub {
+  font-size: 15px;
+  color: var(--brand-stone-gray, #5A6A78);
+  margin: 0;
+}
+
+.info-list-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.info-row-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #cbd5e1;
+}
+.info-row-item .row-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand-deep-navy, #1A2E4A);
+}
+.info-row-item .row-val {
+  font-size: 15px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.styled-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.styled-feature-list li {
+  position: relative;
+  padding-left: 24px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #334155;
+}
+.styled-feature-list li::before {
+  content: "■";
+  position: absolute;
+  left: 2px;
+  top: -1px;
+  font-size: 10px;
+  color: var(--brand-sky-blue, #3A7AB5);
+}
+.styled-feature-list li strong {
+  color: var(--brand-deep-navy, #1A2E4A);
+}
+
+.policy-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+.policy-table th {
+  background: var(--brand-deep-navy, #1A2E4A);
+  color: #ffffff;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 700;
+}
+.policy-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+}
+.policy-table tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+.hl-green { color: #059669; font-weight: 800; }
+.hl-amber { color: #d97706; font-weight: 800; }
+.hl-orange { color: #ea580c; font-weight: 800; }
+.hl-red { color: #dc2626; font-weight: 800; }
+
+.policy-note {
+  font-size: 13px;
+  color: var(--brand-stone-gray, #5A6A78);
+  line-height: 1.7;
+  background: #f1f5f9;
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin: 0;
+}
+
+/* ==========================================================================
+   🔒 4. 右側固定預訂卡片 (35% 欄位 + Sticky)
+   ========================================================================== */
+.course-sticky-right-card {
+  position: sticky !important;
+  top: 120px !important;
+  align-self: start !important;
+  z-index: 10;
+  width: 100%;
+}
+
+@media (max-width: 991px) {
+  .course-sticky-right-card {
+    position: static !important;
+  }
+}
+
+.course-booking-card-body {
+  background: #ffffff;
+  border: 1px solid var(--brand-frost, #B8D9ED);
+  border-radius: 20px;
+  padding: 28px 24px;
+  box-shadow: 0 12px 36px -4px rgba(26, 46, 74, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.course-booking-card-body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #1A2E4A 0%, #2D5F8A 50%, #7AB3D4 100%);
+}
+
+.card-consent-section {
+  margin-top: 24px;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.compact-cb-row {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: all 0.2s ease;
+}
+.compact-cb-row:hover {
+  border-color: var(--brand-ice-blue, #7AB3D4);
+  background: var(--brand-snow, #E8F4FA);
+}
+.compact-cb-row.is-agreed {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
+.compact-cb-row .consent-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  margin: 0;
+}
+.compact-cb-row .required-consent-cb {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--brand-deep-navy, #1A2E4A);
+  cursor: pointer;
+}
+.compact-cb-row .consent-checkbox-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-deep-navy, #1A2E4A);
+  line-height: 1.4;
+}
+.compact-cb-row .consent-checkbox-label a {
+  color: var(--brand-sky-blue, #3A7AB5);
+  text-decoration: underline;
+  margin-left: 4px;
+}
+
+.consent-unlock-hint {
+  font-size: 13px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  line-height: 1.5;
+  display: none;
+}
+.consent-unlock-hint.is-visible {
+  display: block;
+}
+
+/* ==========================================================================
+    【來趣滑雪】終極除錯：強制物理隱藏原廠商品描述，消滅資訊重複
+   ========================================================================== */
+{% if product.type == 'Course' or product.handle contains 'course' %}
+  .product__description,
+  .product-single__description,
+  .product-description,
+  .rt,
+  .rte {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+{% endif %}
+
+.consent-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--cbf-snow);
+  border-top: 1px solid var(--cbf-frost);
+  cursor: pointer;
+}
+.consent-checkbox-row input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 18px; height: 18px; flex-shrink: 0;
+  border: 2px solid var(--cbf-frost); border-radius: 4px;
+  background: #fff; cursor: pointer;
+  transition: all 0.15s ease; position: relative;
+}
+.consent-checkbox-row input[type="checkbox"]:checked {
+  background-color: #16a34a; border-color: #16a34a;
+}
+.consent-checkbox-row input[type="checkbox"]:checked::after {
+  content: '✓'; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%); color: #fff;
+  font-size: 11px; font-weight: 700;
+}
+.consent-checkbox-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cbf-navy);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+/* 解鎖提示區（未完成勾選時顯示） */
+.consent-unlock-hint {
+  font-size: 12px;
+  color: #dc2626;
+  text-align: center;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  display: none;
+}
+.consent-unlock-hint.is-visible { display: block; }
+
+</style>
+
+
+<!-- ==========================================================================
+   【來趣滑雪】2026-07-28 UX 重構完全體 - 齊寬修正與去 Emoji 純文字版
+   ========================================================================== -->
+
+<div class="ski-booking-funnel-wrapper" style="max-width: 1200px; margin: 0 auto 100px auto; padding: 0;">
+
+  <!-- 1. 頂部滑雪情境橫幅 Banner (移除內建 padding，確保與下方 100% 齊寬) -->
+  <div class="course-hero-banner rounded-2xl" style="margin-left: -32px; margin-right: -24px; width: calc(100% + 56px); box-sizing: border-box;">
+    {% if product.featured_image %}
+      <img src="{{ product.featured_image | img_url: '1200x' }}" class="course-hero-banner__img" alt="{{ product.title | escape }}">
+    {% else %}
+      <div class="course-hero-banner__fallback-img"></div>
+    {% endif %}
+    <div class="course-hero-banner__overlay"></div>
+    <div class="course-hero-banner__content">
+      <span class="course-hero-badge">Life Chill Snow 專業滑雪課程</span>
+      <h1 class="course-hero-title">{{ product.title }}</h1>
+      <div class="course-hero-price">
+        <span class="price-label">極致優惠價</span>
+        <span class="price-value" id="BannerTotalPrice">{{ product.price | money }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 兩欄主結構容器 (與上方 Banner 同步外推與寬度，確保 100% 垂直齊平) -->
+  <div class="course-main-layout-grid" style="margin-left: -32px; margin-right: -24px; width: calc(100% + 56px); box-sizing: border-box;">
+    
+    <!-- 2. 左欄：主內容與條款確認區 (佔 65% 寬度) -->
+    <div class="course-info-left-column">
+      
+      <!-- 區塊 A：您選擇的方案與基本確認 -->
+      <div class="info-block-card">
+        <h3 class="info-block-title">您選擇的方案資訊</h3>
+        <div class="info-highlight-box">
+          <span class="box-tag">時段與集合地點</span>
+          <p class="box-main" id="DynamicCourseTimeText">
+            {% if product.tags contains '全天班' %}
+              全天班（6小時，含1小時午休）｜ 課程時間：09:00～15:00
+            {% else %}
+              半天班（3小時）｜ 上午：09:00～12:00 ／ 下午：13:00～16:00
+            {% endif %}
+          </p>
+          <p class="box-sub">集合地點：訂單完成後與教練確認</p>
+        </div>
+
+        <div class="info-row-item" style="border-left-color: var(--brand-ice-blue); margin-bottom: 20px;">
+          <span class="row-label">兒童教學政策</span>
+          <span class="row-val">親子班兒童最低年齡為 6 歲，需有至少 1 位成人陪同，每組最多接受 1 位兒童同行。</span>
+        </div>
+
+        <h3 class="info-block-title" style="margin-top: 32px;">費用資訊</h3>
+        <div class="info-list-group">
+          <div class="info-row-item">
+            <span class="row-label">費用包含/不含項目</span>
+            <span class="row-val">費用僅含教學服務，不含裝備租借、纜車票及餐費。如需教練協助裝備租借，時間計入課程時數內。</span>
+          </div>
+          <div class="info-row-item">
+            <span class="row-label">延長課程費用</span>
+            <span class="row-val">NT$3,000／USD$100／JPY¥15,000／小時（3～4人方案：NT$3,600／小時）。</span>
+          </div>
+          <div class="info-row-item" style="background-color: #fffbeb; border-left-color: #f59e0b;">
+            <span class="row-label" style="color: #b45309;">旺季期間提示</span>
+            <span class="row-val" style="color: #78350f;">2026年12月16日～2027年2月28日（此期間報價將依旺季費率計算）。</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 區塊 B：法律免責與下單硬性條件 -->
+      <div class="info-block-card">
+        <h3 class="info-block-title">安全規範、資格確認與退款政策</h3>
+        <div class="card-consent-section" style="margin-top: 0; padding-top: 0; border: none;">
+          <div class="compact-cb-row" id="ConsentCard1" style="margin-bottom: 12px;">
+            <label class="consent-checkbox-row">
+              <input type="checkbox" class="required-consent-cb" id="CheckBoxConsent1">
+              <span class="consent-checkbox-label">
+                <strong>我已確認符合參加資格</strong>：已評估自身健康狀況（無懷孕、心臟病、高血壓、癲癇等不適宜滑雪之疾病）。未成年（18歲以下）已獲得監護人陪同同意。
+              </span>
+            </label>
+          </div>
+          <div class="compact-cb-row" id="ConsentCard2" style="margin-bottom: 12px;">
+            <label class="consent-checkbox-row">
+              <input type="checkbox" class="required-consent-cb" id="CheckBoxConsent2">
+              <span class="consent-checkbox-label">
+                <strong>我已詳閱並同意退款政策</strong>：活動前14天取消退100%；7-13天退70%；1-6天退50%；當天取消恕不退款。天候不佳或纜車停駛可全額退款或免費改期。所有退款扣5%手續費。
+              </span>
+            </label>
+          </div>
+          <div class="compact-cb-row" id="ConsentCard3">
+            <label class="consent-checkbox-row">
+              <input type="checkbox" class="required-consent-cb" id="CheckBoxConsent3">
+              <span class="consent-checkbox-label">
+                <strong>我已同意安全規範與風險聲明</strong>：聽從教練指示，不擅自離開教學區。本課程不含保險，我已知悉並承諾於活動前自行投保（建議東京海上日動旅遊險）。
+              </span>
+            </label>
+          </div>
+        </div>
+        <div class="consent-unlock-hint" id="ConsentUnlockHint" style="margin-top: 16px;">
+          請勾選上方三項安全聲明與政策同意書，以解鎖右側預訂結帳按鈕。
+        </div>
+      </div>
+
+      <!-- 區塊 C：售後服務與次要資訊 -->
+      <div class="info-block-card">
+        <h3 class="info-block-title">更多服務說明（點擊展開細節）</h3>
+        <details class="modern-details-accordion" style="cursor: pointer; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+          <summary style="font-weight: 700; color: var(--brand-deep-navy); list-style: none; display: flex; justify-content: space-between; align-items: center;">
+            <span>聯絡方式與行前通知</span> <span class="arrow-icon" style="font-size: 13px; font-weight: normal;">[ 展開 / 摺疊 ]</span>
+          </summary>
+          <div style="padding: 12px 8px; color: #5A6A78; font-size: 14px; line-height: 1.6;">
+            訂單完成後可透過 Email、LINE、WhatsApp 聯繫教練。課程開始前 1 週教練將建立群組進行詳細的行前通知與裝備清單確認。
+          </div>
+        </details>
+        <details class="modern-details-accordion" style="cursor: pointer; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+          <summary style="font-weight: 700; color: var(--brand-deep-navy); list-style: none; display: flex; justify-content: space-between; align-items: center;">
+            <span>日期變更與教練安排規範</span> <span class="arrow-icon" style="font-size: 13px; font-weight: normal;">[ 展開 / 摺疊 ]</span>
+          </summary>
+          <div style="padding: 12px 8px; color: #5A6A78; font-size: 14px; line-height: 1.6;">
+            如需更改預訂日期，請提前聯繫客服，視教練空檔協助排程。訂課時若未指定教練，由 Life Chill Snow 依學員程度代為挑選最佳教練。
+          </div>
+        </details>
+        <details class="modern-details-accordion" style="cursor: pointer; padding: 10px 0;">
+          <summary style="font-weight: 700; color: var(--brand-deep-navy); list-style: none; display: flex; justify-content: space-between; align-items: center;">
+            <span>天候變更與不可抗力權利宣告</span> <span class="arrow-icon" style="font-size: 13px; font-weight: normal;">[ 展開 / 摺疊 ]</span>
+          </summary>
+          <div style="padding: 12px 8px; color: #5A6A78; font-size: 14px; line-height: 1.6;">
+            雪況受自然天候影響甚大，遇暴風雪、無雪、雪場因安全因素關閉纜車等不可抗力因素，Life Chill Snow 保有變更當日行程或提供等值替代方案之最終權利。
+          </div>
+        </details>
+      </div>
+
+    </div> <!-- /左欄結束 -->
+
+    <!-- 3. 右欄：純粹交易漏斗工具卡片 (佔 35% 寬度 + Sticky 捲動固定) -->
+    <div class="course-sticky-right-card" style="position: sticky; top: 120px;">
+      <div class="course-booking-card-body">
+        <div id="bta-booking-form-{{ product.id }}" data-product-id="{{ product.id }}">
+          <!-- BTA「Snow class booking」Inline widget 真正偵測的錨點 id（從 bta-widgets-bootstrap.min.js 原始碼確認）。
+               原本的 Stage1/2/3 精靈（人數下拉選單、假日曆容器、下一步按鈕、Stage2 雪板類型/場地/聯絡方式等自訂欄位、Stage3 裝備租借）
+               已整組移除：BTA widget 自己的流程已原生涵蓋日期/人數/雪板類型/場地/聯絡方式/兒童同行，裝備加購改在購物車頁由
+               assets/course-stage2-module.js 處理，不需要在商品頁重複刻一套。 -->
+          <div id="booking-current-date-picker">
+            <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
+          </div>
+        </div>
+      </div> <!-- /course-booking-card-body 結束 -->
+    </div> <!-- /course-sticky-right-card (右欄 35%) 結束 -->
+
+  </div> <!-- /course-main-layout-grid 兩欄主結構容器 結束 -->
+
+</div> <!-- /ski-booking-funnel-wrapper 結束 -->
+
+<script>
+(function() {
+  /* 動態偵測 BTA Inline widget（Snow class booking）是否已成功掛載進 #bta-product-widget。
+     BTA 自己注入的 CSS 會把 .product-form-buttons（STEP UI 外層容器）設 display:none，
+     等偵測到 widget 內部出現 <iframe> 子節點（代表已成功掛載）才把它改回可見，
+     避免在頁面載入當下就搶著顯示、打亂 BTA 判斷「初始應為隱藏狀態」的時機。 */
+  /* 注意：BTA 可能不是原地修改 #bta-product-widget，而是整個移除舊節點、建立新節點取代它，
+     所以每次都要重新用 getElementById 現查，不能依賴一開始捕捉的節點參照（會變成死節點）。
+     監聽對象改成不會被 BTA 替換掉的穩定父層容器。 */
+  const watchContainer = document.getElementById('booking-current-date-picker') || document.body;
+  const revealStepUI = () => {
+    const pfb = document.querySelector('.product-form-buttons');
+    if (pfb) {
+      pfb.style.setProperty('display', 'flex', 'important');
+      pfb.style.setProperty('flex-direction', 'column', 'important');
+    }
+  };
+
+  /* 決策 6：把 BTA 日曆 widget 用 position:absolute 視覺搬到 Hero banner 正下方，還原陽春版本
+     「日曆緊鄰標題/價格」的體驗，但完全不動 DOM 樹順序、不改任何元素的 display 模式（決策 4-2、
+     決策 5 都已證實：動 DOM 順序或 <form> 的 display 這條路徑對 BTA 的插入行為無效或風險過高）。
+     兩個關鍵數字都不寫死：
+       1. widget 的 top 偏移量 = 當下量到的 .course-hero-banner 實際高度（不同商品標題/促銷標籤
+          長度不同，Hero banner 高度不會一樣）。
+       2. .course-main-layout-grid 的 margin-top = 當下量到的 widget 實際高度（loading 中、切換
+          月份、選人數等互動都可能讓 widget 高度改變），用來幫下面的課程資訊卡預留空間，避免
+          widget 用絕對定位浮動疊加蓋住卡片。
+     兩者都用 ResizeObserver 持續監聽，數字改變就即時重算，不是量一次就定死。 */
+  const positionWidgetOverlay = () => {
+    const form = document.querySelector('form.shopify-product-form');
+    const hero = document.querySelector('.course-hero-banner');
+    const widget = document.getElementById('bta-product-widget');
+    const grid = document.querySelector('.course-main-layout-grid');
+    if (!form || !hero || !widget || !grid || !window.ResizeObserver) return;
+
+    form.style.setProperty('position', 'relative', 'important');
+
+    const applyWidgetPosition = () => {
+      widget.style.setProperty('position', 'absolute', 'important');
+      widget.style.setProperty('left', '0', 'important');
+      widget.style.setProperty('width', '100%', 'important');
+      widget.style.setProperty('z-index', '5', 'important');
+      widget.style.setProperty('top', hero.getBoundingClientRect().height + 'px', 'important');
+    };
+    applyWidgetPosition();
+
+    /* 實測發現：BTA 自己顯示/隱藏 widget 時是用 setAttribute('style', ...) 整個覆蓋 style
+       屬性（不是疊加），會把我們設的 position/left/width/z-index 一起洗掉，只留下它自己要的
+       display。用 MutationObserver 盯緊 widget 自己的 style attribute，一旦被 BTA 改動、
+       發現我們要的 position:absolute 不見了，立刻補回去。判斷式本身能防止無限迴圈：補回去之後
+       widget.style.position 會變回 'absolute'，下一次觸發時條件不成立就不會再重覆呼叫。 */
+    const styleGuard = new MutationObserver(() => {
+      if (widget.style.position !== 'absolute') {
+        applyWidgetPosition();
+      }
+    });
+    styleGuard.observe(widget, { attributes: true, attributeFilter: ['style'] });
+
+    new ResizeObserver(applyWidgetPosition).observe(hero);
+
+    new ResizeObserver(() => {
+      grid.style.setProperty('margin-top', widget.getBoundingClientRect().height + 'px', 'important');
+    }).observe(widget);
+  };
+
+  const checkAndReveal = () => {
+    const widget = document.getElementById('bta-product-widget');
+    if (widget && widget.querySelector('iframe')) {
+      revealStepUI();
+      positionWidgetOverlay();
+      return true;
+    }
+    return false;
+  };
+  if (!checkAndReveal()) {
+    const observer = new MutationObserver((mutations, obs) => {
+      if (checkAndReveal()) {
+        obs.disconnect();
+        clearInterval(pollId);
+      }
+    });
+    observer.observe(watchContainer, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    /* 保底輪詢：MutationObserver 可能因為 BTA 特殊的 DOM 操作方式而沒被觸發，
+       用輪詢確保無論如何都能在 iframe 出現後盡快抓到，15 秒後放棄避免無限跑。 */
+    let pollAttempts = 0;
+    const pollId = setInterval(() => {
+      pollAttempts++;
+      if (checkAndReveal() || pollAttempts > 100) {
+        clearInterval(pollId);
+        observer.disconnect();
+      }
+    }, 150);
+  }
+})();
+</script>
+
+<!-- 原本的 Stage1/2/3 精靈控制腳本（DOM 參考、必勾同意卡狀態同步、裝備裂變工廠、法規 Modal、計價引擎、Ajax 送出、底部沙盒核心控制鏈）整段已移除，功能改由 BTA widget 本身 + 購物車頁 Stage2/3 Modal（assets/course-stage2-module.js）取代 -->
+

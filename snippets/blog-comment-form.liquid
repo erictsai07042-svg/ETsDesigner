@@ -1,0 +1,280 @@
+{%- doc -%}
+  Renders a comment form for a blog post.
+
+  @param {object} [form] - The form object
+  @param {object} [article] - The article object
+  @param {comment} [comment] - The comment object
+  @param {string} [section_id] - The section ID
+{%- enddoc -%}
+
+{% form 'new_comment', article %}
+  <div class="blog-post-comments__form-container">
+    <h2 class="h3">{{- 'blogs.comment_form.heading' | t -}}</h2>
+
+    {%- if form.errors -%}
+      <p
+        class="blog-post-comments__form-message"
+        role="alert"
+      >
+        {{- 'icon-error.svg' | inline_asset_content -}}
+
+        {{- 'blogs.comment_form.error' | t -}}
+      </p>
+
+      <ul class="">
+        {%- for field in form.errors -%}
+          <li>
+            {%- if form.errors.translated_fields[field] contains 'author' -%}
+              <span id="blog-post-comment-author-error">
+                {{- 'blogs.comment_form.name' | t -}}
+              </span>
+            {%- elsif form.errors.translated_fields[field] contains 'body' -%}
+              <span id="blog-post-comment-body-error">
+                {{- 'blogs.comment_form.message' | t -}}
+              </span>
+            {%- else -%}
+              <span id="{{ form.errors.translated_fields[field] | handleize }}-error">
+                {{- form.errors.translated_fields[field] | capitalize -}}
+              </span>
+            {%- endif -%}
+            {{ form.errors.messages[field] }}
+          </li>
+        {%- endfor -%}
+      </ul>
+    {%- elsif form.posted_successfully? -%}
+      <p
+        class="blog-post-comments__form-message"
+        role="alert"
+      >
+        {{- 'icon-checkmark.svg' | inline_asset_content -}}
+
+        {%- liquid
+          assign post_message = 'blogs.comment_form.success'
+          if blog.moderated? and comment.status == 'unapproved'
+            assign post_message = 'blogs.comment_form.success_moderated'
+          endif
+        -%}
+
+        {{ post_message | t }}
+      </p>
+    {%- endif -%}
+
+    <div class="blog-post-comments__form">
+      <div class="field">
+        <label
+          class="visually-hidden"
+          for="{{ section_id }}-blog-post-comment-author"
+        >
+          {{ 'blogs.comment_form.name' | t }}
+        </label>
+
+        <input
+          type="text"
+          name="comment[author]"
+          id="{{ section_id }}-blog-post-comment-author"
+          class="blog-post-comments__form-input field__input"
+          autocomplete="name"
+          value="{{- form.author -}}"
+          aria-required="true"
+          placeholder="{{ 'blogs.comment_form.name' | t }}"
+          required
+          {% if form.errors contains 'author' %}
+            aria-invalid="true"
+            aria-describedby="blog-post-comment-author-error"
+          {% endif %}
+        >
+      </div>
+
+      <div class="field">
+        <label
+          class="visually-hidden"
+          for="{{ section_id }}-blog-post-comment-email"
+        >
+          {{ 'blogs.comment_form.email' | t }}
+        </label>
+
+        <input
+          type="email"
+          name="comment[email]"
+          id="{{ section_id }}-blog-post-comment-email"
+          autocomplete="email"
+          class="blog-post-comments__form-input field__input"
+          value="{{ form.email }}"
+          autocorrect="off"
+          autocapitalize="off"
+          aria-required="true"
+          placeholder="{{ 'blogs.comment_form.email' | t }}"
+          required
+          {% if form.errors contains 'email' %}
+            aria-invalid="true"
+            aria-describedby="blog-post-comment-email-error"
+          {% endif %}
+        >
+      </div>
+
+      <div class="field blog-post-comments__form-body">
+        <label
+          class="visually-hidden"
+          for="{{ section_id }}-blog-post-comment-body"
+        >
+          {{ 'blogs.comment_form.message' | t }}
+        </label>
+
+        <textarea
+          rows="5"
+          name="comment[body]"
+          id="{{ section_id }}-blog-post-comment-body"
+          class="blog-post-comments__form-input blog-post-comments__form-input--textarea field__input"
+          aria-required="true"
+          placeholder="{{ 'blogs.comment_form.message' | t }}"
+          required
+          {% if form.errors contains 'body' %}
+            aria-invalid="true"
+            aria-describedby="blog-post-comment-body-error"
+          {% endif %}
+        >
+          {{- form.body -}}
+        </textarea>
+      </div>
+    </div>
+
+    {% if blog.moderated? %}
+      <p class="blog-post-comments__form-moderated">
+        {{- 'blogs.comment_form.moderated' | t -}}
+      </p>
+    {% endif %}
+
+    <button
+      class="button button-secondary blog-post-comments__form-submit"
+      type="submit"
+    >
+      {{ 'blogs.comment_form.post' | t }}
+    </button>
+  </div>
+{% endform %}
+
+{% stylesheet %}
+  /* ── Brand Tokens ─────────────────────────────────── */
+  .blog-post-comments__form-container {
+    --comment-form-gap: var(--gap-md);
+    --brand-deep-navy:     #1A2E4A;
+    --brand-mountain-blue: #2D5F8A;
+    --brand-sky-blue:      #3A7AB5;
+    --brand-ice-blue:      #7AB3D4;
+    --brand-frost:         #B8D9ED;
+    --brand-snow:          #E8F4FA;
+    --brand-stone-gray:    #5A6A78;
+
+    width: 100%;
+    max-width: var(--normal-content-width);
+    margin: var(--margin-4xl) auto 0;
+  }
+
+  /* ── Section Heading ──────────────────────────────── */
+  .blog-post-comments__form-container > h2 {
+    display: flex;
+    align-items: center;
+    color: var(--brand-deep-navy);
+    letter-spacing: 0.04em;
+    padding-left: 0.875rem;
+    border-left: 3px solid var(--brand-sky-blue);
+    margin-bottom: var(--margin-lg, 1.5rem);
+  }
+
+  /* ── Input Grid ───────────────────────────────────── */
+  .blog-post-comments__form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--comment-form-gap);
+
+    @media screen and (min-width: 750px) {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  /* ── Input Fields ─────────────────────────────────── */
+  .blog-post-comments__form-input {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--brand-deep-navy);
+    background-color: var(--brand-snow);
+    padding: var(--padding-lg) var(--padding-xl);
+    border-radius: var(--style-border-radius-inputs);
+    border: 1px solid var(--brand-frost);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    -webkit-font-smoothing: antialiased;
+    font-size: inherit;
+  }
+
+  .blog-post-comments__form-input::placeholder {
+    color: var(--brand-stone-gray);
+    opacity: 1;
+  }
+
+  .blog-post-comments__form-input:hover {
+    border-color: var(--brand-ice-blue);
+  }
+
+  .blog-post-comments__form-input:focus,
+  .blog-post-comments__form-input:focus-visible {
+    outline: none;
+    border-color: var(--brand-sky-blue);
+    box-shadow: 0 0 0 3px rgba(58, 122, 181, 0.12);
+    background-color: #ffffff;
+  }
+
+  /* ── Textarea ─────────────────────────────────────── */
+  .blog-post-comments__form-input--textarea {
+    resize: vertical;
+    min-height: var(--input-textarea-min-height);
+  }
+
+  .blog-post-comments__form-body {
+    grid-column: 1 / -1;
+  }
+
+  /* ── Status Messages ──────────────────────────────── */
+  .blog-post-comments__form-message {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-xs);
+    padding: 0.75rem 1rem;
+    border-radius: var(--style-border-radius-inputs);
+    font-size: var(--font-size--body-sm, 0.875rem);
+    background-color: var(--brand-snow);
+    border: 1px solid var(--brand-frost);
+    color: var(--brand-deep-navy);
+    margin-bottom: var(--comment-form-gap);
+  }
+
+  /* ── Moderated Note ───────────────────────────────── */
+  .blog-post-comments__form-moderated {
+    font-size: var(--font-size--xs);
+    color: var(--brand-stone-gray);
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+    line-height: 1.6;
+  }
+
+  /* ── Submit Button ────────────────────────────────── */
+  .blog-post-comments__form-submit {
+    margin-block-start: var(--comment-form-gap);
+    background-color: var(--brand-deep-navy) !important;
+    color: #ffffff !important;
+    border-color: var(--brand-deep-navy) !important;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
+  }
+
+  .blog-post-comments__form-submit:hover {
+    background-color: var(--brand-mountain-blue) !important;
+    border-color: var(--brand-mountain-blue) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26, 46, 74, 0.2) !important;
+  }
+
+  .blog-post-comments__form-submit:active {
+    transform: translateY(0);
+    box-shadow: none !important;
+  }
+{% endstylesheet %}

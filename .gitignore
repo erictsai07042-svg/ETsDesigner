@@ -1,0 +1,20 @@
+# Shopify CLI local state/cache (may contain auth tokens, machine-specific)
+.shopify/
+
+# Claude Code local-only overrides (personal, not shared project config)
+.claude/settings.local.json
+
+# Dependencies
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

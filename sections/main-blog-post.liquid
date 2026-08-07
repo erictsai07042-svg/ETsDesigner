@@ -1,0 +1,344 @@
+
+
+<div class="section-background color-{{ section.settings.color_scheme }}"></div>
+<div class="section color-{{ section.settings.color_scheme }}">
+  <div
+    class="
+      spacing-style
+      layout-panel-flex
+      layout-panel-flex--column
+      section-content-wrapper
+      mobile-column
+    "
+    style="
+      {% render 'layout-panel-style', settings: section.settings %}
+      {% render 'spacing-style', settings: section.settings %}
+    "
+  >
+    <header>
+      {%- content_for 'block', id: 'blog-post-title', type: 'text' %}
+      {%- content_for 'block', id: 'blog-post-details', type: '_blog-post-info-text' %}
+    </header>
+
+    {%- if article.image -%}
+      {%- content_for 'block', id: 'blog-post-image', type: '_blog-post-featured-image' %}
+    {%- endif -%}
+    {%- content_for 'block', id: 'blog-post-content', type: '_blog-post-content' %}
+
+    {% comment %} Dynamic area for @app blocks only, at the bottom {% endcomment %}
+    {% content_for 'blocks' %}
+
+    {% if blog.comments_enabled? %}
+      <div class="blog-post-comments-container">
+        <h2 class="h3">{{- 'blogs.article.comments_heading' | t: count: article.comments_count -}}</h2>
+
+        <div class="blog-post-comments">
+          {% paginate article.comments by 10 %}
+            {% for comment in article.comments %}
+              <div class="blog-post-comment">
+                {{ comment.content }}
+                <div class="blog-post-comment__author">
+                  <span class="blog-post-comment__author-name">{{- comment.author -}}</span>
+                  <span>{{- 'blogs.article.comment_author_separator' | t -}}</span>
+                  <span class="blog-post-comment__date">
+                    {{- comment.created_at | time_tag: format: 'date' -}}
+                  </span>
+                </div>
+              </div>
+            {% endfor %}
+
+            <div class="blog-post-comments-pagination">
+              {{- paginate | default_pagination -}}
+            </div>
+          {% endpaginate %}
+        </div>
+
+        {% render 'blog-comment-form', article: article, section_id: section.id %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script type="application/ld+json">
+  {{ article | structured_data }}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+TC:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+
+<style>
+  .blog-post-comments-container {
+    width: 100%;
+    max-width: var(--normal-content-width);
+    margin: 0 auto;
+  }
+
+  .blog-post-comments {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-3xl);
+  }
+
+  .blog-post-comment__author {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2xs);
+    margin-top: var(--margin-md);
+    font-size: var(--font-size--body-sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text));
+  }
+
+  .blog-post-comments-pagination {
+    display: flex;
+    justify-content: center;
+    gap: var(--gap-2xs);
+  }
+
+  .blog-post-comments-pagination,
+  .blog-post-comments-pagination a {
+    color: var(--color-foreground);
+  }
+
+  .blog-post-comments-pagination .current {
+    color: var(--color-foreground);
+  }
+
+  .blog-post-comments-pagination .current,
+  .blog-post-comments-pagination a {
+    display: block;
+    padding: var(--padding-2xs) var(--padding-xs);
+  }
+
+  .blog-post-comments-pagination .current,
+  .blog-post-comments-pagination a:hover {
+    border-bottom: 1px solid var(--color-foreground);
+  }
+
+  /* ─────────────────────────────────────────────────────────────────
+     Brand Tab System Override — Blog Article Rich Text
+     Strategy: underline-only tabs matching course intro page visual.
+     Fonts: Inter / Noto Sans TC per brand typography guidelines.
+     Colors: brand pairing — Stone Gray inactive, Deep Navy active,
+             Sky Blue (#3A7AB5) active underline, Ice Blue hover.
+     Radius: 10px for all rounded elements.
+  ───────────────────────────────────────────────────────────────── */
+
+  /* Tab bar container */
+  .tabs-wrap {
+    background: transparent !important;
+    border-bottom: 1.5px solid #B8D9ED !important;  /* Frost */
+    font-family: 'Inter', 'Noto Sans TC', sans-serif !important;
+    margin-top: 30px !important;
+  }
+
+  .tabs {
+    display: flex !important;
+    gap: 0 !important;
+    align-items: flex-end !important;
+    padding: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  /* Tab label — default (inactive) state */
+  .tab {
+    position: relative !important;
+    padding: 14px 32px 13px !important;
+    margin: 0 0 -1.5px 0 !important;
+    font-family: 'Inter', 'Noto Sans TC', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: #5A6A78 !important;              /* Stone Gray — inactive */
+    cursor: pointer !important;
+    border: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease !important;
+    letter-spacing: 0.03em !important;
+    -webkit-font-smoothing: antialiased !important;
+    display: inline-block !important;
+  }
+
+  /* Tab hover */
+  .tab:hover {
+    color: #1A2E4A !important;             /* Deep Navy */
+    border-bottom-color: #7AB3D4 !important;  /* Ice Blue */
+    background: rgba(184, 217, 237, 0.06) !important;
+  }
+
+  /* Active: Snowboard tab — underline only, no filled bg */
+  #tab-board:checked ~ .tabs-wrap .tab-board {
+    color: #1A2E4A !important;             /* Deep Navy */
+    background: transparent !important;
+    border-bottom-color: #3A7AB5 !important;  /* Sky Blue */
+    font-weight: 600 !important;
+  }
+
+  /* Active: Ski tab — underline only, no filled bg */
+  #tab-ski:checked ~ .tabs-wrap .tab-ski {
+    color: #1A2E4A !important;             /* Deep Navy */
+    background: transparent !important;
+    border-bottom-color: #3A7AB5 !important;  /* Sky Blue */
+    font-weight: 600 !important;
+  }
+
+  /* Tab content typography */
+  .content {
+    font-family: 'Inter', 'Noto Sans TC', sans-serif !important;
+    -webkit-font-smoothing: antialiased !important;
+  }
+
+  /* Intro block — brand color pairing: light bg → Deep Navy text */
+  .intro {
+    border-radius: 10px !important;
+    background: #ffffff !important;
+    color: #1A2E4A !important;             /* Deep Navy */
+    border-left-width: 3px !important;
+  }
+  .intro-board {
+    border-left-color: #2D5F8A !important; /* Mountain Blue */
+    box-shadow: 0 2px 8px rgba(26, 46, 74, 0.08) !important;
+  }
+  .intro-ski {
+    border-left-color: #3A7AB5 !important; /* Sky Blue */
+    box-shadow: 0 2px 8px rgba(26, 46, 74, 0.08) !important;
+  }
+
+  /* Step dot — Sky Blue accent */
+  .step-dot {
+    border-radius: 50% !important;
+    background: #3A7AB5 !important;        /* Sky Blue */
+    color: #ffffff !important;
+  }
+
+  /* Step card / panel backgrounds */
+  #panel-board {
+    background: #E8F4FA !important;        /* Snow White — light bg */
+  }
+  #panel-ski {
+    background: #E8F4FA !important;        /* Snow White — consistent */
+  }
+
+  /* Step body cards — white on Snow White bg, Frost border */
+  .step-body {
+    background: #ffffff !important;
+    border: 1px solid #B8D9ED !important;  /* Frost */
+    border-radius: 10px !important;
+    box-shadow: 0 2px 8px rgba(26, 46, 74, 0.06) !important;
+  }
+
+  /* Step body heading — Deep Navy H3 */
+  .step-body h3,
+  .step-body .step-title {
+    color: #1A2E4A !important;             /* Deep Navy */
+    font-family: 'Inter', 'Noto Sans TC', sans-serif !important;
+    font-weight: 600 !important;
+  }
+
+  /* Step body supporting text — Stone Gray body */
+  .step-body p,
+  .step-body .step-desc {
+    color: #5A6A78 !important;             /* Stone Gray */
+    font-size: 15px !important;
+    line-height: 1.75 !important;
+  }
+
+  /* Tag / badge elements — Label style per brand */
+  .tag, .badge, .step-tag {
+    border-radius: 20px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  /* ── 學習歷程分級表 Header — Ski Slope Background ────────────────
+     Replaces solid Deep Navy with AI-generated ski slope photo.
+     60% Deep Navy overlay ensures white title/text remains legible.
+  ─────────────────────────────────────────────────────────────── */
+  header.header {
+    background-color: transparent !important;
+    background-image:
+      linear-gradient(rgba(26, 46, 74, 0.6), rgba(26, 46, 74, 0.6)),
+      url('https://cdn.shopify.com/s/files/1/0651/9413/1539/files/Snowy_mountain_slope_ski_tracks_202607172207.jpg?v=1784297310') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+  }
+
+  /* Suppress the SVG pattern pseudo-element so it doesn't layer on top */
+  header.header::before {
+    display: none !important;
+  }
+</style>
+
+{% schema %}
+{
+  "name": "t:names.blog_post",
+  "blocks": [
+    {
+      "type": "@theme"
+    },
+    {
+      "type": "@app"
+    }
+  ],
+  "class": "section-wrapper",
+  "settings": [
+    {
+      "type": "select",
+      "id": "content_direction",
+      "label": "t:settings.direction",
+      "options": [
+        {
+          "value": "column",
+          "label": "t:options.vertical"
+        }
+      ],
+      "default": "column",
+      "visible_if": "{{ section.settings.gap < 0 }}"
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "t:settings.gap",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "header",
+      "content": "t:content.padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "t:settings.top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "t:settings.bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": []
+}
+{% endschema %}

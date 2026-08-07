@@ -1,0 +1,59 @@
+{% comment %}
+  Plan B 觸發器：購物車頁載入/更新時，檢查有沒有課程商品還沒補 Stage 2/3 資料，有的話跳出 Modal。
+  只負責「何時該顯示」，「顯示什麼」完全交給 assets/course-stage2-module.js。
+  未來升級成 Plan A（商品頁不跳轉）時，只需要另外寫一個監聽 add-to-cart 的觸發器，
+  這個檔案可以整個刪除，course-stage2-module.js 不需要改動。
+{% endcomment %}
+<script src="{{ 'course-stage2-module.js' | asset_url }}" defer></script>
+<div id="cart-stage2-trigger-mount"></div>
+<script>
+(function () {
+  var STAGE2_DONE_KEY = '_stage2_completed';
+
+  function isCourseItem(item) {
+    return item.product_type === 'Course' || (item.handle && item.handle.indexOf('course') > -1);
+  }
+
+  function findItemNeedingStage2(cart) {
+    return cart.items.filter(function (item) {
+      return isCourseItem(item) && !item.properties[STAGE2_DONE_KEY];
+    })[0];
+  }
+
+  function checkAndTrigger() {
+    var mount = document.getElementById('cart-stage2-trigger-mount');
+    if (!mount || !window.CourseStage2Module) return;
+
+    fetch('/cart.js')
+      .then(function (r) { return r.json(); })
+      .then(function (cart) {
+        var targetItem = findItemNeedingStage2(cart);
+        if (!targetItem) {
+          mount.innerHTML = '';
+          return;
+        }
+        window.CourseStage2Module.renderStage2Form(mount, {
+          attendeeCount: targetItem.quantity,
+          productTitle: targetItem.product_title,
+          onSubmit: function (properties) {
+            properties[STAGE2_DONE_KEY] = 'true';
+            window.CourseStage2Module.writeCourseFormDataToCart(targetItem.key, properties).then(function () {
+              checkAndTrigger();
+            });
+          },
+          onSkip: function () {
+            var skipProps = {};
+            skipProps[STAGE2_DONE_KEY] = 'skipped';
+            window.CourseStage2Module.writeCourseFormDataToCart(targetItem.key, skipProps).then(function () {
+              checkAndTrigger();
+            });
+          },
+        });
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', checkAndTrigger);
+  document.addEventListener('cart:update', checkAndTrigger);
+  if (document.readyState !== 'loading') checkAndTrigger();
+})();
+</script>

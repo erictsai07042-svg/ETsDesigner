@@ -1,0 +1,97 @@
+<style>
+  .breadcrumbs-wrapper-{{ section.id }} {
+    padding-top: {{ section.settings.padding_top }}px;
+    padding-bottom: {{ section.settings.padding_bottom }}px;
+  }
+
+  #shopify-section-{{ section.id }} .breadcrumbs {
+    text-align: left !important;
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  #shopify-section-{{ section.id }} .breadcrumbs ol {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start !important;
+  }
+</style>
+
+<div class="breadcrumbs-wrapper-{{ section.id }}">
+  <div class="breadcrumbs-inner-{{ section.id }}">
+    {%- render 'breadcrumbs' -%}
+  </div>
+</div>
+
+<script>
+  (function() {
+    function alignBreadcrumbs() {
+      var inner = document.querySelector('.breadcrumbs-inner-{{ section.id }}');
+      if (!inner) return;
+
+      var w = window.innerWidth;
+
+      if (w < 750) {
+        // 手機版：16px 對齊漢堡選單
+        inner.style.paddingLeft = '16px';
+      } else if (w < 990) {
+        // Tablet：對齊 LOGO（tablet 通常 LOGO 在左）
+        var logo = document.querySelector('header a img');
+        if (logo) {
+          inner.style.paddingLeft = logo.getBoundingClientRect().left + 'px';
+        } else {
+          inner.style.paddingLeft = '24px';
+        }
+      } else {
+        // 桌面版：對齊 LOGO
+        var logo = document.querySelector('header a img');
+        if (!logo) return;
+        inner.style.paddingLeft = logo.getBoundingClientRect().left + 'px';
+      }
+    }
+    alignBreadcrumbs();
+    window.addEventListener('resize', alignBreadcrumbs);
+  })();
+</script>
+
+
+
+{% schema %}
+{
+  "name": "Custom Breadcrumbs",
+  "settings": [
+    {
+      "type": "header",
+      "content": "上下間距設定"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "label": "上方間距 (Padding Top)",
+      "default": 15
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "px",
+      "label": "下方間距 (Padding Bottom)",
+      "default": 15
+    }
+  ],
+  "presets": [
+    {
+      "name": "Custom Breadcrumbs"
+    }
+  ]
+}
+{% endschema %}

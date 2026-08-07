@@ -1,0 +1,122 @@
+
+{%- assign block_settings = block.settings -%}
+<button
+  type="submit"
+  class="button submit-button size-style {{ block_settings.style_class }}"
+  style="{% render 'size-style', settings: block_settings %}"
+  {{ block.shopify_attributes }}
+>
+  {{ block_settings.label }}
+</button>
+
+{% stylesheet %}
+  .submit-button {
+    min-width: max-content;
+    background-color: #1A2E4A !important;
+    color: #ffffff !important;
+    border-color: #1A2E4A !important;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease !important;
+  }
+
+  .submit-button:hover {
+    background-color: #2D5F8A !important;
+    border-color: #2D5F8A !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26, 46, 74, 0.2) !important;
+  }
+
+  .submit-button:active {
+    transform: translateY(0);
+    box-shadow: none !important;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.submit_button",
+  "tag": null,
+  "settings": [
+    {
+      "type": "text",
+      "id": "label",
+      "label": "t:settings.label",
+      "default": "t:text_defaults.contact_form_button_label"
+    },
+    {
+      "type": "select",
+      "id": "style_class",
+      "label": "t:settings.style",
+      "options": [
+        {
+          "value": "button",
+          "label": "t:options.primary"
+        },
+        {
+          "value": "button-secondary",
+          "label": "t:options.secondary"
+        }
+      ],
+      "default": "button"
+    },
+    {
+      "type": "header",
+      "content": "t:content.size"
+    },
+    {
+      "type": "select",
+      "id": "width",
+      "label": "t:settings.width_desktop",
+      "options": [
+        {
+          "value": "fit-content",
+          "label": "t:options.fit_content"
+        },
+        {
+          "value": "custom",
+          "label": "t:options.custom"
+        }
+      ],
+      "default": "fit-content"
+    },
+    {
+      "type": "range",
+      "id": "custom_width",
+      "label": "t:settings.width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100,
+      "visible_if": "{{ block.settings.width == 'custom' }}"
+    },
+    {
+      "type": "select",
+      "id": "width_mobile",
+      "label": "t:settings.width_mobile",
+      "options": [
+        {
+          "value": "fit-content",
+          "label": "t:options.fit_content"
+        },
+        {
+          "value": "custom",
+          "label": "t:options.custom"
+        }
+      ],
+      "default": "fit-content"
+    },
+    {
+      "type": "range",
+      "id": "custom_width_mobile",
+      "label": "t:settings.width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "default": 100,
+      "visible_if": "{{ block.settings.width_mobile == 'custom' }}"
+    }
+  ],
+  "presets": []
+}
+{% endschema %}

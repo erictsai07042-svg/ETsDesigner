@@ -1,0 +1,282 @@
+
+
+<div
+  class="social-icons__wrapper"
+  {{ block.shopify_attributes }}
+>
+  {% liquid
+    assign social_links = 'facebook_url,instagram_url,youtube_url,tiktok_url,twitter_url,threads_url,linkedin_url,bluesky_url,snapchat_url,pinterest_url,tumblr_url,vimeo_url,custom_url' | split: ','
+  %}
+
+  {% for link_key in social_links %}
+    {% liquid
+      assign link_url = block.settings[link_key]
+      assign render_icon = true
+
+      if link_url != blank
+        # Map setting names to platform names for display and icon purposes
+        case link_key
+          when 'facebook_url'
+            assign platform = 'facebook'
+          when 'instagram_url'
+            assign platform = 'instagram'
+          when 'youtube_url'
+            assign platform = 'youtube'
+          when 'tiktok_url'
+            assign platform = 'tiktok'
+          when 'twitter_url'
+            assign platform = 'twitter'
+          when 'threads_url'
+            assign platform = 'threads'
+          when 'linkedin_url'
+            assign platform = 'linkedin'
+          when 'bluesky_url'
+            assign platform = 'bluesky'
+          when 'snapchat_url'
+            assign platform = 'snapchat'
+          when 'pinterest_url'
+            assign platform = 'pinterest'
+          when 'tumblr_url'
+            assign platform = 'tumblr'
+          when 'vimeo_url'
+            assign platform = 'vimeo'
+          when 'custom_url'
+            # For custom URLs, extract domain from URL for platform identification
+            assign platform = link_url | split: '//' | last | remove: 'www.' | split: '.' | first
+            # Special handling for specific platforms
+            case platform
+              when 'x'
+                assign platform = 'twitter'
+              else
+                assign render_icon = false
+            endcase
+        endcase
+
+        # Check if URL has a profile path (more than just the domain)
+        assign url_parts = link_url | split: '//' | last | split: '/'
+        assign has_profile = false
+
+        if url_parts.size > 1 and url_parts[1] != ''
+          assign has_profile = true
+        endif
+
+        unless render_icon
+          assign has_profile = true
+        endunless
+      endif
+    %}
+
+    {% comment %}
+      Only render the social icon if:
+      1. In editor mode (always show, but may be disabled)
+      2. On storefront AND has a valid profile link
+    {% endcomment %}
+    {% if link_url != blank %}
+      {% if request.design_mode or has_profile %}
+        <div
+          class="social-icons__icon-wrapper{% unless has_profile %} social-icons__icon-wrapper--disabled{% endunless %}"
+        >
+          <a
+            href="{{ link_url }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="{{ platform | capitalize }}"
+            {% unless has_profile %}
+              {% if request.design_mode %}
+                onclick="return false;"
+                aria-disabled="true"
+              {% endif %}
+            {% endunless %}
+          >
+            <span class="social-icons__icon-label">{{ platform | capitalize }}</span>
+            {% if render_icon %}
+              <svg
+                class="social-icons__icon icon-default"
+                aria-hidden="true"
+                focusable="false"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+              >
+                {%- render 'icon', icon: platform -%}
+              </svg>
+            {% endif %}
+          </a>
+        </div>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+    <!-- LINE Icon Hardcoded -->
+    <div class="social-icons__icon-wrapper">
+      <a
+        href="https://line.me/R/ti/p/@455lfqzf"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="LINE"
+        class="line-social-link"
+      >
+        <span class="social-icons__icon-label">LINE</span>
+        <svg class="social-icons__icon icon-default icon-line-custom" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd" fill="currentColor">
+          <path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.608.391.084.922.258 1.057.592.121.303.079.778.039 1.085l-.171 1.027c-.053.303-.242 1.186 1.039.647 1.281-.54 6.911-4.069 9.428-6.967 1.739-1.907 2.572-3.843 2.572-5.992zm-18.988-2.595c.129 0 .234.105.234.234v4.153h2.287c.129 0 .233.104.233.233v.842c0 .129-.104.234-.233.234h-3.363c-.063 0-.119-.025-.161-.065l-.001-.001-.002-.002-.001-.001-.003-.003c-.04-.042-.065-.099-.065-.161v-5.229c0-.129.104-.234.233-.234h.842zm14.992 0c.129 0 .233.105.233.234v.842c0 .129-.104.234-.233.234h-2.287v.883h2.287c.129 0 .233.105.233.234v.842c0 .129-.104.234-.233.234h-2.287v.884h2.287c.129 0 .233.105.233.233v.842c0 .129-.104.234-.233.234h-3.363c-.063 0-.12-.025-.162-.065l-.003-.004-.003-.003c-.04-.042-.066-.099-.066-.161v-5.229c0-.062.025-.119.065-.161l.004-.004.003-.003c.042-.04.099-.066.162-.066h3.363zm-10.442.001c.129 0 .234.104.234.233v5.229c0 .128-.105.233-.234.233h-.842c-.129 0-.234-.105-.234-.233v-5.229c0-.129.105-.233.234-.233h.842zm2.127 0h.008l.012.001.013.001.01.001.013.003.008.003.014.004.008.003.013.006.007.003.013.007.007.004.012.009.006.004.013.011.004.004.014.014.002.002.018.023 2.396 3.236v-3.106c0-.129.105-.233.234-.233h.841c.13 0 .234.104.234.233v5.229c0 .128-.104.233-.234.233h-.841l-.06-.008-.004-.001-.015-.005-.007-.003-.012-.004-.011-.006-.007-.003-.014-.009-.002-.002-.06-.058-2.399-3.24v3.106c0 .128-.104.233-.234.233h-.841c-.129 0-.234-.105-.234-.233v-5.229c0-.129.105-.233.234-.233h.841z"/>
+        </svg>
+      </a>
+    </div>
+
+</div>
+
+{% stylesheet %}
+  /* LINE Icon overrides */
+  .line-social-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
+  }
+  .line-icon-img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 50%;
+    filter: contrast(105%) brightness(88%) sepia(30%) hue-rotate(175deg) saturate(140%) !important;
+    transition: filter 0.3s ease, transform 0.3s ease !important;
+  }
+  .line-social-link:hover .line-icon-img {
+    filter: contrast(110%) brightness(105%) sepia(20%) hue-rotate(185deg) saturate(180%) !important;
+    transform: scale(1.08) !important;
+  }
+  .line-social-link .social-icons__icon-label {
+    display: none !important;
+  }
+
+  .social-icons__wrapper {
+    display: flex;
+    gap: var(--gap-sm);
+    flex-wrap: wrap;
+    justify-content: center;
+
+    @media screen and (min-width: 750px) {
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+    }
+  }
+
+  .social-icons__icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--icon-size-lg);
+  }
+
+  .social-icons__icon {
+    display: flex;
+    flex-shrink: 0;
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
+  }
+
+  .social-icons__icon {
+    display: none;
+  }
+
+  .social-icons__icon-wrapper:has(.social-icons__icon path) {
+    width: var(--icon-size-lg);
+
+    .social-icons__icon {
+      display: block;
+    }
+
+    .social-icons__icon-label {
+      display: none;
+    }
+  }
+
+  /* Disabled state for editor */
+  .shopify-design-mode .social-icons__icon-wrapper--disabled {
+    opacity: var(--disabled-opacity, 0.5);
+    cursor: not-allowed;
+  }
+
+  .shopify-design-mode .social-icons__icon-wrapper--disabled a {
+    pointer-events: none;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.social_media_links",
+  "tag": null,
+  "settings": [
+    {
+      "type": "url",
+      "id": "facebook_url",
+      "label": "t:options.facebook"
+    },
+    {
+      "type": "url",
+      "id": "instagram_url",
+      "label": "t:options.instagram"
+    },
+    {
+      "type": "url",
+      "id": "youtube_url",
+      "label": "t:options.youtube"
+    },
+    {
+      "type": "url",
+      "id": "tiktok_url",
+      "label": "t:options.tiktok"
+    },
+    {
+      "type": "url",
+      "id": "twitter_url",
+      "label": "t:options.twitter"
+    },
+    {
+      "type": "url",
+      "id": "threads_url",
+      "label": "t:options.threads"
+    },
+    {
+      "type": "url",
+      "id": "linkedin_url",
+      "label": "t:options.linkedin"
+    },
+    {
+      "type": "url",
+      "id": "bluesky_url",
+      "label": "t:options.bluesky"
+    },
+    {
+      "type": "url",
+      "id": "snapchat_url",
+      "label": "t:options.snapchat"
+    },
+    {
+      "type": "url",
+      "id": "pinterest_url",
+      "label": "t:options.pinterest"
+    },
+    {
+      "type": "url",
+      "id": "tumblr_url",
+      "label": "t:options.tumblr"
+    },
+    {
+      "type": "url",
+      "id": "vimeo_url",
+      "label": "t:options.vimeo"
+    },
+    {
+      "type": "url",
+      "id": "custom_url",
+      "label": "t:settings.custom_link"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.social_media_links",
+      "category": "t:categories.footer"
+    }
+  ]
+}
+{% endschema %}
