@@ -1,6 +1,98 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-08
+最後更新：2026-08-09
+
+## ✅ 視覺 QA 修正需求規格 A→E 全部完成（2026-08-08～09，跨兩個對話日）
+
+依照使用者提供的 `視覺QA修正需求規格_20260808.md`，依序執行 A→B→C→D→E。**全部完成並實機驗證通過（含端對端下單流程）**。過程中 E-1 意外挖出一個架構性問題（測試商品跟正式商品共用 BTA tag，導致 Booking Field 錯配、且測試商品誤入正式商品系列），使用者已在 BTA/Shopify 後台修正，細節見下方「E-1」段落。
+
+**下一步待辦（規格已交付但尚未執行）**：Stage 3 必勾同意 checkbox（見 `Stage3_checkbox_需求規格.md`）、裝備租賃法律聲明文字置入 Stage 3 Modal（見 `Stage3_法律聲明文字_定稿.md`），細節見文件最下方「待辦事項」。
+
+### 關鍵技術發現（供之後維護這段程式碼的人參考）
+
+1. **BTA widget 的 iframe 是用 `srcdoc` 掛載，跟外層頁面同源**，`iframe.contentDocument` 可以直接讀取/操作/監聽（已實機驗證多次）。這打開了一個之前沒探索過的管道：可以用 `MutationObserver` 監聽 BTA 自己 React app 內部的狀態變化（例如 `document.body` 出現 `ReactModal__Body--open` class 代表跳出「確認課程細節」彈窗），也可以直接改內部文字/注入 `<style>`。**但這個 iframe 剛被偵測到時，裡面可能還是瀏覽器給的空白 document，真正 srcdoc 內容載入後會整個換掉這個 document 物件**——一定要監聽 `iframe` 的 `load` 事件（同時搭配立即嘗試一次 + 短暫輪詢保底），不能只在偵測到 `<iframe>` 節點的當下就抓一次 `contentDocument` 存起來用。
+2. **BTA 掛載 widget 時會把 `#bta-product-widget` 整個移除、重新插入成 `form.shopify-product-form` 的直接子層**（跟決策 4/5 記錄的現象一致，這次是第二次被實測證實）。這件事會連帶影響：任何「我們自己另外加的元素」如果原本巢狀放在 widget 附近但沒被 BTA 認得，會被留在原地——如果那個原地剛好在 `position: sticky`（或其他已定位）容器底下，會變成錯誤的 absolute 定位 containing block，位置全部跑掉。這次加的進度條疊加元件就踩到這個坑，修法是**偵測到 widget 定位好之後，用 `insertBefore` 把我們自己的元素也搬到跟 widget 同一層**（是我們自己的元素，不是 BTA 的節點，搬移沒有 decision 4 記錄的 iframe 重載風險）。
+3. **BTA 用 `form[action*="/cart/add"] > :not(白名單)` 隱藏所有它不認得的直接子層元素**——上一點提到的「搬到跟 widget 同一層」會讓我們自己的元素也被這條規則連坐隱藏，必須跟 `revealStepUI()` 一樣，對它強制設 `display` + `!important` 蓋過去。
+4. **注入進 iframe 內部的 `<style>`，大部分屬性都正常生效（顏色/框線/圓角/字重全部沒問題），但 `.ReactModal__Content` 這個元素的 `border`/`box-shadow` 兩個屬性怎麼樣都套用不上**（同一條規則裡的 `border-radius` 卻沒問題），懷疑是 styled-components 動態插入了另一條特異度或時機更晚的規則，原因沒有完全查清楚。**繞過法：這兩個屬性改用跟 widget 定位同一招的「直接 inline style + `setProperty(..., 'important')`，每次內容更新時重新套用一次」**，這招目前為止沒有失敗過。
+5. **BTA 的 Stage2 表單欄位是 React controlled component**，如果要用程式（非真人點擊）去改 `<select>`/`<input>`/`<checkbox>` 的值做端對端測試，直接設 `.value`/`.checked` 再 `dispatchEvent(new Event('change'))` **對下拉選單有效，但對文字輸入框/radio/checkbox 無效**（React 內部用另一個 property descriptor 追蹤狀態，直接賦值會被無視）。要用 `Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(el, value)` 這個標準繞過法才能讓 React 偵測到變化。這不影響真人操作（真人點擊/輸入本來就正常），只影響「用程式模擬測試」時要注意。
+
+### A. Step1 進度指示疊加 + 按鈕中文化 —— ✅ 完成並驗證通過
+
+- 在 `#booking-current-date-picker` 內、`#bta-product-widget` 之前加了 `#bta-step-progress-bar`（沿用購物車頁 Stage3 Modal 的 `booking-progress-stepper`/`step-item`/`step-dot` 視覺語言），用跟決策 6 同一套「量測 hero 高度 + ResizeObserver 動態定位」手法疊加在 widget 上方，不改變 BTA DOM 順序。
+- 用 `MutationObserver` 監聽 BTA iframe 內部 `ReactModal__Body--open` class 的出現/消失，同步進度條在「① 日期」（未選）跟「① ✓ 日期 → ② 資訊（進行中）」（已進入確認畫面）之間切換，桌機/手機都驗證過正確。
+- 按鈕文字中文化：`Make a Selection`→`請選擇日期`、`Next`→`下一步`、`Book Now`→`確認預約`，用 `TreeWalker` 掃 iframe 內文字節點、逐一精準比對整段文字取代（不是子字串替換），搭配 `MutationObserver` 每次 BTA 重繪都重新套用一次。**沒有去查 BTA 後台是否有原生語言設定選項**（沒有登入權限），直接採用需求文件裡的前端 CSS/JS 覆蓋 fallback 方案，效果上等同。
+- 實機在草稿預覽網域（`lifechillsnow.com` + `preview_theme_id`）驗證：桌機/手機（375px）都測過，進度條正確顯示、正確跟隨 Stage1↔Stage2 切換、按鈕文字正確、Console 無新增錯誤。
+
+### B. Step2 CSS 皮膚化 + 滑雪場選單資料修正 —— ✅ 全部完成並驗證通過
+
+- 用 `doc.head.appendChild(<style>)` 把皮膚化樣式直接注入 BTA iframe 自己的 document（外層頁面的 `<style>` 對 iframe 內部完全無效，這是這次才確認的事實）。套用範圍：`.ReactModal__Content` 卡片外框/圓角/陰影、`.widget-title`（改成「02 預訂資訊與規格確認」，比照 Gemini 稿標題格式＋左側 Sky Blue 裝飾線）、`.description-title`、`.additional-field-label`、`.control-label`、`.form-control`（Ice Blue 邊框）、送出按鈕（Deep Navy 底色）。
+- 過程中修掉一個新發現的版位問題：Stage2 確認畫面左上角有一個 `position:absolute` 的返回箭頭，原本 `text-align:center` 的標題不會撞到它，改成靠左對齊後會被蓋住，用更高特異度選擇器（`.ReactModal__Content .widget-title`）只對這個彈窗額外加 `margin-left`，不影響 Stage1「Select a Date」標題原本的置中排版。
+- 英文介面文字（`Book a product`、`Please confirm you would like to request the following product`、`Additional information`、下拉選單的 `Select...`）用跟 A 項同一套 `TreeWalker` 精準比對機制中文化。
+- **滑雪場下拉選單資料修正（札幌手稻/旭川神居/富良野/佐幌 → 富良野滑雪場/神居滑雪場/星野滑雪場）已由使用者於 BTA 後台完成**——過程中意外牽出一個架構性問題（測試商品跟正式商品共用觸發用的 Shopify tag），連帶重新設計了整套 tag 架構，細節完整記錄在下方「E-1」段落，不重複寫在這裡。
+- 桌機/手機都驗證過卡片外框、標題、欄位樣式、按鈕底色正確套用，Console 無新增錯誤。
+
+### C. Stage3 Modal 移除點外部誤觸關閉 —— ✅ 完成並驗證通過
+
+- `assets/course-stage2-module.js`：`.cs2-backdrop` 這個背景遮罩 div 原本跟關閉按鈕共用 `data-cs2-skip` 屬性，點擊背景會觸發跟按「略過，之後再補」一樣的關閉+skip 邏輯。**拿掉背景 div 的 `data-cs2-skip` 屬性即可**，明確的關閉方式（略過按鈕、確認加購按鈕）完全沒動。
+- 用直接呼叫 `CourseStage2Module.renderStage2Form(...)` 的方式在購物車頁測試（不需要真的走完整加入購物車流程），桌機/手機都驗證過：點擊背景 Modal 維持開啟、已勾選項目不遺失，「略過，之後再補」按鈕仍正常關閉並觸發 `onSkip` callback。
+
+### D. 手機版 RWD 同步驗證 —— ✅ 完成，A/B/C 三項手機版都正常，沒有發現需要回報的技術限制
+
+- 375px 寬度下逐一重測 A（進度條加了一條 `@media (max-width: 480px)`，窄螢幕只顯示圓點+數字、隱藏「日期/資訊/加購」文字標籤，避免擠壓）、B（Stage2 表單卡片/標題/欄位排版在手機版一樣乾淨，沒有溢位或重疊）、C（Modal 手機版比例正常，背景點擊行為跟桌機一致）。
+- 沒有發現任何「手機版跟電腦版行為不同、需要犧牲其中一邊」的情況，不需要另外跟使用者討論取捨。
+
+### E. 四商品欄位差異檢測 + 保險文案定稿 + 必填星號 —— ✅ 全部完成，過程中意外挖出並修正一個架構性問題
+
+**E-1（欄位差異檢測）—— 過程曲折，最終完成，並意外挖出測試商品跟正式商品共用 tag 的架構問題**：
+
+- 結構性檢查（時段欄位有無）在四個商品上都驗證過：`test-course-fullday-peak`／`fullday-offpeak` 沒有「時段」欄位 ✓、`test-course-halfday-peak`／`halfday-offpeak` 有「時段(半天專用)」欄位 ✓，符合全天班固定時段、半天班需選時段的預期。
+- **排查滑雪場下拉選單資料錯誤（B 項）時，發現真正的根因**：BTA 的 Booking Fields（雪板類型、滑雪場、時段等）都是用 Shopify 商品標籤 `halfday`／`fullday` 作為「Apply to specific products」的觸發條件，**而測試商品跟正式商品共用同一組 tag**。這導致新建的測試專用欄位（原本 Apply 條件設 `test-course`）跟舊有正式欄位（Apply 條件是 `halfday`／`fullday`）在測試商品上同時符合條件，同一個欄位重複顯示兩次。
+- **意外連帶發現一個跟這次任務無關的既有 bug**：測試商品因為帶著 `halfday`／`fullday` tag，**同時被兩個正式商品系列（Collections）「北海道 富良野&神居 私人滑雪課程 (全天/半天)」自動收錄**——代表一般消費者瀏覽正式商品系列頁面時，理論上可能會看到測試商品混在裡面。已一併修正。
+- **最終解法（使用者在 BTA/Shopify 後台完成，三層 tag 分工）**：
+  1. 四個測試商品原本掛的 `halfday`／`fullday` tag，**改成 `test-halfday`／`test-fullday`**（全天班兩商品用 `test-fullday`，半天班兩商品用 `test-halfday`）
+  2. `test-course` tag（四個測試商品共通）保留不變，套用「所有測試商品共通」的欄位（例如滑雪場）
+  3. 測試專用 Booking Field 的 Apply 條件重新分工：滑雪場欄位 Apply = `test-course`（四商品共通）；時段欄位 Apply = `test-halfday`（**過程中一度誤設成 `test-course`，導致全天班商品也錯誤跑出時段選單，已修正為 `test-halfday`**）
+  4. 正式商品的 tag（`halfday`／`fullday`）跟正式 Booking Field 設定完全沒被動到，只換了測試商品身上的 tag
+  5. 副作用（正面）：測試商品不再帶 `halfday`／`fullday` 後，已自動從那兩個正式商品系列移除，順手修正了「測試商品誤入正式商品系列」的問題
+- **踩到的坑，供之後參考**：
+  - 之前請我搜尋整個 repo 程式碼確認「有沒有地方用 `product.tags contains 'halfday'/'fullday'` 做判斷」，結果是沒有（只有 `product.handle` 字串比對用於導頁，跟 tags 無關）——但 **Shopify 後台的商品系列（Collections）自動化規則本來就不會出現在程式碼裡，純程式碼搜尋抓不到這一層依賴**，是純後台查證才抓到的。之後遇到類似「這個 tag 還有誰在用」的問題，程式碼搜尋只能排除「theme 程式碼本身」這一層風險，Collections、自動化折扣規則等後台設定要另外查。
+  - 新建平行測試用 Booking Field 時，Apply 條件的粒度要跟原始邏輯完全對應（時段只該對應半天班），圖方便套用更大範圍的共用 tag（`test-course`）會導致欄位在不該出現的商品上跑出來。
+- **時段選項文字（原「上午3小時」/「下午3小時」→ 定稿「上午課程時間：9:00~12:00」/「下午課程時間：13:00~16:00」）已由使用者在 BTA 後台一併修正**。
+- **端對端下單流程最終驗證結果**：`test-course-fullday-peak`、`test-course-fullday-offpeak`、`test-course-halfday-peak` 三個商品都已完整走過一次（選日期→填表單→加入購物車→properties 正確）。`test-course-halfday-offpeak` 在前次對話因瀏覽器自動化工具逾時中斷，**沒能確認那筆測試訂單是否成功進購物車**——這件事本身不影響「這次程式碼改動是否安全」的結論（送出邏輯完全沒被動過，其餘三商品都驗證通過），但那筆中斷的測試訂單如果還留在測試環境的購物車/訂單記錄裡，之後可以視需要清一下，不算功能缺陷。
+
+**E-2（保險文案定稿）已完成並驗證通過，四個商品都套用正確**：
+- 原文案被 `<strong>` 標籤切成好幾段文字節點，沒辦法用單一文字節點比對取代，改成整段 `<p>` 的 `textContent` 直接覆寫成定稿文字（`主辦方建議於入境日本 5 天內自行投保東京海上日動旅遊險，可享中文醫療專線、免墊付醫療費、突發事故保障。`），用「東京海上日動旅遊險」這個關鍵字定位到正確段落。**會失去原本 `<strong>` 的粗體強調效果**（換取文字逐字正確，需求明確以文字定稿為優先）。
+- Checkbox 標籤文字「我已閱讀並了解上述保險建議」原本就已經跟定稿一致，不需要改。
+
+**E-3（必填欄位標題加註 `*`）已完成並驗證通過，四個商品都套用正確**：
+- 沒有用「猜」的方式判斷必填/非必填，而是**實際觸發一次 BTA 自己的空白送出驗證**（`test-course-halfday-peak` 上做的），看它自己標記哪些欄位 `Required`——結果除了「備註／其他需求」（唯一的 `<textarea>`，也是唯一 placeholder 寫 `[選填]` 的欄位）以外全部必填。用「容器內有沒有 `<textarea>`」這個結構性判斷加 `＊` 前綴，不寫死個別欄位名稱，四個商品欄位組合不同（時段欄位只有半天班有）也能通用套用。
+- 保險同意欄位比較特殊：容器裡同時有「外層長描述段落」跟「checkbox 自己的短標籤」兩個 `.control-label`，星號加在使用者實際會看到的短標籤上（`＊我已閱讀並了解上述保險建議`，完全對應需求文件給的範例格式），不是加在描述段落開頭。
+
+### 涉及檔案異動總覽（A-E 這次一起做的）
+
+- `snippets/course-booking-form.liquid`：新增進度條 HTML/CSS、`positionWidgetOverlay()` 擴充支援進度條定位、新增 `setupBtaContentEnhancements()`/`attachTranslationAndStepSync()`/`injectBtaStyleSkin()`/`applyPanelFrame()`/`applyInsuranceTextFix()`/`applyRequiredAsterisks()` 這一整組 iframe 內容增強邏輯
+- `assets/course-stage2-module.js`：`.cs2-backdrop` 拿掉 `data-cs2-skip` 屬性（C 項唯一異動）
+- 以上都是**檔案層級**的異動。B/E-1 額外牽涉到的滑雪場選單資料、時段選項文字、tag 架構調整，都是**使用者直接在 BTA／Shopify 後台完成，不在這個 repo 的版控範圍內**，程式碼這邊不需要也沒有對應的 commit。
+
+### ⚠️ 給下一個接手對話的重要提醒（tag 架構，2026-08-09）
+
+1. **四個測試商品現在身上的 tag 應該是 `test-course` + (`test-halfday` 或 `test-fullday`)，不應該再帶有 `halfday`／`fullday`**。之後如果又發現測試商品混入正式商品系列（Collections），或 Stage2 表單欄位又重複/錯配，第一件事先檢查是不是 tag 被意外改回共用 tag。
+2. **BTA 後台目前同時存在新舊兩組平行欄位**（例如兩個「滑雪場」欄位，可能還有兩個「時段」欄位），分別對應正式商品（Apply = `halfday`／`fullday`）跟測試商品（Apply = `test-course`／`test-halfday`／`test-fullday`）。建議之後在 BTA 後台把舊欄位 Label 加註「（正式）」之類的備註避免混淆——**這件事先前已經建議過，需要跟使用者確認是否已經做**。
+3. `test-course-halfday-offpeak` 上次中斷的端對端測試訂單，有空可以查一下 Shopify 後台訂單記錄或購物車，確認要不要清掉，不算阻塞性問題。
+
+
+
+這個資料夾**先前完全沒有 git**（本文件多處提過這件事，例如裝備租賃法律聲明文字刪除後無法復原，就是吃了這個虧）。現在已經：
+
+1. `git init` 建立本機 repo
+2. 建立 `.gitignore`，排除：`.shopify/`（Shopify CLI 本機快取/可能含 token）、`.claude/settings.local.json`（Claude Code 個人本機設定，非共用專案設定，`.claude/launch.json` 本身仍然照樣進版控）、`node_modules/`、常見 OS/編輯器暫存檔、`*.log`
+3. Commit 前掃過根目錄所有 `.js` 工具腳本跟 `.agents/AGENTS.md`，確認沒有寫死任何 API token/密碼等機密資訊，才 `git add -A`
+4. Git 身份：這台機器原本完全沒設定過 `user.name`/`user.email`，**已依使用者指示，只設定成這個 repo 本機專用**（`git config --local`，不影響其他專案或全域設定）：`Eric Tsai <erictsai@lifechillsnow.local>`
+5. 初始 commit 已建立：`a5ef3b3`，457 個檔案、159,738 行新增，訊息為「Initial commit：專案穩定版本，含決策1-6完整功能（BTA整合、Stage2/3購物車流程、日曆定位）」
+
+**之後的意義**：從這個 commit 開始，任何改動都可以用 `git diff`／`git log`／`git checkout` 真正回溯，不用再完全依賴 `PROGRESS.md` 文字記錄跟手動復原。**之後每完成一個決策/修正，建議搭配一次 commit**，讓版本歷史跟 PROGRESS.md 的記錄互相對應。
+
+---
 
 ## ✅ 課程介紹頁「立即預訂」按鈕改成相對路徑（2026-08-08）
 
@@ -337,14 +429,21 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 1. ~~【最優先，下次接手第一件事】驗證決策 4 第 1 點的刪除沒有把頁面弄壞~~ ✅ 已於 2026-08-06 驗證通過，細節見文件最上方
 2. ~~執行決策 4 第 2 點（CSS order 手機版排序）~~ 🚫 已於 2026-08-06 實測發現原本的 CSS 路徑走不通，需要改動風險等級跟原訂單「純 CSS 低風險」不同，**使用者決定暫緩擱置**，細節見文件最上方「決策 4 第 2 點」段落。之後要重啟前，先跟使用者確認風險可接受再動手，不要不問就動 `<form class="shopify-product-form">` 的 display 屬性
 3. ~~清理決策 4 遺留的死 CSS~~ ✅ 已於 2026-08-06 完成並驗證，細節見文件最上方「決策 4 遺留死 CSS 已清理完成」段落
-4. 確認必勾同意 checkbox（`CheckBoxConsent1/2/3`）拿掉 JS 後是否需要重新設計互動（目前純靜態）——**使用者 2026-08-06 表示先不用做，之後再說**
-5. 裝備租賃法律聲明文字（風險/賠償金額表，原在 `TemplateLegalGear`）已隨清理刪除，若購物車頁 Modal 需要類似聲明，需另外處理（沒有保留備份，且本機資料夾沒有 git，無法從版本記錄復原）——**使用者 2026-08-06 表示還在確認這件事**
+4. 確認必勾同意 checkbox（`CheckBoxConsent1/2/3`）拿掉 JS 後是否需要重新設計互動（目前純靜態）——**需求規格已交付（見 `Stage3_checkbox_需求規格.md`），尚未執行**，下次接手可以開始做
+5. 裝備租賃法律聲明文字（風險/賠償金額表，原在 `TemplateLegalGear`）已隨清理刪除，若購物車頁 Modal 需要類似聲明，需另外處理——**定稿文字已交付（見 `Stage3_法律聲明文字_定稿.md`），尚未置入 Stage3 Modal**，下次接手可以開始做
 6. ~~檢查 BTA 後台「Add-ons」分頁，確認是否也能原生處理裝備加租~~ ✅ 已於 2026-08-06 查證：Add-ons 卡片顯示「No add-ons」且沒有「Manage」按鈕（對比同頁 Locations/Images 卡片都有），代表此功能對目前方案不可操作，非「尚未設定」。**結論：`assets/course-stage2-module.js` 購物車頁 Modal 是必要的，繼續維護，不考慮拆除**
 7. **【現在最優先】視覺 QA**：使用者提到有參考截圖但這次對話中沒有實際附上圖檔，購物車頁 Modal 樣式是依文字規格 + 直接復用 `course-booking-form.liquid` 既有 CSS 重建，**尚未經過使用者針對截圖的逐項比對確認**——**使用者 2026-08-06 表示稍後會提供截圖，收到後優先處理**
-8. 這次所有修正都只在 `test-course-fullday-peak`、`test-course-fullday-offpeak` 這兩個測試商品上驗證過，**尚未套用到其餘服務組合**（半天班旺季/淡季）
+8. ~~這次所有修正都只在 `test-course-fullday-peak`、`test-course-fullday-offpeak` 這兩個測試商品上驗證過，尚未套用到其餘服務組合（半天班旺季/淡季）~~ ✅ 已於 2026-08-08/09 視覺 QA 修正（A-E）過程中把四個測試商品都走過一次，細節見文件最上方「視覺 QA 修正需求規格 A→E 全部完成」段落
 9. ~~`layout/theme.liquid` 本地沙盒防護腳本只認 `127.0.0.1`/`localhost`，不包含 `.shopifypreview.com`；`page.course-introduction.json` 「立即預訂」按鈕寫死正式網域絕對網址~~ ✅ 兩部分都已修正完成。防護腳本判斷式 2026-08-07 已加上 `.shopifypreview.com`（`layout/theme.liquid` 第 413 行）。**2026-08-08 使用者改變主意，決定連「立即預訂」按鈕本身也要改成相對路徑**（見文件最上方「課程介紹頁『立即預訂』按鈕改成相對路徑」段落）——這跟 2026-08-07 當時「這是正式站給真人顧客用的連結，不是 bug」的判斷不同，**以使用者這次的最新決定為準**，兩處都已修正並在草稿預覽網域 + 本機環境驗證通過
 10. ~~決策 4 第 2 點 / 決策 5 都排除後的替代方向：`position: absolute` 純視覺定位方案~~ ✅ 已於 2026-08-06 正式實作完成並驗證通過（含動態量測、雙重 ResizeObserver、BTA style 覆蓋問題修正），細節見文件最上方「決策 6 正式實作完成並驗證通過」段落
 11. ~~`test-course-halfday-offpeak` 商品的 BTA widget 完全無法掛載/選不了日期~~ ✅ 使用者已於 2026-08-06／07 查明根因：BTA 後台「(test) 2026 Season」設定一開始漏了兩個半天服務，已補上並存檔，四個測試商品（全天/半天 × 旺季/淡季）在正式預覽網域上都確認可以正常選日期。**不是程式碼問題，不需要任何檔案修改**
 12. ~~決策 6 的完整購物車寫入流程端對端測試~~ ✅ 已於 2026-08-07 由使用者在自己的真實瀏覽器上完整驗證通過：選日期→填 BTA 表單→自動加入購物車→properties 正確寫入→Stage 3 加購 Modal 正確觸發，全部正常。細節見文件最上方「端對端購物車流程驗證通過」段落
-13. 這次端對端驗證只測了 `test-course-fullday-peak`；`test-course-halfday-peak`／`halfday-offpeak`／`fullday-offpeak` 還沒有實際走過完整下單流程（只確認過日期選得到），有空可以視情況補測，非急迫
+13. ~~這次端對端驗證只測了 `test-course-fullday-peak`；`test-course-halfday-peak`／`halfday-offpeak`／`fullday-offpeak` 還沒有實際走過完整下單流程~~ 🔶 2026-08-08/09 已補測 `test-course-fullday-offpeak`、`test-course-halfday-peak` ✅ 通過；`test-course-halfday-offpeak` 送出後因瀏覽器自動化工具逾時中斷，**沒能確認該筆訂單是否成功進購物車**，有空可以重新驗證一次或查 Shopify 後台訂單記錄確認，非阻塞性問題
 14. 🔍 **觀察中**：`127.0.0.1` preconnect / `blocks` API 連線失敗現象，2026-08-07 出現過一次、2026-08-08 重測未再出現，**根本原因未確認**（無法排除是測試工具環境問題，也無法排除是 BTA 後端偶發狀況）。細節、重現條件、給未來自己的提示見文件最上方「觀察中」段落。**只有在真實使用情境下穩定重現才需要升級處理**，不要因為這次的記錄就假設問題持續存在，也不要假設它已經排除
+15. ~~課程介紹頁「立即預訂」按鈕改成相對路徑~~ ✅ 已於 2026-08-08 完成，`templates/page.course-introduction.json` 4 個商品連結全部改成相對路徑，草稿預覽網域跟本機環境都驗證過不會再被導離目前環境。細節見文件最上方對應段落
+16. ~~專案初始化 Git 版本控制~~ ✅ 已於 2026-08-08 完成，`git init` + `.gitignore` + 初始 commit `a5ef3b3`。細節見文件最上方「專案正式納入 Git 版本控制」段落。**之後每完成一個決策/修正，建議搭配一次 commit**
+17. ~~視覺 QA 修正需求規格 A→E（進度指示疊加、Step2 CSS 皮膚化、Stage3 Modal 誤觸關閉、手機版同步驗證、四商品欄位檢測＋保險文案定稿＋必填星號）~~ ✅ 已於 2026-08-08/09 全部完成並驗證通過，過程中意外挖出並修正測試商品跟正式商品共用 BTA tag 的架構問題。細節見文件最上方「視覺 QA 修正需求規格 A→E 全部完成」整個段落
+18. 【下次接手可以開始做】Stage 3 必勾同意 checkbox 互動重新設計——需求規格已交付（`Stage3_checkbox_需求規格.md`），尚未執行
+19. 【下次接手可以開始做】裝備租賃法律聲明文字置入 Stage 3 Modal——定稿文字已交付（`Stage3_法律聲明文字_定稿.md`），尚未置入
+20. `test-course-halfday-offpeak` 上次端對端測試中斷，訂單是否成功進購物車尚未確認，有空查一下 Shopify 後台訂單記錄，非急迫
+21. BTA 後台目前同時存在新舊兩組平行 Booking Fields（正式商品用 `halfday`/`fullday`，測試商品用 `test-course`/`test-halfday`/`test-fullday`），建議之後幫舊欄位 Label 加註「（正式）」避免混淆——需跟使用者確認是否已執行

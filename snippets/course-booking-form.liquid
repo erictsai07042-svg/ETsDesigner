@@ -510,6 +510,44 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 }
 .consent-unlock-hint.is-visible { display: block; }
 
+/* ==========================================================================
+   🆕 視覺 QA 修正 A：Step1/Step2 進度指示疊加條（疊在 BTA widget 上方，不進入其 DOM）
+   跟購物車頁 Stage3 Modal（assets/course-stage2-module.js 的 booking-progress-stepper）
+   共用同一套視覺語言，讓三個階段的進度條風格一致。
+   ========================================================================== */
+.bta-step-progress-bar {
+  box-sizing: border-box;
+}
+.booking-progress-stepper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #E8F4FA;
+  border: 1px solid #B8D9ED;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1A2E4A;
+}
+.step-item { display: flex; align-items: center; gap: 8px; color: #5A6A78; }
+.step-item .step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  background-color: #B8D9ED; color: #1A2E4A;
+}
+.step-item.is-done { color: #1A2E4A; }
+.step-item.is-done .step-dot { background-color: #2D5F8A; color: #fff; }
+.step-item.is-active { color: #1A2E4A; }
+.step-item.is-active .step-dot { background-color: #1A2E4A; color: #fff; }
+.step-line { color: #3A7AB5; font-weight: 800; margin: 0 4px; }
+@media (max-width: 480px) {
+  .booking-progress-stepper { font-size: 12px; padding: 10px 10px; }
+  .step-item .step-dot { width: 18px; height: 18px; font-size: 11px; }
+  .step-item span:last-child { display: none; }
+}
+
 </style>
 
 
@@ -654,6 +692,15 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
                已整組移除：BTA widget 自己的流程已原生涵蓋日期/人數/雪板類型/場地/聯絡方式/兒童同行，裝備加購改在購物車頁由
                assets/course-stage2-module.js 處理，不需要在商品頁重複刻一套。 -->
           <div id="booking-current-date-picker">
+            <div id="bta-step-progress-bar" class="bta-step-progress-bar">
+              <div class="booking-progress-stepper">
+                <div class="step-item is-active" data-step="1"><span class="step-dot">1</span><span>日期</span></div>
+                <div class="step-line">➔</div>
+                <div class="step-item" data-step="2"><span class="step-dot">2</span><span>資訊</span></div>
+                <div class="step-line">➔</div>
+                <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
+              </div>
+            </div>
             <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
           </div>
         </div>
@@ -696,17 +743,46 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     const form = document.querySelector('form.shopify-product-form');
     const hero = document.querySelector('.course-hero-banner');
     const widget = document.getElementById('bta-product-widget');
+    const progressBar = document.getElementById('bta-step-progress-bar');
     const grid = document.querySelector('.course-main-layout-grid');
     if (!form || !hero || !widget || !grid || !window.ResizeObserver) return;
 
     form.style.setProperty('position', 'relative', 'important');
 
+    /* 實測發現（跟決策 4/5 記錄的現象一致）：BTA 掛載時會把 #bta-product-widget 整個從我們
+       範本裡原本的巢狀位置移除，重新插入成 form.shopify-product-form 的直接子層。我們自己的
+       進度條 div 沒有被 BTA 認得，還留在原本巢狀位置（.course-sticky-right-card 底下），
+       這個容器本身是 position:sticky（也算「已定位元素」），會變成進度條 absolute 定位的
+       containing block，導致 top/width 百分比全部算錯、跑到頁面很下面的地方。
+       修法：進度條是我們自己的元素，不是 BTA 的節點，直接 appendChild 搬到跟 widget 同一層
+       （widget 的父層，此時就是 form 本身）完全安全——不像搬動 BTA 節點那樣有 iframe 重載風險。 */
+    if (progressBar && widget.parentElement && progressBar.parentElement !== widget.parentElement) {
+      widget.parentElement.insertBefore(progressBar, widget);
+    }
+
+    /* 視覺 QA 修正 A：進度指示條疊在 Hero banner 跟 widget 之間，同樣不寫死高度，
+       widget 的 top 偏移量在原本「hero 高度」之外，再加上進度條當下實際量到的高度。 */
     const applyWidgetPosition = () => {
+      const heroHeight = hero.getBoundingClientRect().height;
+      const barHeight = progressBar ? progressBar.getBoundingClientRect().height : 0;
+
+      if (progressBar) {
+        /* 進度條現在也是 form 的直接子層，會被 BTA 自己的白名單隱藏規則
+           （form[action*="/cart/add"] > :not(白名單)）連坐隱藏（它只認得自己的節點），
+           必須跟 revealStepUI() 對 .product-form-buttons 做的事一樣，強制設回可見。 */
+        progressBar.style.setProperty('display', 'block', 'important');
+        progressBar.style.setProperty('position', 'absolute', 'important');
+        progressBar.style.setProperty('left', '0', 'important');
+        progressBar.style.setProperty('width', '100%', 'important');
+        progressBar.style.setProperty('z-index', '6', 'important');
+        progressBar.style.setProperty('top', heroHeight + 'px', 'important');
+      }
+
       widget.style.setProperty('position', 'absolute', 'important');
       widget.style.setProperty('left', '0', 'important');
       widget.style.setProperty('width', '100%', 'important');
       widget.style.setProperty('z-index', '5', 'important');
-      widget.style.setProperty('top', hero.getBoundingClientRect().height + 'px', 'important');
+      widget.style.setProperty('top', (heroHeight + barHeight) + 'px', 'important');
     };
     applyWidgetPosition();
 
@@ -714,7 +790,8 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
        屬性（不是疊加），會把我們設的 position/left/width/z-index 一起洗掉，只留下它自己要的
        display。用 MutationObserver 盯緊 widget 自己的 style attribute，一旦被 BTA 改動、
        發現我們要的 position:absolute 不見了，立刻補回去。判斷式本身能防止無限迴圈：補回去之後
-       widget.style.position 會變回 'absolute'，下一次觸發時條件不成立就不會再重覆呼叫。 */
+       widget.style.position 會變回 'absolute'，下一次觸發時條件不成立就不會再重覆呼叫。
+       進度條也套用同一招（它現在跟 widget 同層，一樣可能被 BTA 重繪時連坐重置 style）。 */
     const styleGuard = new MutationObserver(() => {
       if (widget.style.position !== 'absolute') {
         applyWidgetPosition();
@@ -722,11 +799,211 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     });
     styleGuard.observe(widget, { attributes: true, attributeFilter: ['style'] });
 
+    if (progressBar) {
+      const barStyleGuard = new MutationObserver(() => {
+        if (progressBar.style.position !== 'absolute' || progressBar.style.display !== 'block') {
+          applyWidgetPosition();
+        }
+      });
+      barStyleGuard.observe(progressBar, { attributes: true, attributeFilter: ['style'] });
+    }
+
     new ResizeObserver(applyWidgetPosition).observe(hero);
+    if (progressBar) new ResizeObserver(applyWidgetPosition).observe(progressBar);
 
     new ResizeObserver(() => {
-      grid.style.setProperty('margin-top', widget.getBoundingClientRect().height + 'px', 'important');
+      const barHeight = progressBar ? progressBar.getBoundingClientRect().height : 0;
+      grid.style.setProperty('margin-top', (widget.getBoundingClientRect().height + barHeight) + 'px', 'important');
     }).observe(widget);
+  };
+
+  /* 視覺 QA 修正 A：BTA widget 的 iframe 是用 srcdoc 掛載，跟外層頁面同源，
+     contentDocument 可以直接讀取/觀察（已實機驗證）。用這個管道做兩件「只讀不改邏輯」的事：
+     1. 偵測 BTA 自己彈出的 react-modal（body 出現 ReactModal__Body--open class）代表使用者
+        已從「選日期」進到「確認課程細節」，用來同步我們自己疊加的進度條在哪一步。
+     2. 把 BTA 介面本身固定的英文文案（按鈕、標題，不含 Booking Fields 自訂欄位——那些欄位
+        本來就是後台設定的中文）逐一比對整段文字精準替換，不動任何 name/id/事件邏輯。
+     BTA 若之後改版把 iframe 換成真正跨網域來源，這裡的存取會被瀏覽器拒絕，整段包在 try/catch
+     裡靜默失效，不影響核心預約功能——只是進度條/中文化不會生效，需要屆時重新評估。 */
+  const setupBtaContentEnhancements = (widget) => {
+    const iframe = widget.querySelector('iframe');
+    if (!iframe) return;
+
+    /* srcdoc iframe 第一次被偵測到時，裡面可能還是瀏覽器自動產生的空白 document，
+       真正的 srcdoc 內容還在載入中——這個空白 document 之後會被整個換掉（不是同一個
+       物件），所以只在偵測到當下抓一次 contentDocument 並不可靠。用 iframe 的 load
+       事件確保換成真正內容後的 document 才開始掛觀察者；同時也立刻嘗試一次，涵蓋
+       load 事件在我們掛上監聽器之前就已經觸發過的情況。 */
+    let attached = false;
+    const tryAttach = () => {
+      if (attached) return;
+      const doc = iframe.contentDocument;
+      if (!doc || !doc.body || !doc.body.textContent.trim()) return;
+      attached = true;
+      attachTranslationAndStepSync(doc);
+    };
+    tryAttach();
+    iframe.addEventListener('load', tryAttach);
+    let pollAttempts = 0;
+    const attachPollId = setInterval(() => {
+      pollAttempts++;
+      tryAttach();
+      if (attached || pollAttempts > 40) clearInterval(attachPollId);
+    }, 150);
+  };
+
+  /* 視覺 QA 修正 B：BTA 的 Stage2 表單是渲染在 iframe 自己的 document 裡，有自己獨立的
+     CSS cascade，外層頁面的 <style> 完全套用不到它——必須把樣式直接注入 iframe 自己的
+     <head>。只調整外觀（外框、標題、欄位排版、品牌色），不動任何 name/id/class 選擇器
+     以外的東西，也不碰 <select>/<input> 的 value 或送出邏輯。BTA 用 inline style 寫死了
+     不少顏色/字體（來自後台 theme 設定），所以這裡的規則都要帶 !important 才蓋得過去。 */
+  const injectBtaStyleSkin = (doc) => {
+    let style = doc.getElementById('cbf-bta-style-skin');
+    if (style) {
+      /* 實測發現：styled-components 會持續動態插入新的 <style>，即使我們的規則特異度
+         更高，一旦對方也用 !important 就會變成純比「誰在 <head> 裡面比較後面」，而且
+         這個插入是持續發生的、不是一次性的。所以不能只在第一次掛上去，每次內容更新時
+         都要把我們的 <style> 重新搬到 <head> 最後面，確保排序上永遠贏。appendChild 對
+         已經存在的節點是「搬移」不是「複製」，這裡是安全的。 */
+      doc.head.appendChild(style);
+      return;
+    }
+    style = doc.createElement('style');
+    style.id = 'cbf-bta-style-skin';
+    style.textContent = [
+      '.ReactModal__Content.ReactModal__Content { border-radius: 16px !important; }',
+      '.widget-title { color: #1A2E4A !important; font-weight: 800 !important; font-size: 18px !important; text-align: left !important; margin: 0 0 4px 0 !important; padding-left: 14px !important; border-left: 4px solid #3A7AB5 !important; }',
+      '.description-title { color: #5A6A78 !important; font-size: 13px !important; padding-left: 14px !important; }',
+      /* Stage2 確認畫面的返回箭頭是 position:absolute 疊在標題左上角（left/top:30px），
+         Stage1「Select a Date」標題原本 text-align:center 不會撞到，但只有 Stage2 這個
+         modal 裡的標題有返回箭頭，所以用更高特異度的選擇器只對 Stage2 額外加 margin-left
+         讓開，不影響 Stage1 標題的原本排版。 */
+      '.ReactModal__Content .widget-title, .ReactModal__Content .description-title { margin-left: 40px !important; }',
+      '.additional-field-label { color: #1A2E4A !important; font-weight: 700 !important; font-size: 14px !important; border-bottom: 1px solid #B8D9ED !important; padding-bottom: 8px !important; margin: 16px 0 12px 0 !important; }',
+      '.control-label { color: #1A2E4A !important; font-weight: 600 !important; font-size: 13px !important; }',
+      '.form-control { border: 1px solid #B8D9ED !important; border-radius: 8px !important; }',
+      '.form-control:focus { border-color: #7AB3D4 !important; }',
+      'button[data-type="submit"] { background-color: #1A2E4A !important; border-radius: 10px !important; font-weight: 700 !important; }',
+    ].join('\n');
+    doc.head.appendChild(style);
+  };
+
+  const attachTranslationAndStepSync = (doc) => {
+    try {
+      const TEXT_MAP = {
+        'Make a Selection': '請選擇日期',
+        'Next': '下一步',
+        'Book a product': '02 預訂資訊與規格確認',
+        'Please confirm you would like to request the following product': '請確認您要預訂以下方案內容',
+        'Additional information': '附加資訊',
+        'Book Now': '確認預約',
+        'Price:': '價格：',
+        'Select...': '請選擇...',
+      };
+
+      const applyTranslations = () => {
+        const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const trimmed = node.nodeValue.trim();
+          if (trimmed && Object.prototype.hasOwnProperty.call(TEXT_MAP, trimmed)) {
+            node.nodeValue = node.nodeValue.replace(trimmed, TEXT_MAP[trimmed]);
+          }
+        }
+      };
+
+      /* 視覺 QA 修正 E-2：保險建議文案定稿。原文案被 <strong> 標籤切成好幾段文字節點
+         （東京海上日動旅遊險 單獨被 <strong> 包住），逐節點比對取代不可靠，改成整段
+         <p> 的 textContent 直接覆寫（會失去原本的粗體強調，換取文字逐字正確——需求
+         明確要求文字要跟定稿逐字一致，優先度高於保留粗體樣式這種次要視覺細節）。用
+         「東京海上日動旅遊險」這個關鍵字定位到正確的段落，換成定稿內容後就不再是
+         舊文字，之後的執行不會再誤判成需要替換，天然防止重複覆寫。 */
+      const FINAL_INSURANCE_TEXT = '主辦方建議於入境日本 5 天內自行投保東京海上日動旅遊險，可享中文醫療專線、免墊付醫療費、突發事故保障。';
+      const applyInsuranceTextFix = () => {
+        doc.querySelectorAll('.control-label p').forEach((p) => {
+          if (p.textContent.indexOf('東京海上日動旅遊險') > -1 && p.textContent.replace('＊', '').trim() !== FINAL_INSURANCE_TEXT) {
+            p.textContent = FINAL_INSURANCE_TEXT;
+          }
+        });
+      };
+
+      /* 視覺 QA 修正 E-3：必填欄位標題加註 *。實際測過 BTA 自己的送出驗證（觸發一次
+         空白送出，看它自己標記哪些欄位 Required）——結果是除了「備註／其他需求」
+         （唯一的 <textarea>，也是唯一 placeholder 寫著 [選填] 的欄位）以外全部必填。
+         用「容器內有沒有 <textarea>」這個結構性判斷，不寫死個別欄位名稱，四個商品
+         就算 Booking Fields 欄位組合不同（例如時段欄位只有半天班才有）也能通用。
+         保險同意欄位比較特殊：容器裡同時有「外層長描述段落」跟「checkbox 自己的短
+         標籤」兩個 .control-label，星號要加在使用者實際看到的短標籤上（呼應需求文件
+         給的範例「＊我已閱讀並了解上述保險建議」），不是加在描述段落開頭。 */
+      const applyRequiredAsterisks = () => {
+        doc.querySelectorAll('.field-input-container').forEach((c) => {
+          if (c.querySelector('textarea')) return;
+          const checkboxLabel = c.querySelector('label.control-label[for]');
+          const target = checkboxLabel || c.querySelector('.control-label p');
+          if (target && target.textContent.trim().indexOf('＊') !== 0) {
+            target.textContent = '＊' + target.textContent;
+          }
+        });
+      };
+
+      const syncProgressStep = () => {
+        const bar = document.getElementById('bta-step-progress-bar');
+        if (!bar) return;
+        const step1 = bar.querySelector('[data-step="1"]');
+        const step2 = bar.querySelector('[data-step="2"]');
+        const isModalOpen = doc.body.classList.contains('ReactModal__Body--open');
+        if (isModalOpen) {
+          step1.classList.add('is-done');
+          step1.classList.remove('is-active');
+          step1.querySelector('.step-dot').textContent = '✓';
+          step2.classList.add('is-active');
+          step2.classList.remove('is-done');
+        } else {
+          step1.classList.add('is-active');
+          step1.classList.remove('is-done');
+          step1.querySelector('.step-dot').textContent = '1';
+          step2.classList.remove('is-active', 'is-done');
+        }
+      };
+
+      /* 實測發現：.ReactModal__Content 的 border/box-shadow 這兩個屬性，就算用注入的
+         <style> 搭配 !important + 重複 class 提高特異度，還是套用不上（同一條規則裡的
+         border-radius 卻套用得上，原因不明，懷疑是另一個特異度更高的規則專門重置了這
+         兩個屬性）。這兩個直接改用跟 widget 定位同一招的 inline style + !important，
+         那招已經證實一定贏。其餘屬性（文字顏色/欄位框線/按鈕底色等）注入的 <style> 已
+         驗證有效，不需要跟著改。 */
+      const applyPanelFrame = () => {
+        const panel = doc.querySelector('.ReactModal__Content');
+        if (!panel) return;
+        panel.style.setProperty('border', '1px solid #B8D9ED', 'important');
+        panel.style.setProperty('box-shadow', '0 12px 36px -4px rgba(26,46,74,0.12)', 'important');
+      };
+
+      let pending = false;
+      const runUpdates = () => {
+        injectBtaStyleSkin(doc);
+        applyPanelFrame();
+        applyTranslations();
+        applyInsuranceTextFix();
+        applyRequiredAsterisks();
+        syncProgressStep();
+      };
+      const contentObserver = new MutationObserver(() => {
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(() => {
+          pending = false;
+          runUpdates();
+        });
+      });
+      contentObserver.observe(doc.body, {
+        childList: true, subtree: true, characterData: true,
+        attributes: true, attributeFilter: ['class'],
+      });
+      runUpdates();
+    } catch (e) {
+      /* 存取被拒或結構不符預期，靜默略過，不拋錯打斷其他既有功能 */
+    }
   };
 
   const checkAndReveal = () => {
@@ -734,6 +1011,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     if (widget && widget.querySelector('iframe')) {
       revealStepUI();
       positionWidgetOverlay();
+      setupBtaContentEnhancements(widget);
       return true;
     }
     return false;

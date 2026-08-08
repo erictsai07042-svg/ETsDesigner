@@ -158,7 +158,7 @@
 
     container.innerHTML =
       '<div class="cs2-overlay">' +
-        '<div class="cs2-backdrop" data-cs2-skip></div>' +
+        '<div class="cs2-backdrop"></div>' +
         '<div class="cs2-panel">' +
           progressStepperHtml() +
           '<h3 class="cs2-title">' + (options.productTitle || '完成預訂前的最後一步') + '</h3>' +
