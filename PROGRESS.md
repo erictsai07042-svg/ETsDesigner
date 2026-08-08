@@ -447,3 +447,4 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 19. 【下次接手可以開始做】裝備租賃法律聲明文字置入 Stage 3 Modal——定稿文字已交付（`Stage3_法律聲明文字_定稿.md`），尚未置入
 20. `test-course-halfday-offpeak` 上次端對端測試中斷，訂單是否成功進購物車尚未確認，有空查一下 Shopify 後台訂單記錄，非急迫
 21. BTA 後台目前同時存在新舊兩組平行 Booking Fields（正式商品用 `halfday`/`fullday`，測試商品用 `test-course`/`test-halfday`/`test-fullday`），建議之後幫舊欄位 Label 加註「（正式）」避免混淆——需跟使用者確認是否已執行
+22. 【2026-08-09 使用者指定明天首要任務】**整體 UI/UX 還有很大改善空間**，使用者表示要把這個列為次日最優先任務。**目前還沒有討論出具體改善方向/範圍**（是整體視覺風格、特定頁面排版、還是像 A-E 這輪一樣針對特定流程的體感，都還沒定案）——下次接手第一件事應該是先跟使用者釐清具體要改善哪些地方、範圍多大，再開始動手，不要自己假設方向
