@@ -2,6 +2,38 @@
 
 最後更新：2026-08-09
 
+## 🎓 重要技術/流程教訓
+
+### 教訓：已登入 Shopify 後台的瀏覽器，無法用來驗證正式網域的真實樣貌（2026-08-09）
+
+若同一個瀏覽器 session 曾登入過 Shopify 後台（`sessionStorage` 會存有 `isMerchantSession: true`），Shopify 會自動讓該已登入商家帳號，在正式網域（不帶 `?preview_theme_id=` 參數）上直接看到自己正在編輯的草稿主題內容，而非真正上線給一般顧客看的正式主題。
+
+**這個污染無法透過清除 cookie 或開新分頁解決，因為它綁定的是登入 session 本身，不是 cookie 層級的殘留。**（實測過：清掉 `document.cookie` 全部內容、重新整理、甚至開全新分頁，`window.Shopify.theme.id` 依然回報草稿主題的 id，因為 `isMerchantSession` 這個判斷跟 Shopify 後台登入狀態綁定，不是靠 storefront 網域自己的 cookie。）
+
+**正確驗證方法**：若需要確認正式網域的真實內容（例如驗證草稿主題修改沒有污染到正式站），須完全繞過瀏覽器，改用伺服器端請求（如 `curl`）：
+
+1. 直接對正式網域發出請求（不帶任何 cookie/session），檢查回傳的 `Shopify.theme.id` 與 `role`（正式應為 `"main"`）
+2. 對草稿預覽網址（`?preview_theme_id=`）發出請求時，須正確處理 302 轉址並保留其設定的 cookie（`curl -L` 並手動處理 cookie），否則會拿到錯誤或空白結果——**這裡本身就是一個容易踩的坑**：第一次沒加 `-L` 跟 cookie jar，curl 只拿到轉址回應本身（空 body），差點誤判成「草稿版本原始碼裡也找不到今天的標記」，如果沒有進一步檢查 HTTP 狀態碼跟 body 長度，這個假結果會被誤讀成「草稿站也沒污染」這種倒果為因的錯誤結論
+3. 建議搜尋當次修改新增的、命名獨特不易誤判的程式碼標記字串（例如特定 CSS class name、JS function name），在兩個版本的原始碼裡分別比對出現次數，用具體數字佐證「有/沒有污染」，避免用「看起來差不多」這種模糊描述下結論
+
+此方法已於 2026-08-09 用於驗證「版心寬度對齊」等一系列修改確實只存在草稿主題（`Designer_Eric`，id `147355926611`，role `unpublished`），完全未影響正式主題（`20251227-add-new-context`，id `142011367507`，role `main`）。
+
+## ✅ 版心寬度對齊修正：Body 主內容區塊跟 NavBar/Footer 對不齊（2026-08-09）
+
+**問題**：商品頁（`course-booking-form.liquid`）的 Hero banner、選擇日期卡片、方案資訊卡片等，左右邊界比 NavBar／Footer 更貼近視窗邊緣，全頁上下看下來邊界對不齊。使用者要求以 NavBar/Footer 目前的版心寬度為基準，修正 Body 區塊去對齊，不要反過來動 NavBar/Footer。
+
+**根因（用瀏覽器實測抓出來的，不是憑空猜的）**：這個商品的 `product-information` section 開了 Horizon 主題的「equal_columns」設定，套用 `.product-information__grid--half` 版型——這個版型本來就是靠一組四欄的 `grid-template-columns`（外層 margin／內容一半／內容一半／外層 margin）讓左右邊界自動對齊全站共用的頁面邊界。course-booking-form.liquid 原本為了把「圖庫+內容」的雙欄版位收合成單欄（圖庫已隱藏），直接把 `.product-information__grid` 的 `grid-template-columns` 蓋成單一 `1fr !important`，這個動作**連同「外層 margin」欄位一起打掉了**，導致內容緊貼 section 邊緣，比 NavBar/Footer 的版心更貼近視窗邊緣。另外 Hero banner 跟兩欄主結構容器上還各自疊加了一層 `margin-left:-32px; margin-right:-24px` 的負邊界外推，是當初為了在「外層容器本來就跑版」的舊狀態下讓 banner 視覺置頂設計的補償手法，這次一併變成雪上加霜的因素。`.ski-booking-funnel-wrapper` 自己還另外設了 `max-width:1200px`，在寬螢幕（版心欄位本身超過 1200px 時）會讓內容比 NavBar/Footer 的版心更窄、置中留白——這個問題在較窄的螢幕不會發生，只有在夠寬的桌機才會浮現，之前沒被注意到。
+
+**修法**：
+1. `.product-information__grid` 的 `grid-template-columns` 改成直接沿用主題自己的 `--full-page-grid-with-margins` 變數（`assets/base.css` 裡 `.section` 基礎規則本來就是用這個變數），保證跟 NavBar/Footer 是完全同一套計算結果，不用自己重算。**踩過一次坑**：第一版曾手動寫 `var(--full-page-grid-margin) 1fr var(--full-page-grid-margin))`，結果三欄被拆成完全相等的三等份而不是「窄/寬/窄」——因為 `--full-page-grid-margin` 本身是 `minmax(40px, 1fr)`，中間欄如果也用純 `1fr`，三者 flex 係數相同，多餘空間會被 grid 演算法平均分掉，不是直覺的「margin 只吃最小值」。改用主題現成的 `--full-page-grid-with-margins`（中間欄用 `min()` 算好的固定寬度，不是 `1fr`）才是對的。
+2. `.product-details` 的 `grid-column` 從 `1 / -1`（跨滿全部欄位）改成 `2 / 3`（只佔中間內容欄），並把殘留的 `padding-left`（原本是雙欄版位圖庫跟內容間的內側間距）歸零。
+3. 拿掉 Hero banner 跟兩欄主結構容器上的負邊界外推 inline style（`margin-left:-32px; margin-right:-24px; width:calc(100% + 56px)`），改回自然佔滿父層 100% 寬度。
+4. 拿掉 `.ski-booking-funnel-wrapper` 的 `max-width:1200px`（class 定義跟 inline style 兩處都有，inline 優先權更高，兩處都要拿掉才會生效），改成單純 `width:100%`，讓它完全信任外層已經修正好的版心欄位。
+
+**驗證**：實機在草稿預覽網域測試 `test-course-fullday-peak`、`test-course-halfday-offpeak` 兩個商品，桌機 1014px／1280px／1600px 三種寬度、手機 375px，逐一用 JS 量測 NavBar 內容、Footer 內容、`.ski-booking-funnel-wrapper`、Hero banner、`.course-main-layout-grid`、三張資訊卡片的實際左右邊界座標，**全部完全對齊**（1600px 寬螢幕下驗證了移除 1200px 上限的效果，桌機三種寬度、手機都對齊在同一條垂直線）。決策 6 的日曆定位機制（`hero.getBoundingClientRect()` 高度量測、雙 `ResizeObserver`、BTA widget 疊加）**完全沒受影響**，測試中確認 widget 本身現在也正確對齊到跟 NavBar/Footer 一致的邊界（連帶好處，widget 定位邏輯本來就是動態量測，不需要額外調整）。手機版頭部的漢堡選單／購物車圖示本身用的是「大點擊區塊貼齊邊緣」的行動版慣例設計（圖示本身有內距），不是版心寬度問題，跟 Body 內容的 16px 版心邊界是兩件不同的事，沒有誤判成需要修正的對象。
+
+**過程中觀察到、跟這次修正無關的既存現象**：BTA widget 掛載成功率維持先前已知的「非 100%」狀態（這次重測時遇到一次未掛載，重新整理後就正常），Console 出現的 `bta-widgets-bootstrap.min.js` 內部例外訊息也跟 PROGRESS.md 很早以前記錄過的一致——**這是已知、跟這次 CSS 改動無關的既存現象，不是新引入的回歸**。另外這次也觀察到 BTA widget 有時會顯示自己原生的繁中翻譯（例如「下一頁」而非英文 `Next`），有時顯示英文——這跟 A 項按鈕中文化的 `TEXT_MAP` 精準比對機制設計上是相容的（只覆蓋辨識到的英文字串，BTA 自己的中文不會被誤動），但代表 BTA 該按鈕的語系顯示本身不穩定，**這是一個新觀察到、值得之後留意的現象，這次沒有進一步處理，不在這次任務範圍內**。
+
 ## 📐 架構決策：降低對訂閱制預約 App 的深度綁定（2026-08-09，已與業主確認）
 
 業主提出新需求：目前以 BTA（BookThatApp）為訂閱基準，但架構設計上要盡量避免深度綁定 BTA，讓未來如果更換其他訂閱制預約 App，改動範圍能降到最低。**這是既定方向，不是待決事項**，確立以下分工原則：
