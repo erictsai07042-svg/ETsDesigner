@@ -44,12 +44,32 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 }
 
 /* 原生兩欄版位收合成單欄：媒體圖庫已隱藏，讓 product-details（含 form／variant-picker／buy-buttons）佔滿寬度。
-   保留 DOM 結構不變（不用 JS 搬移），純視覺調整，確保 BTA 錨點與表單巢狀關係不受影響。 */
+   保留 DOM 結構不變（不用 JS 搬移），純視覺調整，確保 BTA 錨點與表單巢狀關係不受影響。
+
+   版心寬度對齊修正（2026-08-09）：這個商品的 product-information section 開了「equal_columns」
+   設定，套用的是 Horizon 主題 `.product-information__grid--half` 版型，它原本的 grid-template-columns
+   是「外層 margin／內容一半／內容一半／外層 margin」四欄，靠這個結構讓左右邊界自動對齊 NavBar/Footer
+   共用的 --full-page-grid-margin。原本這裡直接把 grid-template-columns 蓋成單一 `1fr`，等於把這四欄
+   結構整個打掉，連同「外層 margin」也一起消失，導致內容緊貼到 section 最外側（不是頁面最外側，但視覺
+   上會比 NavBar/Footer 更貼近視窗邊緣，兩者對不齊）。
+
+   修法第一版曾直接寫 `var(--full-page-grid-margin) 1fr var(--full-page-grid-margin)`——這是錯的，
+   實測發現三欄會被拆成完全相等的三等份，不是「窄margin/寬內容/窄margin」！原因：`--full-page-grid-margin`
+   本身是 `minmax(40px, 1fr)`，中間欄如果也用 `1fr`，三欄的 flex 係數（1fr）完全相同，多餘空間會被
+   grid 演算法平均分給三欄，而不是照原本「margin 只吃最小值、內容吃剩下全部」的直覺分配。主題自己的
+   `.section` 基礎規則（assets/base.css）不是這樣兜的，而是直接用一個算好的 `--full-page-grid-with-margins`
+   變數（= margin track / 一個用 min() 算好的固定內容寬度 / margin track，中間欄不是 1fr），這裡改成
+   直接沿用同一個變數，保證跟 NavBar/Footer 用的是完全同一套計算結果，不用自己重算、也不會重蹈覆轍。 */
 .product-information__grid {
-  grid-template-columns: 1fr !important;
+  grid-template-columns: var(--full-page-grid-with-margins) !important;
 }
 .product-information__grid .product-details {
-  grid-column: 1 / -1 !important;
+  grid-column: 2 / 3 !important;
+  /* 這個 padding-left 是主題「media-left 兩欄版位」原本用來隔開圖庫跟內容的內側間距（--gap 的一半），
+     現在圖庫已隱藏、內容改成置中在正確的頁面邊界內，這個殘留的內側 padding 會讓內容比 NavBar/Footer
+     多縮排一截，必須歸零。 */
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 /* 隱藏原生標題／價格區塊（與 STEP UI 自己的 hero banner 重複），保留 form、variant-picker、buy-buttons 不動 */
@@ -60,13 +80,14 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   display: none !important;
 }
 
-/* 一切回歸中道：預訂漏斗外殼完全依照品牌規範齊寬對齊 (不使用滿版) */
+/* 版心寬度對齊修正（2026-08-09）：這裡原本有 max-width:1200px，在寬螢幕（版心欄位本身超過 1200px時）
+   會讓內容比 NavBar/Footer 的版心更窄、置中留白，兩者邊界對不上。外層 .product-details 這一欄現在已經
+   正確對齊主題的頁面邊界寬度，這個容器只要單純佔滿 100% 父層寬度即可，不需要自己另外設寬度上限。
+   （下方 <div> 上原本還有一份同樣寫 max-width:1200px 的 inline style，inline 的優先權比這裡的 class
+   規則高，兩處必須一起拿掉才會真的生效，不能只改其中一處。） */
 .ski-booking-funnel-wrapper {
   font-family: var(--brand-font-family, 'PingFang TC', 'Microsoft JhengHei', sans-serif) !important;
-  max-width: 1200px;
   width: 100%;
-  margin: 0 auto 60px auto;
-  padding: 0 24px;
   box-sizing: border-box;
   color: var(--color-slope-black, #111111);
 }
@@ -555,10 +576,15 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
    【來趣滑雪】2026-07-28 UX 重構完全體 - 齊寬修正與去 Emoji 純文字版
    ========================================================================== -->
 
-<div class="ski-booking-funnel-wrapper" style="max-width: 1200px; margin: 0 auto 100px auto; padding: 0;">
+<div class="ski-booking-funnel-wrapper" style="margin-bottom: 100px; padding: 0;">
 
-  <!-- 1. 頂部滑雪情境橫幅 Banner (移除內建 padding，確保與下方 100% 齊寬) -->
-  <div class="course-hero-banner rounded-2xl" style="margin-left: -32px; margin-right: -24px; width: calc(100% + 56px); box-sizing: border-box;">
+  <!-- 1. 頂部滑雪情境橫幅 Banner -->
+  <!-- 版心寬度對齊修正（2026-08-09）：原本這裡用負邊界（margin-left:-32px/margin-right:-24px + 加寬
+       56px）刻意讓 banner 溢出外層 wrapper，是為了在「外層容器邊界本來就跑版」的舊狀態下讓 banner
+       視覺上貼齊 viewport 邊緣。現在外層的 product-information__grid 已經修正成正確對齊 NavBar/Footer
+       的版心寬度，這個溢出手法會反過來讓 banner 超出正確邊界、跟 NavBar/Footer 對不齊，所以拿掉，
+       改回自然佔滿 wrapper 100% 寬度。 -->
+  <div class="course-hero-banner rounded-2xl">
     {% if product.featured_image %}
       <img src="{{ product.featured_image | img_url: '1200x' }}" class="course-hero-banner__img" alt="{{ product.title | escape }}">
     {% else %}
@@ -575,8 +601,10 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     </div>
   </div>
 
-  <!-- 兩欄主結構容器 (與上方 Banner 同步外推與寬度，確保 100% 垂直齊平) -->
-  <div class="course-main-layout-grid" style="margin-left: -32px; margin-right: -24px; width: calc(100% + 56px); box-sizing: border-box;">
+  <!-- 兩欄主結構容器 -->
+  <!-- 版心寬度對齊修正（2026-08-09）：原本跟 Banner 一樣用負邊界外推，同樣的理由拿掉，改回自然
+       佔滿 wrapper 100% 寬度，讓下方所有卡片的左右邊界跟 Banner、NavBar、Footer 對齊在同一條線上。 -->
+  <div class="course-main-layout-grid">
     
     <!-- 2. 左欄：主內容與條款確認區 (佔 65% 寬度) -->
     <div class="course-info-left-column">
