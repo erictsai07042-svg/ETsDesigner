@@ -200,20 +200,21 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 }
 
 /* ==========================================================================
-   🌟 2. 主內容兩欄網格：左側 65% (資訊說明) + 右側 35% (預訂卡片)
+   🌟 2. 主內容單欄：左欄資訊說明佔滿全寬
    ========================================================================== */
+/* 排查空白長條元件（2026-08-09）：這裡原本是 65fr/35fr 雙欄網格，右欄放的是
+   「course-sticky-right-card」預訂卡片。但決策 6 已經把 BTA 日曆 widget 改成
+   position:absolute 疊加在 Hero banner 正下方（不是渲染在這個網格的右欄裡），
+   右欄卡片的錨點 div 在 JS 執行後會被搬空（progress bar 被搬到 form 直接子層、
+   widget 本身被 BTA 移除重建），變成一個純粹的空殼卡片，只剩下自己的邊框/圓角/
+   陰影樣式，沒有任何內容——這就是「日曆右側空心圓角長條」的成因。已確認沒有任何
+   CSS/JS 依賴這個雙欄結構本身（JS 只用 id 選取器找錨點，不依賴外層是不是兩欄），
+   直接改成單欄，錨點 div 移到左欄後面、拿掉所有卡片視覺樣式（見下方 HTML）。 */
 .course-main-layout-grid {
   display: grid;
-  grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 36px;
   align-items: start;
-}
-@media (max-width: 991px) {
-  .course-main-layout-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-  }
 }
 
 /* ==========================================================================
@@ -364,40 +365,14 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 }
 
 /* ==========================================================================
-   🔒 4. 右側固定預訂卡片 (35% 欄位 + Sticky)
+   🔒 4. BTA 錨點容器（純粹用來給 BTA/我們的 JS 找 id，不應有任何視覺樣式）
    ========================================================================== */
-.course-sticky-right-card {
-  position: sticky !important;
-  top: 120px !important;
-  align-self: start !important;
-  z-index: 10;
-  width: 100%;
-}
-
-@media (max-width: 991px) {
-  .course-sticky-right-card {
-    position: static !important;
-  }
-}
-
-.course-booking-card-body {
-  background: #ffffff;
-  border: 1px solid var(--brand-frost, #B8D9ED);
-  border-radius: 20px;
-  padding: 28px 24px;
-  box-shadow: 0 12px 36px -4px rgba(26, 46, 74, 0.12);
-  position: relative;
-  overflow: hidden;
-}
-
-.course-booking-card-body::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 5px;
-  background: linear-gradient(90deg, #1A2E4A 0%, #2D5F8A 50%, #7AB3D4 100%);
+.course-booking-anchor {
+  /* 刻意不設 border/background/padding/box-shadow——這個容器在 JS 執行後
+     (progress bar 被搬到 form 直接子層、widget 被 BTA 移除重建) 會變空，
+     曾經因為沿用「course-booking-card-body」卡片樣式，讓這個空容器顯示成
+     一個看起來像 UI 元件、但完全沒有內容的空心圓角長條，已排查並拿掉樣式。 */
+  display: contents;
 }
 
 .card-consent-section {
@@ -711,31 +686,32 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 
     </div> <!-- /左欄結束 -->
 
-    <!-- 3. 右欄：純粹交易漏斗工具卡片 (佔 35% 寬度 + Sticky 捲動固定) -->
-    <div class="course-sticky-right-card" style="position: sticky; top: 120px;">
-      <div class="course-booking-card-body">
-        <div id="bta-booking-form-{{ product.id }}" data-product-id="{{ product.id }}">
-          <!-- BTA「Snow class booking」Inline widget 真正偵測的錨點 id（從 bta-widgets-bootstrap.min.js 原始碼確認）。
-               原本的 Stage1/2/3 精靈（人數下拉選單、假日曆容器、下一步按鈕、Stage2 雪板類型/場地/聯絡方式等自訂欄位、Stage3 裝備租借）
-               已整組移除：BTA widget 自己的流程已原生涵蓋日期/人數/雪板類型/場地/聯絡方式/兒童同行，裝備加購改在購物車頁由
-               assets/course-stage2-module.js 處理，不需要在商品頁重複刻一套。 -->
-          <div id="booking-current-date-picker">
-            <div id="bta-step-progress-bar" class="bta-step-progress-bar">
-              <div class="booking-progress-stepper">
-                <div class="step-item is-active" data-step="1"><span class="step-dot">1</span><span>日期</span></div>
-                <div class="step-line">➔</div>
-                <div class="step-item" data-step="2"><span class="step-dot">2</span><span>資訊</span></div>
-                <div class="step-line">➔</div>
-                <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
-              </div>
+    <!-- 3. BTA 錨點容器：不是版面上的「欄位」，純粹提供 id 給 BTA／我們的 JS 掛載用，
+         真正的日曆視覺位置是決策 6 的 position:absolute 疊加在 Hero banner 下方，
+         這裡刻意不套用任何卡片樣式（display:contents，不產生自己的版面框），
+         避免 JS 執行後變空殼時顯示成空白長條。 -->
+    <div class="course-booking-anchor">
+      <div id="bta-booking-form-{{ product.id }}" data-product-id="{{ product.id }}">
+        <!-- BTA「Snow class booking」Inline widget 真正偵測的錨點 id（從 bta-widgets-bootstrap.min.js 原始碼確認）。
+             原本的 Stage1/2/3 精靈（人數下拉選單、假日曆容器、下一步按鈕、Stage2 雪板類型/場地/聯絡方式等自訂欄位、Stage3 裝備租借）
+             已整組移除：BTA widget 自己的流程已原生涵蓋日期/人數/雪板類型/場地/聯絡方式/兒童同行，裝備加購改在購物車頁由
+             assets/course-stage2-module.js 處理，不需要在商品頁重複刻一套。 -->
+        <div id="booking-current-date-picker">
+          <div id="bta-step-progress-bar" class="bta-step-progress-bar">
+            <div class="booking-progress-stepper">
+              <div class="step-item is-active" data-step="1"><span class="step-dot">1</span><span>日期</span></div>
+              <div class="step-line">➔</div>
+              <div class="step-item" data-step="2"><span class="step-dot">2</span><span>資訊</span></div>
+              <div class="step-line">➔</div>
+              <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
             </div>
-            <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
           </div>
+          <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
         </div>
-      </div> <!-- /course-booking-card-body 結束 -->
-    </div> <!-- /course-sticky-right-card (右欄 35%) 結束 -->
+      </div>
+    </div> <!-- /course-booking-anchor 結束 -->
 
-  </div> <!-- /course-main-layout-grid 兩欄主結構容器 結束 -->
+  </div> <!-- /course-main-layout-grid 主結構容器 結束 -->
 
 </div> <!-- /ski-booking-funnel-wrapper 結束 -->
 
@@ -779,9 +755,11 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 
     /* 實測發現（跟決策 4/5 記錄的現象一致）：BTA 掛載時會把 #bta-product-widget 整個從我們
        範本裡原本的巢狀位置移除，重新插入成 form.shopify-product-form 的直接子層。我們自己的
-       進度條 div 沒有被 BTA 認得，還留在原本巢狀位置（.course-sticky-right-card 底下），
-       這個容器本身是 position:sticky（也算「已定位元素」），會變成進度條 absolute 定位的
-       containing block，導致 top/width 百分比全部算錯、跑到頁面很下面的地方。
+       進度條 div 沒有被 BTA 認得，還留在原本巢狀位置（`.course-booking-anchor` 錨點容器底下，
+       2026-08-09 排查空白長條元件之前，這裡是有 position:sticky 樣式的 `.course-sticky-right-card`），
+       如果外層容器是「已定位元素」，會變成進度條 absolute 定位的 containing block，導致
+       top/width 百分比全部算錯、跑到頁面很下面的地方（`.course-booking-anchor` 本身用
+       display:contents，不會有這個問題，但這段防呆邏輯不依賴這件事，繼續保留）。
        修法：進度條是我們自己的元素，不是 BTA 的節點，直接 appendChild 搬到跟 widget 同一層
        （widget 的父層，此時就是 form 本身）完全安全——不像搬動 BTA 節點那樣有 iframe 重載風險。 */
     if (progressBar && widget.parentElement && progressBar.parentElement !== widget.parentElement) {

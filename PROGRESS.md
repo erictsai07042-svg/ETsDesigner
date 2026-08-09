@@ -2,6 +2,21 @@
 
 最後更新：2026-08-09
 
+## ✅ Stage 1 空白長條元件排查與移除（2026-08-09）
+
+**問題**：商品頁 Stage 1（選日期）畫面，日曆卡片右側/下方同一橫向高度，出現一個沒有文字/圖示內容的空心圓角長條（淺藍邊框、內部空白）。
+
+**根因**：這是決策 4/6 留下的已知現象，早在 2026-08-06 就記錄過（見決策 4-2 段落「`.course-sticky-right-card` 本身在 BTA 掛載後就是空殼」），但當時判斷「只是視覺排序問題，不阻塞核心預約流程」而沒有處理。原本 `.course-main-layout-grid` 是 65fr/35fr 雙欄設計，右欄放一張 `.course-sticky-right-card` > `.course-booking-card-body` 卡片（白底、`#B8D9ED` 淺藍邊框、20px 圓角、陰影），裡面裝的是 BTA 錨點 div。但決策 6 把日曆 widget 改成 `position:absolute` 疊加在 Hero banner 下方後，JS 執行時會把進度條搬到 `form` 直接子層、BTA 自己也會把 `#bta-product-widget` 移除重建，這個右欄卡片最終永遠是空的——只剩下卡片本身的邊框/圓角/陰影樣式，沒有內容，這就是使用者看到的「空心圓角長條」。今天先前的版心寬度對齊修正把全站邊界修正對齊後，這個空卡片的存在感反而變得更明顯，才被注意到。
+
+**確認過沒有其他用途**：`.course-sticky-right-card`/`.course-booking-card-body` 只在 CSS 定義跟這段 HTML 裡出現，JS 完全不依賴這兩個 class（只用 `#booking-current-date-picker`、`#bta-product-widget`、`#bta-step-progress-bar` 這些 id 選取器），確認是純視覺殘留，沒有預留給未來功能的跡象。
+
+**修法**：
+1. `.course-main-layout-grid` 從 `65fr/35fr` 雙欄改成單欄（`minmax(0, 1fr)`），左欄資訊卡片改佔滿全寬。
+2. 拿掉 `.course-sticky-right-card`／`.course-booking-card-body`／`::before` 這組卡片視覺樣式的 CSS（含 sticky 定位、邊框、圓角、陰影、頂部漸層條），改成一個新的 `.course-booking-anchor`，用 `display:contents` 讓它完全不產生自己的版面框（不是「改小」或「透明」，是徹底不佔版面），純粹保留給 BTA／我們的 JS 找 id 用。
+3. HTML 結構裡的 BTA 錨點 id（`#bta-booking-form-{{product.id}}`、`#booking-current-date-picker`、`#bta-step-progress-bar`、`#bta-product-widget`）完全沒有改動，只是拿掉外層的卡片包裝 div。
+
+**驗證**：草稿預覽網域實測 `test-course-fullday-peak`，桌機 1280px + 手機 375px。確認空白長條消失、日曆/進度條位置正確（`.course-booking-anchor` 本身量測為零尺寸，`display:contents` 生效）、完整走過一次 Stage1→Stage2 流程（選日期→下一步→Stage2 表單皮膚化/翻譯/星號全部正常），Console 沒有新增錯誤（僅剩已知的 BTA 掛載偶發性錯誤，跟這次改動無關）。
+
 ## 🎓 重要技術/流程教訓
 
 ### 教訓：已登入 Shopify 後台的瀏覽器，無法用來驗證正式網域的真實樣貌（2026-08-09）
