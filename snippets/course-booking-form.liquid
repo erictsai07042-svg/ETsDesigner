@@ -365,14 +365,49 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 }
 
 /* ==========================================================================
-   🔒 4. BTA 錨點容器（純粹用來給 BTA/我們的 JS 找 id，不應有任何視覺樣式）
+   🔒 4. Stage 1 兩欄並排：左「日曆」+ 右「方案資訊」（2026-08-09 版面重新設計）
    ========================================================================== */
-.course-booking-anchor {
-  /* 刻意不設 border/background/padding/box-shadow——這個容器在 JS 執行後
-     (progress bar 被搬到 form 直接子層、widget 被 BTA 移除重建) 會變空，
-     曾經因為沿用「course-booking-card-body」卡片樣式，讓這個空容器顯示成
-     一個看起來像 UI 元件、但完全沒有內容的空心圓角長條，已排查並拿掉樣式。 */
-  display: contents;
+/* 桌機兩欄、手機單欄堆疊（日曆在上，方案資訊在下）。跟 .course-main-layout-grid
+   用同一個 991px 斷點、同樣的 flex-column 手機處理手法，維持全站一致。 */
+.course-top-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 36px;
+  align-items: start;
+  margin-bottom: 36px;
+}
+@media (max-width: 991px) {
+  .course-top-row-grid {
+    display: flex;
+    flex-direction: column;
+    /* 桌機版的 align-items:start 是給 Grid 用來「頂部對齊」兩欄，但同一個屬性用在
+       flex-direction:column 的手機版時，控制的是「橫向（cross-axis）對齊方式」，
+       會讓子項目縮成自己內容的寬度、不會撐滿整行寬度（實測抓到日曆欄位只剩 116px
+       寬）。手機單欄堆疊不需要「對齊」，需要的是「撐滿寬度」，改回 flex 預設值
+       stretch 蓋掉桌機規則。 */
+    align-items: stretch;
+    gap: 32px;
+    margin-bottom: 32px;
+  }
+}
+
+/* 左欄：BTA 錨點容器。真正的日曆視覺內容（進度條 + widget）是決策 6 的
+   position:absolute 疊加在這個容器正上方，這個容器本身留在正常文件流裡，
+   純粹用來讓 Grid/Flex 版面正確保留「日曆應該佔多寬、從哪裡開始」的空間。
+   高度由 JS 動態同步成「進度條實際高度 + widget 實際高度」（見下方 <script>），
+   Grid/Flex 才會正確幫右欄「方案資訊」卡片對齊頂部、也才會讓下一個區塊
+   （費用資訊）接在正確的位置，不需要再另外算 margin-top 補償。
+   刻意不設 position，維持預設 static——這個容器絕對不能變成「已定位元素」，
+   否則會變成疊加內容 absolute 定位時的 containing block，算出錯誤座標
+   （decision 6 已經踩過這個坑，見下方 JS 註解）。 */
+.course-calendar-column {
+  min-width: 0;
+}
+
+/* 右欄：方案資訊卡片沿用 .info-block-card 既有樣式，這裡只補一個 grid 安全性設定，
+   避免卡片內容（例如很長的英文網址/數字）把欄寬撐爆。 */
+.course-plan-summary-card {
+  min-width: 0;
 }
 
 .card-consent-section {
@@ -513,6 +548,11 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
    ========================================================================== */
 .bta-step-progress-bar {
   box-sizing: border-box;
+  /* 進度條跟日曆之間的間距。這裡改成正常文件流排版後，進度條下緣到日曆頂部的距離
+     由這個 margin-bottom 決定——JS（positionWidgetOverlay 裡的 BAR_TO_WIDGET_GAP）
+     算 widget 的 top 座標時要用同一個數字，兩邊改動要一起改，不然日曆會跟進度條
+     黏在一起或留下不一致的空隙。 */
+  margin-bottom: 16px;
 }
 .booking-progress-stepper {
   display: flex;
@@ -576,35 +616,69 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     </div>
   </div>
 
-  <!-- 兩欄主結構容器 -->
+  <!-- Stage 1 版面重新設計（2026-08-09）：日曆（左）與「您選擇的方案資訊」（右）並排，
+       頂部對齊，同時出現在第一屏。手機版維持單欄堆疊（日曆在上、方案資訊在下），
+       由 .course-top-row-grid 的 991px 斷點處理，不需要另外寫手機專屬 HTML。 -->
+  <div class="course-top-row-grid">
+
+    <!-- 左欄：BTA 錨點容器。真正的日曆視覺內容用 position:absolute 疊加在這裡上方，
+         DOM 相對位置本身沒有搬動 BTA 節點，只是把「我們自己這個錨點容器」放進新的
+         兩欄版面裡（見上方 CSS `.course-calendar-column` 註解，跟下方 JS 註解）。 -->
+    <div class="course-calendar-column">
+      <div id="bta-booking-form-{{ product.id }}" data-product-id="{{ product.id }}">
+        <!-- BTA「Snow class booking」Inline widget 真正偵測的錨點 id（從 bta-widgets-bootstrap.min.js 原始碼確認）。
+             原本的 Stage1/2/3 精靈（人數下拉選單、假日曆容器、下一步按鈕、Stage2 雪板類型/場地/聯絡方式等自訂欄位、Stage3 裝備租借）
+             已整組移除：BTA widget 自己的流程已原生涵蓋日期/人數/雪板類型/場地/聯絡方式/兒童同行，裝備加購改在購物車頁由
+             assets/course-stage2-module.js 處理，不需要在商品頁重複刻一套。 -->
+        <div id="booking-current-date-picker">
+          <div id="bta-step-progress-bar" class="bta-step-progress-bar">
+            <div class="booking-progress-stepper">
+              <div class="step-item is-active" data-step="1"><span class="step-dot">1</span><span>日期</span></div>
+              <div class="step-line">➔</div>
+              <div class="step-item" data-step="2"><span class="step-dot">2</span><span>資訊</span></div>
+              <div class="step-line">➔</div>
+              <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
+            </div>
+          </div>
+          <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
+        </div>
+      </div>
+    </div> <!-- /course-calendar-column 結束 -->
+
+    <!-- 右欄：您選擇的方案資訊（原本跟「費用資訊」同一張卡片，這次拆開：方案資訊搬來
+         這裡跟日曆並排，費用資訊維持在下方全版寬單欄區塊，保留原本卡片視覺樣式）。 -->
+    <div class="info-block-card course-plan-summary-card">
+      <h3 class="info-block-title">您選擇的方案資訊</h3>
+      <div class="info-highlight-box">
+        <span class="box-tag">時段與集合地點</span>
+        <p class="box-main" id="DynamicCourseTimeText">
+          {% if product.tags contains '全天班' %}
+            全天班（6小時，含1小時午休）｜ 課程時間：09:00～15:00
+          {% else %}
+            半天班（3小時）｜ 上午：09:00～12:00 ／ 下午：13:00～16:00
+          {% endif %}
+        </p>
+        <p class="box-sub">集合地點：訂單完成後與教練確認</p>
+      </div>
+
+      <div class="info-row-item" style="border-left-color: var(--brand-ice-blue);">
+        <span class="row-label">兒童教學政策</span>
+        <span class="row-val">親子班兒童最低年齡為 6 歲，需有至少 1 位成人陪同，每組最多接受 1 位兒童同行。</span>
+      </div>
+    </div> <!-- /course-plan-summary-card 結束 -->
+
+  </div> <!-- /course-top-row-grid 結束 -->
+
+  <!-- 單欄主結構容器：費用資訊、安全規範、更多服務說明，維持原本全版寬單欄排列 -->
   <!-- 版心寬度對齊修正（2026-08-09）：原本跟 Banner 一樣用負邊界外推，同樣的理由拿掉，改回自然
        佔滿 wrapper 100% 寬度，讓下方所有卡片的左右邊界跟 Banner、NavBar、Footer 對齊在同一條線上。 -->
   <div class="course-main-layout-grid">
-    
-    <!-- 2. 左欄：主內容與條款確認區 (佔 65% 寬度) -->
+
     <div class="course-info-left-column">
-      
-      <!-- 區塊 A：您選擇的方案與基本確認 -->
+
+      <!-- 區塊 A：費用資訊（原本跟「您選擇的方案資訊」同一張卡片，方案資訊已搬到上方跟日曆並排） -->
       <div class="info-block-card">
-        <h3 class="info-block-title">您選擇的方案資訊</h3>
-        <div class="info-highlight-box">
-          <span class="box-tag">時段與集合地點</span>
-          <p class="box-main" id="DynamicCourseTimeText">
-            {% if product.tags contains '全天班' %}
-              全天班（6小時，含1小時午休）｜ 課程時間：09:00～15:00
-            {% else %}
-              半天班（3小時）｜ 上午：09:00～12:00 ／ 下午：13:00～16:00
-            {% endif %}
-          </p>
-          <p class="box-sub">集合地點：訂單完成後與教練確認</p>
-        </div>
-
-        <div class="info-row-item" style="border-left-color: var(--brand-ice-blue); margin-bottom: 20px;">
-          <span class="row-label">兒童教學政策</span>
-          <span class="row-val">親子班兒童最低年齡為 6 歲，需有至少 1 位成人陪同，每組最多接受 1 位兒童同行。</span>
-        </div>
-
-        <h3 class="info-block-title" style="margin-top: 32px;">費用資訊</h3>
+        <h3 class="info-block-title">費用資訊</h3>
         <div class="info-list-group">
           <div class="info-row-item">
             <span class="row-label">費用包含/不含項目</span>
@@ -686,31 +760,6 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 
     </div> <!-- /左欄結束 -->
 
-    <!-- 3. BTA 錨點容器：不是版面上的「欄位」，純粹提供 id 給 BTA／我們的 JS 掛載用，
-         真正的日曆視覺位置是決策 6 的 position:absolute 疊加在 Hero banner 下方，
-         這裡刻意不套用任何卡片樣式（display:contents，不產生自己的版面框），
-         避免 JS 執行後變空殼時顯示成空白長條。 -->
-    <div class="course-booking-anchor">
-      <div id="bta-booking-form-{{ product.id }}" data-product-id="{{ product.id }}">
-        <!-- BTA「Snow class booking」Inline widget 真正偵測的錨點 id（從 bta-widgets-bootstrap.min.js 原始碼確認）。
-             原本的 Stage1/2/3 精靈（人數下拉選單、假日曆容器、下一步按鈕、Stage2 雪板類型/場地/聯絡方式等自訂欄位、Stage3 裝備租借）
-             已整組移除：BTA widget 自己的流程已原生涵蓋日期/人數/雪板類型/場地/聯絡方式/兒童同行，裝備加購改在購物車頁由
-             assets/course-stage2-module.js 處理，不需要在商品頁重複刻一套。 -->
-        <div id="booking-current-date-picker">
-          <div id="bta-step-progress-bar" class="bta-step-progress-bar">
-            <div class="booking-progress-stepper">
-              <div class="step-item is-active" data-step="1"><span class="step-dot">1</span><span>日期</span></div>
-              <div class="step-line">➔</div>
-              <div class="step-item" data-step="2"><span class="step-dot">2</span><span>資訊</span></div>
-              <div class="step-line">➔</div>
-              <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
-            </div>
-          </div>
-          <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
-        </div>
-      </div>
-    </div> <!-- /course-booking-anchor 結束 -->
-
   </div> <!-- /course-main-layout-grid 主結構容器 結束 -->
 
 </div> <!-- /ski-booking-funnel-wrapper 結束 -->
@@ -733,62 +782,47 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     }
   };
 
-  /* 決策 6：把 BTA 日曆 widget 用 position:absolute 視覺搬到 Hero banner 正下方，還原陽春版本
-     「日曆緊鄰標題/價格」的體驗，但完全不動 DOM 樹順序、不改任何元素的 display 模式（決策 4-2、
-     決策 5 都已證實：動 DOM 順序或 <form> 的 display 這條路徑對 BTA 的插入行為無效或風險過高）。
-     兩個關鍵數字都不寫死：
-       1. widget 的 top 偏移量 = 當下量到的 .course-hero-banner 實際高度（不同商品標題/促銷標籤
-          長度不同，Hero banner 高度不會一樣）。
-       2. .course-main-layout-grid 的 margin-top = 當下量到的 widget 實際高度（loading 中、切換
-          月份、選人數等互動都可能讓 widget 高度改變），用來幫下面的課程資訊卡預留空間，避免
-          widget 用絕對定位浮動疊加蓋住卡片。
-     兩者都用 ResizeObserver 持續監聽，數字改變就即時重算，不是量一次就定死。 */
+  /* 決策 6（2026-08-09 因應 Stage1 兩欄並排改版重寫）：把 BTA 日曆 widget 用 position:absolute
+     視覺疊加到 .course-calendar-column 這個「錨點容器」正上方，完全不動 DOM 樹順序、不改任何
+     元素的 display 模式（決策 4-2、決策 5 都已證實：動 DOM 順序或 <form> 的 display 這條路徑
+     對 BTA 的插入行為無效或風險過高）。
+
+     跟舊版（單欄，日曆疊在 Hero banner 下方）的差異：
+       - 舊版用「hero 高度」當 widget 的 top 基準、left:0/width:100% 佔滿整個 form 寬度。
+       - 這次日曆改跟「您選擇的方案資訊」卡片並排，widget 只能佔左欄寬度，改成直接量測
+         .course-calendar-column（一個留在正常文件流裡的容器，會隨 Hero banner 高度變化、
+         RWD 斷點正確地跟著跑到對的位置）相對於 form 的座標，不用再自己另外算 hero 高度。
+       - 進度條這次「不搬離原本巢狀位置」，改成留在 .course-calendar-column 正常文件流裡
+         （不再是 form 的直接子層），所以：(a) 不會被 BTA 的白名單隱藏規則命中，不需要再
+         強制設 display/position；(b) 不需要 insertBefore 搬動；(c) 它的高度直接撐開
+         .course-calendar-column 的自然高度，widget 的 top 只要接在它下面即可。
+       - 舊版用「widget 高度」回頭設 .course-main-layout-grid 的 margin-top，幫下面內容
+         預留空間。這次改成讓 .course-calendar-column 自己的高度動態同步「進度條高度 + 間距
+         + widget 高度」，Grid/Flex 版面會自動根據這個高度正確保留空間，不需要再手動算
+         margin-top、也不用再管「下面內容現在是誰」（跟目標元素解耦，更不容易再壞掉）。
+     所有數字都不寫死，用 ResizeObserver 持續監聽，數字改變就即時重算。 */
+  const BAR_TO_WIDGET_GAP = 16; // 必須跟 CSS 裡 .bta-step-progress-bar 的 margin-bottom 一致
   const positionWidgetOverlay = () => {
     const form = document.querySelector('form.shopify-product-form');
-    const hero = document.querySelector('.course-hero-banner');
+    const calendarColumn = document.querySelector('.course-calendar-column');
     const widget = document.getElementById('bta-product-widget');
     const progressBar = document.getElementById('bta-step-progress-bar');
-    const grid = document.querySelector('.course-main-layout-grid');
-    if (!form || !hero || !widget || !grid || !window.ResizeObserver) return;
+    if (!form || !calendarColumn || !widget || !window.ResizeObserver) return;
 
     form.style.setProperty('position', 'relative', 'important');
 
-    /* 實測發現（跟決策 4/5 記錄的現象一致）：BTA 掛載時會把 #bta-product-widget 整個從我們
-       範本裡原本的巢狀位置移除，重新插入成 form.shopify-product-form 的直接子層。我們自己的
-       進度條 div 沒有被 BTA 認得，還留在原本巢狀位置（`.course-booking-anchor` 錨點容器底下，
-       2026-08-09 排查空白長條元件之前，這裡是有 position:sticky 樣式的 `.course-sticky-right-card`），
-       如果外層容器是「已定位元素」，會變成進度條 absolute 定位的 containing block，導致
-       top/width 百分比全部算錯、跑到頁面很下面的地方（`.course-booking-anchor` 本身用
-       display:contents，不會有這個問題，但這段防呆邏輯不依賴這件事，繼續保留）。
-       修法：進度條是我們自己的元素，不是 BTA 的節點，直接 appendChild 搬到跟 widget 同一層
-       （widget 的父層，此時就是 form 本身）完全安全——不像搬動 BTA 節點那樣有 iframe 重載風險。 */
-    if (progressBar && widget.parentElement && progressBar.parentElement !== widget.parentElement) {
-      widget.parentElement.insertBefore(progressBar, widget);
-    }
-
-    /* 視覺 QA 修正 A：進度指示條疊在 Hero banner 跟 widget 之間，同樣不寫死高度，
-       widget 的 top 偏移量在原本「hero 高度」之外，再加上進度條當下實際量到的高度。 */
     const applyWidgetPosition = () => {
-      const heroHeight = hero.getBoundingClientRect().height;
-      const barHeight = progressBar ? progressBar.getBoundingClientRect().height : 0;
-
-      if (progressBar) {
-        /* 進度條現在也是 form 的直接子層，會被 BTA 自己的白名單隱藏規則
-           （form[action*="/cart/add"] > :not(白名單)）連坐隱藏（它只認得自己的節點），
-           必須跟 revealStepUI() 對 .product-form-buttons 做的事一樣，強制設回可見。 */
-        progressBar.style.setProperty('display', 'block', 'important');
-        progressBar.style.setProperty('position', 'absolute', 'important');
-        progressBar.style.setProperty('left', '0', 'important');
-        progressBar.style.setProperty('width', '100%', 'important');
-        progressBar.style.setProperty('z-index', '6', 'important');
-        progressBar.style.setProperty('top', heroHeight + 'px', 'important');
-      }
+      const colRect = calendarColumn.getBoundingClientRect();
+      const formRect = form.getBoundingClientRect();
+      const barRect = progressBar ? progressBar.getBoundingClientRect() : null;
+      const left = colRect.left - formRect.left;
+      const top = (barRect ? barRect.bottom : colRect.top) - formRect.top + (barRect ? BAR_TO_WIDGET_GAP : 0);
 
       widget.style.setProperty('position', 'absolute', 'important');
-      widget.style.setProperty('left', '0', 'important');
-      widget.style.setProperty('width', '100%', 'important');
+      widget.style.setProperty('left', left + 'px', 'important');
+      widget.style.setProperty('width', colRect.width + 'px', 'important');
       widget.style.setProperty('z-index', '5', 'important');
-      widget.style.setProperty('top', (heroHeight + barHeight) + 'px', 'important');
+      widget.style.setProperty('top', top + 'px', 'important');
     };
     applyWidgetPosition();
 
@@ -796,8 +830,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
        屬性（不是疊加），會把我們設的 position/left/width/z-index 一起洗掉，只留下它自己要的
        display。用 MutationObserver 盯緊 widget 自己的 style attribute，一旦被 BTA 改動、
        發現我們要的 position:absolute 不見了，立刻補回去。判斷式本身能防止無限迴圈：補回去之後
-       widget.style.position 會變回 'absolute'，下一次觸發時條件不成立就不會再重覆呼叫。
-       進度條也套用同一招（它現在跟 widget 同層，一樣可能被 BTA 重繪時連坐重置 style）。 */
+       widget.style.position 會變回 'absolute'，下一次觸發時條件不成立就不會再重覆呼叫。 */
     const styleGuard = new MutationObserver(() => {
       if (widget.style.position !== 'absolute') {
         applyWidgetPosition();
@@ -805,22 +838,27 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     });
     styleGuard.observe(widget, { attributes: true, attributeFilter: ['style'] });
 
-    if (progressBar) {
-      const barStyleGuard = new MutationObserver(() => {
-        if (progressBar.style.position !== 'absolute' || progressBar.style.display !== 'block') {
-          applyWidgetPosition();
-        }
-      });
-      barStyleGuard.observe(progressBar, { attributes: true, attributeFilter: ['style'] });
-    }
-
-    new ResizeObserver(applyWidgetPosition).observe(hero);
+    /* .course-calendar-column 本身沒有變寬變高就不會觸發 ResizeObserver，但 Hero banner
+       高度變化（例如標題折成兩行）只會讓 calendarColumn 的「Y 座標」往下推、不會改變它
+       自己的尺寸，ResizeObserver 抓不到這種純位移——所以還是要單獨觀察 hero，高度一變就
+       重新算一次（重新讀 colRect 的當下數值，不是用 hero 高度直接參與公式）。 */
+    const hero = document.querySelector('.course-hero-banner');
+    if (hero) new ResizeObserver(applyWidgetPosition).observe(hero);
+    new ResizeObserver(applyWidgetPosition).observe(calendarColumn);
     if (progressBar) new ResizeObserver(applyWidgetPosition).observe(progressBar);
 
-    new ResizeObserver(() => {
+    /* .course-calendar-column 需要動態撐高到「進度條高度 + 間距 + widget 實際高度」，
+       Grid/Flex 版面才會正確幫右欄卡片對齊、也才會讓下一個區塊接在正確位置——完全交給
+       正常文件流自動處理，不需要再手動指定「下一個元素是誰、要補多少 margin-top」。 */
+    const updateColumnHeight = () => {
       const barHeight = progressBar ? progressBar.getBoundingClientRect().height : 0;
-      grid.style.setProperty('margin-top', (widget.getBoundingClientRect().height + barHeight) + 'px', 'important');
-    }).observe(widget);
+      const gap = progressBar ? BAR_TO_WIDGET_GAP : 0;
+      const widgetHeight = widget.getBoundingClientRect().height;
+      calendarColumn.style.setProperty('height', (barHeight + gap + widgetHeight) + 'px', 'important');
+    };
+    updateColumnHeight();
+    new ResizeObserver(updateColumnHeight).observe(widget);
+    if (progressBar) new ResizeObserver(updateColumnHeight).observe(progressBar);
   };
 
   /* 視覺 QA 修正 A：BTA widget 的 iframe 是用 srcdoc 掛載，跟外層頁面同源，
