@@ -1,6 +1,106 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-09
+最後更新：2026-08-10
+
+## ✅ 2026-08-10 更新：空白訂單漏洞已修正、驗證、commit 完成
+
+昨天（2026-08-09）規劃好的「🔴 明天最優先」任務已執行完成並 commit，細節見下方「✅ 已修正：原生『加入購物車』按鈕造成的空白訂單漏洞」專章。
+
+**完整端對端流程（選日期→BTA送出→加購→加入購物車）今天嘗試在草稿預覽網域上補測，結果卡在 BTA 測試 Widget（id `124456`）本身的設定問題（`proxyBaseUrl` 誤指向 `127.0.0.1`）——這是跟這次程式碼修改完全無關的既有問題，已定位成因，細節見文件下方「✅ 已定位根因：`127.0.0.1` proxyBaseUrl 問題只存在於測試 Widget」專章。重點結論：正式商品用的 Widget（`111783`）設定正常、不受影響，不是緊急事件，不影響真實客人下單，只是會持續擋住我們自己拿測試商品做端對端驗證的工作，需要業主或有 BTA 後台權限的人去修正測試 Widget 的設定。**
+
+## 📋 2026-08-09 整日總結（新對話串接手第一件事，先讀這段）
+
+今天是完整一整天的工作，橫跨視覺 QA、架構決策、版心對齊、版面重構，最後在收尾階段意外抓到一個會造成客人下單漏收資料的功能性漏洞。**下方「🔴 明天最優先」是新對話串接手的第一件事，直接跳過去看即可，這段總結只是背景脈絡。**
+
+1. **視覺 QA 修正需求規格 A→E 全部完成並實機驗證**（含端對端下單流程）：Step1 進度指示疊加＋按鈕中文化、Step2 CSS 皮膚化＋滑雪場選單資料修正、Stage3 Modal 移除點外部誤觸關閉、手機版 RWD 同步驗證、四商品欄位差異檢測＋保險文案定稿＋必填星號。過程中意外挖出並修正「測試商品跟正式商品共用 BTA tag」的架構問題（詳見文件下方「E-1」段落）。
+2. **架構決策定案（已與業主確認）**：降低對訂閱制預約 App（BTA）的深度綁定——Stage1/2 天生綁定訂閱 App、接受此事實；Stage3 維持自建 Modal（`assets/course-stage2-module.js`），不遷移至 BTA 原生 Add-ons，即使測試證實 Add-ons 技術上可行也不遷移。同時完成 BTA Add-ons 功能探索記錄（僅供未來參考，非採用）。
+3. **版心寬度對齊修正**：Body 主內容區塊（Hero banner、日曆卡片、方案資訊卡片等）跟 NavBar/Footer 邊界對不齊的問題，改用主題自己的 `--full-page-grid-with-margins` 變數重新對齊，拿掉了造成跑版的負邊界外推與 `.ski-booking-funnel-wrapper` 的 `max-width:1200px` 上限。
+4. **Stage 1 空白長條殘留元件排查與移除**：找到並清除決策4/6遺留的空殼卡片（`.course-sticky-right-card`），改用 `display:contents` 的純錨點容器。
+5. **Stage 1 版面重新設計**：日曆與「您選擇的方案資訊」卡片從上下堆疊改成左右並排（桌機兩欄、手機單欄），連帶重寫了決策6的日曆定位邏輯（改用 `.course-calendar-column` 座標量測取代 hero 高度量測），簡化了進度條定位跟 margin 補償邏輯。
+6. **🐛→✅ 收尾階段意外發現的功能性漏洞，隔天已修正**：原生「加入購物車」按鈕會讓客人完全跳過 BTA 三步驟流程直接下單，產生日期/滑雪場/聯絡方式全部空白、BTA 自己都判定「無法預約」的訂單，而且我們自建的 Stage3 Modal 進度條還會**假裝**日期/資訊已完成（打勾但實際沒收集到資料）。**2026-08-10 已修正並實測驗證通過**，細節見下方專章。
+
+**今天沒有任何檔案異動**（純排查與規劃性質的工作），git working tree 維持乾淨，最新 commit 仍是 `1501691`。
+
+---
+
+## ✅ 已修正（2026-08-10）：原生「加入購物車」按鈕造成的空白訂單漏洞
+
+2026-08-09 規劃好的兩處修改，2026-08-10 已實際動手完成，並實測驗證通過。**已 commit。**
+
+### 實際完成的兩處修改
+
+1. **[blocks/buy-buttons.liquid:230](blocks/buy-buttons.liquid:230)**：`<div>` 包住原生 `content_for 'block', type:'add-to-cart'` 的地方，加上跟第 111 行人數選單同款的條件式：
+   ```liquid
+   <div{% if product.type == 'Course' or product.handle contains 'course' %} style="display: none !important;"{% endif %}>
+   ```
+2. **[sections/product-information.liquid:27](sections/product-information.liquid:27)**：原本 `product.type != 'Course'` 這種寫法沒辦法直接跟 `contains` 用 `==` 串在同一個 `if` 運算式裡（Liquid 語法不支援，第一次寫 `and product.handle contains 'course' == false` 直接讓 dev server 回 500，`Liquid syntax error (line 27): Expected end_of_string but found comparison`）。改成先用 `{% liquid %}` 區塊算出一個布林變數再判斷：
+   ```liquid
+   {% liquid
+     assign is_course_product = false
+     if product.type == 'Course' or product.handle contains 'course'
+       assign is_course_product = true
+     endif
+   %}
+   {% if section.settings.enable_sticky_add_to_cart and is_course_product == false %}
+   ```
+
+### 驗證結果（本機 dev server 實測，桌機 1280px + 手機 375px）
+
+1. **四個測試商品**（`test-course-fullday-peak`／`fullday-offpeak`／`halfday-peak`／`halfday-offpeak`）**逐一 fetch 確認**：原生加入購物車按鈕的外層 div 都正確帶上 `style="display: none !important;"`，`document.querySelector('sticky-add-to-cart')` 在四個商品頁的 DOM 裡都**不存在**了。
+2. **視覺確認**：桌機、手機都截圖比對過，頁面最下方「更多服務說明」卡片後直接接 Footer，原本那顆海軍深藍色滿版按鈕**已經消失**，沒有留下空白間隙。
+3. **回歸測試（確認沒有殺過頭）**：用非 Course 商品（`fullday-class-peak-season`，PROGRESS.md 記錄的「黃金基準」原生商品）反向驗證——這個商品的 `sticky-add-to-cart` 元件依然存在（`stickyExists: true`），原生加入購物車按鈕依然沒被隱藏（`lastDivStyle: null`），證實這次修改**只精準命中 Course 商品，沒有誤傷其他商品類型**（Accommodation、Gear-rental 等一律沒動）。
+4. **BTA 掛載機制沒受影響**：`.product-form-buttons` 的 `display:flex`（`revealStepUI()` 效果）、`#bta-product-widget` 底下的 `<iframe>` 都正常存在，Stage1 兩欄並排版面（8/9 剛做完的版面重構）視覺上完全正常。
+5. **Console 檢查**：沒有新增錯誤，剩下的都是 PROGRESS.md 早就記錄過的本機 dev 環境已知假警報（`127.0.0.1` BTA API 連線被拒、`ERR_CONNECTION_REFUSED` 等，跟這次改動無關）。
+6. **沒有做到、需要之後留意的部分**：2026-08-10 有在草稿預覽網域上嘗試補測完整端對端流程（選日期→BTA送出→加購），但卡在測試 Widget（`124456`）本身的 `proxyBaseUrl` 設定問題（誤指向 `127.0.0.1`，導致整月日期都顯示 Unavailable），**這是跟這次程式碼修改完全無關的既有 BTA 設定問題，不是這次改動造成的，也不是本機環境限定**（草稿預覽網域上一樣重現）。已定位成因並確認正式 Widget（`111783`）不受影響，細節見文件下方專章。**這次驗證用的是「DOM層級回歸測試」邏輯（原生按鈕/sticky bar 確認消失、BTA 掛載機制沒被破壞、非Course商品沒被誤傷），不是端對端下單驗證**——等測試 Widget 設定修好後，建議補一次完整端對端流程，用先前決策6/E-1驗證過的方法確認 properties 正確帶入。
+
+### 涉及檔案（實際異動，尚未 commit）
+
+- `blocks/buy-buttons.liquid`（1 行變動）
+- `sections/product-information.liquid`（1 行變成 7 行，邏輯不變只是拆成變數判斷）
+
+---
+
+## 🐛 原生「加入購物車」按鈕造成空白訂單漏洞（2026-08-09 排查發現，2026-08-10 已修正，詳細根因記錄保留供參考）
+
+**背景**：使用者提出規格，要求排查頁面最下方、Footer 上方一顆「海軍深藍色、滿版寬、來源不明」的加入購物車按鈕——懷疑跟客製的 Stage1-3 三步驟流程無關，且可能讓客人繞過必要資訊直接下單。排查方式全程**實測，不用猜的**：DevTools 檢查元素來源、真實點擊測試、查看 `/cart.js` 結果、查看購物車頁實際顯示。
+
+### 根因
+
+這顆按鈕是 **Shopify Horizon 主題原生的「加入購物車」按鈕**（`blocks/add-to-cart.liquid`，透過 [blocks/buy-buttons.liquid:230-237](blocks/buy-buttons.liquid:230) 的 `content_for 'block', type:'add-to-cart'` 渲染，`style_class: "button"` 主色系按鈕，[templates/product.course-booking.json:203-210](templates/product.course-booking.json:203) 可查到設定），不是任何客製程式碼寫的東西。
+
+它跟 `course-booking-form.liquid`（Stage1-3 流程）是**同一個父容器 `.product-form-buttons` 底下的手足元素**：course-booking-form 的內容先渲染，這顆原生按鈕緊接著渲染在它後面，DOM 順序上排在整個 Stage1-3 流程的最下方、Footer 正上方。
+
+**跟決策1/4的 `revealStepUI()` 機制直接相關**：`.product-form-buttons` 正是 BTA 用白名單規則預設隱藏、[revealStepUI()](snippets/course-booking-form.liquid:777) 在 BTA widget 掛載後強制 `display:flex` 解除隱藏的**同一個容器**。這顆原生按鈕是它的直接子元素，沒有被特別過濾掉，所以只要 Stage1-3 UI 被顯示，它就跟著一起被顯示。**這不是誰刻意保留的功能，是一個沒被順手清掉的殘留**——決策1只隱藏了人數選單（[buy-buttons.liquid:111](blocks/buy-buttons.liquid:111)），但沒有連同「加入購物車」按鈕一起處理。
+
+### 實測證據（`test-course-fullday-peak`，本機 dev server，直接點擊未走 BTA 流程）
+
+1. **確實會把商品加入購物車**，價格正確扣款（$13,175）。
+2. **`/cart.js` 回傳 `"properties": {}`，完全空白**——沒有日期、沒有滑雪場、沒有雪板類型、沒有聯絡方式，任何 BTA 原本會收集的欄位都沒有。額外發現：這筆 line item 的 `"product_type": ""`（空字串），這個事實也是下面 Sticky Add to Cart 關聯問題的根因線索。
+3. **BTA 自己的購物車頁擴充功能跳出紅字警告：「Booking could not be reserved」+「UPDATE RESERVATION」按鈕**——BTA 自己都判定這筆訂單沒有真正被預約成功，不是我們的猜測。
+4. **更嚴重：Stage3 加購 Modal 依然照常跳出，步驟指示條顯示「① ✓ 日期 → ② ✓ 資訊 → ③ 加購」**——日期跟資訊被打勾顯示已完成，但實際上使用者完全沒有填過。這個勾勾是靜態 UI，不會檢查真實資料是否存在。客人可以就這樣一路按到「結帳」，付全額但沒有真正被 BTA 排進日期。（測試到此為止，**沒有實際點擊結帳完成付款**，測試用的購物車項目已用 `/cart/clear.js` 清空，不留殘留測試資料。）
+
+**結論**：這證實了最初的擔憂——這顆按鈕會讓客人略過三步驟流程、直接下單，且產生的是缺少必要資訊、BTA 都判定「無法預約」的空白訂單，Stage3 Modal 的假勾勾還會讓客人誤以為流程正常完成。
+
+### 關於「滿版寬貼齊視窗邊緣」的說法，誠實記錄一個沒對上的細節
+
+實測目前最新 commit（`1501691`）的程式碼（手機 375px + 桌機 1014px/1280px），這顆按鈕的左右邊界其實**已經對齊版心**（跟 Footer 連結、NavBar 內容邊界完全一致），不是真正貼齊視窗邊緣——推測是 2026-08-09 稍早的「版心寬度對齊修正」把 `.product-details` 欄寬修好時，順帶讓這顆按鈕也一起對齊了，是個沒特別設計但剛好發生的副作用。**如果之後在草稿預覽網域上重新截圖，發現視覺上還是貼邊，不要照抄這個「已對齊」的結論，要重新查證**（可能是快取或瀏覽器 session 差異）。
+
+### 意外挖到的關聯問題：Sticky Add to Cart 排除條件跟商品判斷邏輯不一致
+
+排查「滿版寬」說法時，意外發現 [sections/product-information.liquid:27](sections/product-information.liquid:27) 的主題原生「Sticky Add to Cart」浮動條，排除 Course 商品的條件寫成 `product.type != 'Course'`，**沒有像 `buy-buttons.liquid` 其他判斷式一樣加上 `or product.handle contains 'course'` 的後備條件**。
+
+實測證實：這個商品的 `product.type` 其實是**空字串**（不是字面上的 `"Course"`，由上面 `/cart.js` 回應的 `"product_type": ""` 佐證），導致這個排除條件**沒有生效**，`<sticky-add-to-cart>` 元件確實出現在 Course 商品頁的 DOM 裡（用 `document.querySelector('sticky-add-to-cart')` 直接驗證過存在）。
+
+**這個浮動條的「加入購物車」按鈕，點擊行為是直接 `.click()` 代理到同一顆原生按鈕**（[assets/sticky-add-to-cart.js:165-168](assets/sticky-add-to-cart.js:165) `handleAddToCartClick` 內部呼叫 `this.#targetAddToCartButton.click()`），跟上面是同一個空白訂單風險。它手機版 CSS（`@media max-width:749px`）是真正的 `width:100%; max-width:none; border-radius:0`，觸發時會是名副其實的貼邊全版——比上面那顆「已對齊版心」的按鈕更符合「貼齊左右視窗邊緣，未套用版心寬度對齊」的字面描述，**懷疑使用者實際觀察到的搞不好是這一顆，而不是文件流裡那顆**。
+
+**觸發機率評估**：這個浮動條靠 `IntersectionObserver` 監聽「原生按鈕所在的整個 `.buy-buttons-block` 完全捲出視窗上緣」才會顯示（[sticky-add-to-cart.js:101-158](assets/sticky-add-to-cart.js:101)）。實測 `test-course-fullday-peak`／`test-course-halfday-peak` 在手機 375px、桌機 1014px、1280px 三種尺寸下，都因為「原生按鈕本來就緊貼在 Footer 正上方，可捲動的剩餘空間不夠讓整個區塊完全捲出視窗」而**始終沒有真正觸發**（用 JS 直接算過座標：`buyBtnBlock` 底部座標始終大於「頁面可捲動最大值」，數學上到不了觸發門檻）。**目前判斷這個浮動條在正式站被客人實際看到的機率偏低，但邏輯上的漏洞跟風險是真實存在的，不應該放著不修**——之後如果有更長的商品頁面內容（例如加了更多課程說明文字），可捲動空間變大，就可能被真正觸發。
+
+### 涉及檔案（尚未修改，明天動手時的異動範圍）
+
+- `blocks/buy-buttons.liquid`：230-237 行外面包一層 Course 商品判斷式的 `display:none`
+- `sections/product-information.liquid`：27 行的排除條件加上 handle 後備判斷
+
+---
 
 ## ✅ Stage 1 版面重新設計：日曆與方案資訊左右並排（2026-08-09）
 
@@ -195,13 +295,38 @@
 
 ## ✅ 決策 6 端對端購物車流程驗證通過（2026-08-07）
 
-## 🔍 觀察中（不是已解決）：曾出現一次 `127.0.0.1` preconnect / `blocks` API 連線失敗現象
+## ✅ 已定位根因（2026-08-10）：`127.0.0.1` proxyBaseUrl 問題只存在於測試 Widget，正式 Widget 確認乾淨
 
-**現象描述**：2026-08-07 測試 `test-course-fullday-peak` 時，觀察到 widget bootstrap 回應的 HTML 裡出現寫死的 `<link rel="preconnect" href="https://127.0.0.1/apps/bookthatapp">` / `dns-prefetch`，且實際查詢可預約日期的 `blocks` API（`/apps/bookthatapp/api/v1/blocks?...`）連線失敗（`ERR_CONNECTION_REFUSED`），導致當時商品頁日曆**所有日期都顯示 Unavailable**，連正式草稿主題預覽網域（`lifechillsnow.com`，已確認是草稿主題 `147355926611`）上都能重現。**2026-08-08 用完全相同的方法（同一個瀏覽器 session、同一個 widget id `124456`、同一個 `fetch()` 直接打 widget 網址）重新測試，未再出現**——HTML 乾淨、`blocks` API 正確打到 `lifechillsnow.com` 且回應 200、widget 正常掛載 iframe。同一天，使用者在自己完全獨立的真實瀏覽器上，也完整走通了一次端對端購物車流程（見下方）。
+**這個章節原本標題是「🔍 觀察中（不是已解決）」，2026-08-10 已經把根因定位清楚，不再是懸而未決的觀察，改成確認結論，原始觀察記錄保留在下方供對照。**
 
-**根本原因未確認**——這件事要老實講清楚：現有證據**無法排除**是測試工具/瀏覽器 session 環境本身的問題，**也無法排除**是 BTA 後端當時真的發生了一個後來自己恢復的暫時性狀況。2026-08-07 出問題的當下沒有做即時對照實驗（例如同一時刻在使用者的真實瀏覽器上並行測試），2026-08-08 的重新驗證只是回顧性的「現在乾淨」，不能倒推證明「當初問題出在哪一層」。**不要把這件事寫成「已排除是 BTA 問題」或「已確認是測試環境問題」，兩種說法目前都沒有足夠證據支撐。**
+### 2026-08-10 的新發現（用三種獨立方法交叉驗證，含完全跳出瀏覽器的 curl）
 
-**給未來自己的提示**：如果之後在**真實使用情境**（不是我們自己的測試工具）中又觀察到同樣的「日期全部顯示 Unavailable」現象，**且能穩定重現**（不是像這次一樣只出現一次、之後就消失），才需要重新考慮聯繫 BTA 支援。屆時務必在**問題還存在的當下**立刻截圖、記錄完整的網路請求內容（尤其是 widget bootstrap 回應的原始 HTML 跟 `blocks` API 的請求/回應），不要等事後才回頭查證——這次的教訓就是回顧性驗證沒辦法還原「當時」發生了什麼。草擬給 BTA 客服的信已經寫好，如果之後真的需要用，在 2026-08-07 對話紀錄裡可以找到完整版本，屆時記得依照當下重現到的實際證據更新內容，不要照抄舊的推測。
+排查「原生加入購物車按鈕」漏洞時，在草稿預覽網域（`lifechillsnow.com?preview_theme_id=147355926611`）用**全新瀏覽器分頁**（排除今天稍早本機 127.0.0.1 測試殘留污染的可能性）走 `test-course-fullday-peak` 的 BTA 流程，12 月（旺季）整月 35 天**全部顯示 Unavailable**，一個日期都點不了。
+
+追查發現 widget bootstrap 回應（`/apps/bookthatapp/widgets/124456?...`）裡寫死：
+```
+proxyBaseUrl: 'https://127.0.0.1/apps/bookthatapp'
+```
+用兩種完全獨立、都不涉及瀏覽器 cookie/session 的方法交叉驗證：(1) 頁面內 `fetch(..., {credentials:'omit'})`，(2) 終端機直接 `curl` 打同一個 widget 網址，**結果完全一致**——證實這不是瀏覽器工具或本機測試殘留造成的假象，是 BTA 後端這個 widget 的設定本身就有問題。
+
+**關鍵一步——比對測試 Widget 跟正式 Widget，才發現問題範圍其實很侷限**：
+- 四個 `test-course-*` 測試商品用的是 widget id `124456`（「Snow class booking」的某個版本，PROGRESS.md 決策4-1早就懷疑過這個 id 可能是意外新增/重置出來的）
+- 真正的正式商品（例如 `fullday-class-peak-season`，product_id `7652851056723`）查證後用的其實是 widget id **`111783`**——這正是「專案基本資訊」段落原本就記錄的正式 widget id
+
+分別用 `curl` 打兩個 widget 各自的 `proxyBaseUrl`：
+```
+測試 Widget 124456 → proxyBaseUrl: 'https://127.0.0.1/apps/bookthatapp'         ← 壞的
+正式 Widget 111783 → proxyBaseUrl: 'https://lifechillsnow.com/apps/bookthatapp' ← 正常
+```
+
+### 結論
+
+1. **正式商品（真正給客人下單用的 widget 111783）完全沒有這個問題，設定正確、`proxyBaseUrl` 正常指向 `lifechillsnow.com`**——不是緊急事件，不影響任何真實客人下單。
+2. **問題完全侷限在測試 Widget（124456）本身的設定**，導致所有 `test-course-*` 系列測試商品目前在任何環境（本機、草稿預覽網域）都無法選日期。這解釋了 PROGRESS.md 從 2026-08-06 就開始斷斷續續記錄、卻一直「這次有、下次沒有」抓不到穩定根因的謎團——很可能是有人在 BTA 後台編輯測試 Widget（或關聯的 Season）設定時，反覆把這個欄位改對又改錯，導致每次重新測試結果不一致，不是真的「時好時壞的暫時性網路問題」。
+3. **這件事現在的正確定性是「測試環境本身的設定錯誤，會持續擋住我們自己的端對端測試工作，但不影響正式站」**——優先度中等（會拖慢之後所有需要走完整 BTA 流程的驗證工作），但不是要立刻通報業主或聯繫 BTA 客服的緊急事件。
+4. **建議處理方式**：請業主或有 BTA 後台權限的人，把測試 Widget（`124456`，「Snow class booking」的測試版本）的 `proxyBaseUrl` / storefront domain 相關欄位，比照正式 Widget（`111783`）的設定修正回 `lifechillsnow.com`，之後測試商品的日曆才能正常查詢可預約日期。
+
+### 原始觀察記錄（2026-08-06～08，保留供對照，不再是「未解之謎」）
 
 ---
 
@@ -512,6 +637,7 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 
 ## 待辦事項
 
+0. ~~修正原生「加入購物車」按鈕造成的空白訂單漏洞~~ ✅ 已於 2026-08-10 完成、驗證、commit。細節見文件最上方「✅ 已修正（2026-08-10）」專章。**完整端對端流程還沒補測**——卡在測試 Widget（`124456`）的 `proxyBaseUrl` 設定問題（誤指向 127.0.0.1，跟這次改動無關，正式 Widget `111783` 不受影響），細節見文件下方「✅ 已定位根因」專章。**等業主/BTA後台權限的人修好測試 Widget 設定後，補一次完整端對端流程驗證 properties 正確帶入**
 1. ~~【最優先，下次接手第一件事】驗證決策 4 第 1 點的刪除沒有把頁面弄壞~~ ✅ 已於 2026-08-06 驗證通過，細節見文件最上方
 2. ~~執行決策 4 第 2 點（CSS order 手機版排序）~~ 🚫 已於 2026-08-06 實測發現原本的 CSS 路徑走不通，需要改動風險等級跟原訂單「純 CSS 低風險」不同，**使用者決定暫緩擱置**，細節見文件最上方「決策 4 第 2 點」段落。之後要重啟前，先跟使用者確認風險可接受再動手，不要不問就動 `<form class="shopify-product-form">` 的 display 屬性
 3. ~~清理決策 4 遺留的死 CSS~~ ✅ 已於 2026-08-06 完成並驗證，細節見文件最上方「決策 4 遺留死 CSS 已清理完成」段落
@@ -537,4 +663,4 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 23. ~~版心寬度對齊修正：Body 主內容區塊跟 NavBar/Footer 邊界對不齊~~ ✅ 已於 2026-08-09 完成並驗證通過，細節見文件最上方「版心寬度對齊修正」段落
 24. ~~Stage 1 空白長條殘留元件排查與移除~~ ✅ 已於 2026-08-09 完成並驗證通過，細節見文件最上方「Stage 1 空白長條元件排查與移除」段落
 25. ~~Stage 1 版面重新設計：日曆與方案資訊左右並排~~ ✅ 已於 2026-08-09 完成並驗證通過（含決策 6 定位邏輯重寫、手機版 align-items 踩坑修正），細節見文件最上方「Stage 1 版面重新設計」段落
-26. 【下次接手待執行，規格已交付】**底部「加入購物車」滿版按鈕排查**——使用者提到規格已交付，但這次對話沒有實際收到規格文件內容，**下次接手第一件事應該先跟使用者要這份規格**，不要自己假設要排查什麼，避免猜錯方向浪費額度
+26. ~~底部「加入購物車」滿版按鈕排查~~ ✅ 已於 2026-08-09 完成排查並實測驗證，發現真正的功能性漏洞（原生按鈕繞過 BTA 流程造成空白訂單），修法方向已規劃完成，**執行本身變成新的待辦 0（🔴 明天最優先）**，細節見文件最上方兩個專章

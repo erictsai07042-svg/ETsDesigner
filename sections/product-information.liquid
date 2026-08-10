@@ -24,7 +24,13 @@
   {% content_for 'blocks' %}
 {% endcapture %}
 
-{% if section.settings.enable_sticky_add_to_cart and product.type != 'Course' %}
+{% liquid
+  assign is_course_product = false
+  if product.type == 'Course' or product.handle contains 'course'
+    assign is_course_product = true
+  endif
+%}
+{% if section.settings.enable_sticky_add_to_cart and is_course_product == false %}
   {% liquid
     assign current_variant = product.selected_or_first_available_variant
     # Get the initial quantity based on quantity rules

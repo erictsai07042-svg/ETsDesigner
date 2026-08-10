@@ -227,7 +227,7 @@
             {%- render 'accommodation-booking-form', product: product -%}
           {%- endif -%}
 
-          <div>
+          <div{% if product.type == 'Course' or product.handle contains 'course' %} style="display: none !important;"{% endif %}>
             {% content_for 'block',
               type: 'add-to-cart',
               id: 'add-to-cart',
