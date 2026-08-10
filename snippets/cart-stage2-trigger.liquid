@@ -9,6 +9,7 @@
 <script>
 (function () {
   var STAGE2_DONE_KEY = '_stage2_completed';
+  var ATTENDEE_COUNT_KEY = '實際參加人數';
 
   function isCourseItem(item) {
     return item.product_type === 'Course' || (item.handle && item.handle.indexOf('course') > -1);
@@ -18,6 +19,20 @@
     return cart.items.filter(function (item) {
       return isCourseItem(item) && !item.properties[STAGE2_DONE_KEY];
     })[0];
+  }
+
+  /* 實際參加人數要從 BTA Booking Field「實際參加人數」寫入的 line item property 讀，
+     不能用 Shopify 的 quantity——課程商品是綁定人數級距的套裝價（例如「1~2人」「3~4人」
+     同級距內價格固定），quantity 恆為 1，沒辦法用來推算實際到場人數。
+     舊訂單／測試流程若還沒走過這個新欄位，預設顯示 1 組並記錄警告，方便日後排查，而非直接報錯或空白。 */
+  function getAttendeeCount(item) {
+    var raw = item.properties[ATTENDEE_COUNT_KEY];
+    var count = parseInt(raw, 10);
+    if (!raw || isNaN(count) || count < 1) {
+      console.warn('[CourseStage2] 購物車項目缺少「' + ATTENDEE_COUNT_KEY + '」欄位資料，預設顯示 1 組加購選項。line item key: ' + item.key);
+      return 1;
+    }
+    return count;
   }
 
   function checkAndTrigger() {
@@ -33,7 +48,7 @@
           return;
         }
         window.CourseStage2Module.renderStage2Form(mount, {
-          attendeeCount: targetItem.quantity,
+          attendeeCount: getAttendeeCount(targetItem),
           productTitle: targetItem.product_title,
           onSubmit: function (properties) {
             properties[STAGE2_DONE_KEY] = 'true';
