@@ -72,9 +72,21 @@
       '.gear-name strong { color: #2D5F8A; font-weight: 700; margin-left: 6px; }',
       '.gear-desc { font-size: 12px; color: #5A6A78; margin-top: 2px; line-height: 1.4; }',
 
+      /* 法律聲明必勾同意（文案待補，這裡只負責互動邏輯與樣式） */
+      '.cs2-legal-consent { margin-top: 18px; padding-top: 16px; border-top: 1px solid #e4ecf3; }',
+      '.cs2-legal-consent-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }',
+      '.cs2-legal-consent-label input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; border: 2px solid #7AB3D4; border-radius: 4px; background-color: #fff; cursor: pointer; transition: all 0.15s; position: relative; }',
+      '.cs2-legal-consent-label input[type="checkbox"]:checked { background-color: #1A2E4A; border-color: #1A2E4A; }',
+      '.cs2-legal-consent-label input[type="checkbox"]:checked::after { content: "\\2713"; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #fff; font-size: 11px; font-weight: 700; }',
+      '.cs2-legal-consent-text { font-size: 13px; color: #1A2E4A; line-height: 1.5; }',
+      '.cs2-legal-consent-warning { color: #C0392B; font-size: 12px; font-weight: 700; margin: 6px 0 0 28px; }',
+      '.cs2-legal-consent-warning[hidden] { display: none; }',
+
       '.cs2-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }',
       '.cs2-btn-primary { background: #1A2E4A; color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }',
       '.cs2-btn-primary:hover { background: #2D5F8A; }',
+      '.cs2-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; background: #1A2E4A; }',
+      '.cs2-btn-primary:disabled:hover { background: #1A2E4A; }',
       '.cs2-btn-skip { background: none; border: none; color: #5A6A78; font-size: 14px; cursor: pointer; text-decoration: underline; }',
     ].join('\n');
     document.head.appendChild(style);
@@ -195,9 +207,16 @@
               '</div>' +
             '</div>' +
           '</div>' +
+          '<div class="cs2-legal-consent">' +
+            '<label class="cs2-legal-consent-label">' +
+              '<input type="checkbox" data-cs2-legal-checkbox>' +
+              '<span class="cs2-legal-consent-text">我已閱讀並同意上述裝備租賃聲明（文案待補）</span>' +
+            '</label>' +
+            '<p class="cs2-legal-consent-warning" data-cs2-legal-warning hidden>請先閱讀並同意租賃聲明</p>' +
+          '</div>' +
           '<div class="cs2-footer">' +
             '<button type="button" class="cs2-btn-skip" data-cs2-skip>略過，之後再補</button>' +
-            '<button type="button" class="cs2-btn-primary" data-cs2-submit>確認加購</button>' +
+            '<button type="button" class="cs2-btn-primary" data-cs2-submit disabled>確認加購</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -205,6 +224,20 @@
     var gearRoot = container.querySelector('[data-gear-rental-root]');
     var gearControls = renderGearRentalSection(gearRoot, { attendeeCount: attendeeCount });
     wireAccordionToggle(container.querySelector('[data-gear-toggle]'), container.querySelector('[data-gear-content]'));
+
+    /* 法律聲明必勾同意：checkbox 未勾選時「確認加購」按鈕強制 disabled，
+       兩者即時雙向連動。因為 Modal 本身每次開啟都是 container.innerHTML 整段重新渲染
+       （見 close()／呼叫端 checkAndTrigger()），checkbox 天生不會沿用上次的勾選狀態，
+       不需要額外的重置邏輯。 */
+    var legalCheckbox = container.querySelector('[data-cs2-legal-checkbox]');
+    var legalWarning = container.querySelector('[data-cs2-legal-warning]');
+    var submitBtn = container.querySelector('[data-cs2-submit]');
+
+    function syncSubmitButtonState() {
+      submitBtn.disabled = !legalCheckbox.checked;
+      if (legalCheckbox.checked) legalWarning.hidden = true;
+    }
+    legalCheckbox.addEventListener('change', syncSubmitButtonState);
 
     function close() {
       container.innerHTML = '';
@@ -217,7 +250,13 @@
       });
     });
 
-    container.querySelector('[data-cs2-submit]').addEventListener('click', function () {
+    submitBtn.addEventListener('click', function () {
+      /* 雙重防呆：即使 disabled 理論上點不到，仍在送出邏輯最前面擋一次，
+         避免 disabled 屬性被其他腳本／瀏覽器擴充功能意外移除而繞過檢查。 */
+      if (!legalCheckbox.checked) {
+        legalWarning.hidden = false;
+        return;
+      }
       var selectedGear = gearControls.getSelectedGear();
       var properties = {};
       selectedGear.forEach(function (g) {
