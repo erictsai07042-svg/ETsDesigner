@@ -2,7 +2,44 @@
 
 最後更新：2026-08-10
 
-## ✅ 2026-08-10 更新：空白訂單漏洞已修正、驗證、commit 完成
+## ✅ 2026-08-10 更新：裝備租賃法律聲明定稿文字已置入 Stage 3 Modal
+
+使用者提供定稿文件（`滑雪裝備租賃風險與責任聲明.pdf` + 對應 markdown 規格），內容用 `Read` 工具直接讀取 PDF 原文逐字比對過，確認跟提供的 markdown 文字一致（僅排版微調，法律意義未變更）。
+
+實作方式：`assets/course-stage2-module.js` 的 `renderStage2Form()` 裡，原本「（文案待補）」的 checkbox 旁邊，新增一個 `.cs2-legal-scrollbox`（固定高度 200px、`overflow-y:auto`、Ice Blue `#7AB3D4` 邊框）放完整聲明正文（一~六段 + 賠償金額表格，表格斑馬紋、Deep Navy 表頭），checkbox 標籤文字換成定稿的「我已詳閱並同意上述《滑雪裝備租賃風險與責任聲明》全部內容」。**只改了 HTML 內容跟對應 CSS，2026-08-10 稍早做的 checkbox 互動邏輯（`data-cs2-legal-checkbox`／`data-cs2-legal-warning`／disabled 連動／送出防呆）完全沒有動，selector 都保持一致。**
+
+**驗證**（草稿預覽網域 `lifechillsnow.com?preview_theme_id=147355926611`，桌機 + 手機 375px）：
+- 聲明正文完整渲染（一、裝備確認 → 六、同意聲明，含賠償金額表格），逐段文字跟 PDF 原文比對一致
+- checkbox 勾選/取消 → 按鈕 enable/disable 即時連動，跟置入文案前驗證過的行為完全一致（沒有因為換了 HTML 內容而影響邏輯）
+- 手機版捲動、版面都正常，沒有溢位
+- Console 沒有新增錯誤（僅有跟這次改動無關的既有 BTA 本機/草稿環境假警報）
+
+**過程中一個測試方法論的插曲，記錄避免下次誤判**：驗證時一度用 `fetch` 抓 CDN 上實際部署的 asset 內容、直接搜尋中文字串（例如「裝備確認」）確認有沒有部署成功，結果搜不到、一度懷疑是不是有另一個對話同時開著的 `shopify theme dev` 造成同步衝突。**後來發現是虛驚一場**：Shopify CDN 部署出來的 asset 內容會把中文字元轉成 `\uXXXX` unicode escape 序列，直接用原始中文字串搜尋當然找不到，把抓回來的內容先 decode `\uXXXX` 再搜尋，才確認內容其實早就正確部署了。**之後如果要用「直接 fetch CDN asset 內容比對字串」的方式驗證中文內容有沒有部署成功，記得要先 decode unicode escape，不要直接用中文字串搜尋，否則會誤判成部署失敗。**
+
+**下一步**：法律聲明文字置入部分已全數完成，Stage 3 checkbox 整個功能（規格 + 文案）都已交付。**尚未 commit**，等使用者確認。
+
+---
+
+## ✅ 2026-08-10（稍早）：Stage 3 必勾同意 checkbox 已完成並 commit
+
+依照 `Stage3_checkbox_需求規格.md`（選項 B：涉及法律免責性質，強制勾選才能繼續），在 `assets/course-stage2-module.js` 加入法律聲明必勾 checkbox 邏輯，commit `1de8f5c`：
+
+- Modal 開啟預設未勾選、「確認加購」按鈕預設 `disabled`（`opacity:0.45` + `cursor:not-allowed`，跟 hover/一般狀態明顯區隔）
+- checkbox `change` 事件即時雙向連動按鈕 enable/disable
+- 送出函式最前面加防呆：checkbox 未勾選一律 `return` 攔截，並顯示紅字提示「請先閱讀並同意租賃聲明」——**實測過「用 JS 強制拔掉 disabled 屬性再點擊」的繞過情境，確認送出邏輯依然攔截、`/cart.js` properties 依然是空的**
+- `cart-stage2-trigger.liquid`／`main-cart.liquid` 檢查過不需要改動：Modal 本身是每次開啟都 `container.innerHTML` 整段重新渲染（不是 display:none/block 切換），checkbox/按鈕狀態天生不會沿用上次的，不需要額外重置邏輯——**已用「同一頁面連續開啟兩次 Modal（購物車放兩個課程商品，第一個勾選後略過，緊接著第二個 Modal 彈出）」這個更嚴格的情境驗證過，確認第二個 Modal 的 checkbox 沒有沿用第一個的勾選狀態**
+- 文案暫時用「（文案待補）」佔位，法律聲明定稿文字置入是下一步待辦（見下方）
+- 全程在草稿預覽網域（`lifechillsnow.com?preview_theme_id=147355926611`）實測，未用 127.0.0.1
+
+**下一步待辦（規格已交付，這次對話後續會處理）**：把法律聲明定稿文字置入 checkbox 旁邊「（文案待補）」的位置，定稿文件由使用者提供，只需要換文字，不涉及邏輯改動。
+
+**⚠️ 意外發現、記錄成待辦、這次沒有修（見下方待辦事項清單相同項目）**：驗證「略過」流程時，Console 跳出 `Cannot read properties of null (reading 'resource'/'data')` 錯誤，追查是既有程式碼（`writeCourseFormDataToCart()` 送出後 `dispatchEvent(new CustomEvent('cart:update'))` 沒帶 `detail` payload，但主題原生一堆購物車元件如 `cart-drawer.js`／`cart-icon.js`／`sticky-add-to-cart.js` 等 15 個檔案都預期這個事件帶 `detail.resource`/`detail.data`），跟這次 checkbox 改動無關，中等優先度，不急著修但不要忘記。
+
+**🔍 待查證、尚未處理**：這次 commit 前發現 `layout/theme.liquid` 也有一筆未預期的本機異動（不是這次對話任何人做的修改），內容是把本地沙盒防護腳本的 `.shopifypreview.com` 白名單判斷拿掉、console log 文字也改了——懷疑是 `shopify theme dev` 把某個透過 Shopify 後台（可能是 Sidekick AI 建議或其他人直接在 admin 編輯器）對草稿主題做的修改同步回本機。**這筆異動故意沒有跟這次 checkbox commit 放在一起**，維持在 working tree 未 commit 狀態，等使用者確認這是預期中的修改還是需要處理的意外變動。細節見文件最下方「🔍 待查證」章節。
+
+---
+
+## ✅ 2026-08-10（稍早）：空白訂單漏洞已修正、驗證、commit 完成
 
 昨天（2026-08-09）規劃好的「🔴 明天最優先」任務已執行完成並 commit，細節見下方「✅ 已修正：原生『加入購物車』按鈕造成的空白訂單漏洞」專章。
 
@@ -641,7 +678,7 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 1. ~~【最優先，下次接手第一件事】驗證決策 4 第 1 點的刪除沒有把頁面弄壞~~ ✅ 已於 2026-08-06 驗證通過，細節見文件最上方
 2. ~~執行決策 4 第 2 點（CSS order 手機版排序）~~ 🚫 已於 2026-08-06 實測發現原本的 CSS 路徑走不通，需要改動風險等級跟原訂單「純 CSS 低風險」不同，**使用者決定暫緩擱置**，細節見文件最上方「決策 4 第 2 點」段落。之後要重啟前，先跟使用者確認風險可接受再動手，不要不問就動 `<form class="shopify-product-form">` 的 display 屬性
 3. ~~清理決策 4 遺留的死 CSS~~ ✅ 已於 2026-08-06 完成並驗證，細節見文件最上方「決策 4 遺留死 CSS 已清理完成」段落
-4. 確認必勾同意 checkbox（`CheckBoxConsent1/2/3`）拿掉 JS 後是否需要重新設計互動（目前純靜態）——**需求規格已交付（見 `Stage3_checkbox_需求規格.md`），尚未執行**，下次接手可以開始做
+4. ~~確認必勾同意 checkbox（`CheckBoxConsent1/2/3`）拿掉 JS 後是否需要重新設計互動~~ ✅ 已於 2026-08-10 完成並實測驗證通過（含繞過測試、同頁連續開啟兩次 Modal 驗證重置），commit `1de8f5c`，細節見文件最上方「Stage 3 必勾同意 checkbox 已完成並 commit」專章
 5. 裝備租賃法律聲明文字（風險/賠償金額表，原在 `TemplateLegalGear`）已隨清理刪除，若購物車頁 Modal 需要類似聲明，需另外處理——**定稿文字已交付（見 `Stage3_法律聲明文字_定稿.md`），尚未置入 Stage3 Modal**，下次接手可以開始做
 6. ~~檢查 BTA 後台「Add-ons」分頁，確認是否也能原生處理裝備加租~~ ✅ 已於 2026-08-06 查證：Add-ons 卡片顯示「No add-ons」且沒有「Manage」按鈕（對比同頁 Locations/Images 卡片都有），代表此功能對目前方案不可操作，非「尚未設定」。**結論：`assets/course-stage2-module.js` 購物車頁 Modal 是必要的，繼續維護，不考慮拆除**
 7. **【現在最優先】視覺 QA**：使用者提到有參考截圖但這次對話中沒有實際附上圖檔，購物車頁 Modal 樣式是依文字規格 + 直接復用 `course-booking-form.liquid` 既有 CSS 重建，**尚未經過使用者針對截圖的逐項比對確認**——**使用者 2026-08-06 表示稍後會提供截圖，收到後優先處理**
@@ -655,8 +692,8 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 15. ~~課程介紹頁「立即預訂」按鈕改成相對路徑~~ ✅ 已於 2026-08-08 完成，`templates/page.course-introduction.json` 4 個商品連結全部改成相對路徑，草稿預覽網域跟本機環境都驗證過不會再被導離目前環境。細節見文件最上方對應段落
 16. ~~專案初始化 Git 版本控制~~ ✅ 已於 2026-08-08 完成，`git init` + `.gitignore` + 初始 commit `a5ef3b3`。細節見文件最上方「專案正式納入 Git 版本控制」段落。**之後每完成一個決策/修正，建議搭配一次 commit**
 17. ~~視覺 QA 修正需求規格 A→E（進度指示疊加、Step2 CSS 皮膚化、Stage3 Modal 誤觸關閉、手機版同步驗證、四商品欄位檢測＋保險文案定稿＋必填星號）~~ ✅ 已於 2026-08-08/09 全部完成並驗證通過，過程中意外挖出並修正測試商品跟正式商品共用 BTA tag 的架構問題。細節見文件最上方「視覺 QA 修正需求規格 A→E 全部完成」整個段落
-18. 【下次接手可以開始做】Stage 3 必勾同意 checkbox 互動重新設計——需求規格已交付（`Stage3_checkbox_需求規格.md`），尚未執行
-19. 【下次接手可以開始做】裝備租賃法律聲明文字置入 Stage 3 Modal——定稿文字已交付（`Stage3_法律聲明文字_定稿.md`），尚未置入
+18. ~~Stage 3 必勾同意 checkbox 互動重新設計~~ ✅ 已於 2026-08-10 完成，見上方待辦 4／文件最上方專章
+19. ~~裝備租賃法律聲明文字置入 Stage 3 Modal~~ ✅ 已於 2026-08-10 完成並驗證通過，細節見文件最上方「裝備租賃法律聲明定稿文字已置入 Stage 3 Modal」專章
 20. `test-course-halfday-offpeak` 上次端對端測試中斷，訂單是否成功進購物車尚未確認，有空查一下 Shopify 後台訂單記錄，非急迫
 21. BTA 後台目前同時存在新舊兩組平行 Booking Fields（正式商品用 `halfday`/`fullday`，測試商品用 `test-course`/`test-halfday`/`test-fullday`），建議之後幫舊欄位 Label 加註「（正式）」避免混淆——需跟使用者確認是否已執行
 22. 【2026-08-09 使用者指定明天首要任務】**整體 UI/UX 還有很大改善空間**——🔶 當天已實際展開並完成三項具體修正（見下方 23-25），不是空泛方向，是有明確交付的項目
@@ -664,3 +701,5 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 24. ~~Stage 1 空白長條殘留元件排查與移除~~ ✅ 已於 2026-08-09 完成並驗證通過，細節見文件最上方「Stage 1 空白長條元件排查與移除」段落
 25. ~~Stage 1 版面重新設計：日曆與方案資訊左右並排~~ ✅ 已於 2026-08-09 完成並驗證通過（含決策 6 定位邏輯重寫、手機版 align-items 踩坑修正），細節見文件最上方「Stage 1 版面重新設計」段落
 26. ~~底部「加入購物車」滿版按鈕排查~~ ✅ 已於 2026-08-09 完成排查並實測驗證，發現真正的功能性漏洞（原生按鈕繞過 BTA 流程造成空白訂單），修法方向已規劃完成，**執行本身變成新的待辦 0（🔴 明天最優先）**，細節見文件最上方兩個專章
+27. 🟡 **中等優先，不急但別忘記**：`assets/course-stage2-module.js` 的 `writeCourseFormDataToCart()` 送出後 `dispatchEvent(new CustomEvent('cart:update'))` 沒帶 `detail` payload，導致主題原生購物車元件（`cart-drawer.js`／`cart-icon.js`／`sticky-add-to-cart.js`／`component-cart-items.js`／`header-actions.js` 等，grep `detail\.resource|detail\.data` 共 15 個檔案）在 Console 噴 `Cannot read properties of null (reading 'resource'/'data')`。2026-08-10 驗證 Stage3 checkbox 時意外發現，**是既有問題，不是這次 checkbox 改動造成的**，目前沒觀察到畫面功能異常（Modal 關閉、purchase flow 都正常），但屬於確認存在的錯誤，找時間應該修掉，避免原生元件之後默默壞掉。修法方向：`dispatchEvent` 時要帶正確的 `detail` 結構（需要先讀懂 `cart-drawer.js` 等檔案實際依賴 `event.detail` 的哪些欄位），或改用主題現成的 cart 更新輔助函式。已另開一個背景任務記錄（task_a3177bff）。
+28. ~~`layout/theme.liquid` 未預期本機異動（拿掉 `.shopifypreview.com` 白名單）~~ ✅ 已釐清並復原。使用者確認這是自己手動改的，**原意是想解決 BTA 測試 Widget（124456）`proxyBaseUrl` 誤指向 127.0.0.1 的問題**——但這兩者完全不相關：`theme.liquid` 這段是純前端連結改寫腳本（瀏覽器讀完頁面後改寫 `<a>` 標籤），只影響「測試連結會不會被導去正式站」；BTA 的 `proxyBaseUrl` 是 BTA 後端伺服器回應內容裡寫死的值，發生在瀏覽器執行任何主題 JS 之前，兩者無法互相影響。已用 `git checkout -- layout/theme.liquid` 復原成最新 commit 版本（含 `.shopifypreview.com` 白名單），確認 `git diff` 無異動。**BTA 測試 Widget 的問題仍未解決，真正能修的路徑還是只有 bookthatapp.com 獨立後台或聯繫 BTA 客服**，見待辦 0 / 文件中段「✅ 已定位根因」專章。

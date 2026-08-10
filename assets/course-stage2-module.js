@@ -72,8 +72,18 @@
       '.gear-name strong { color: #2D5F8A; font-weight: 700; margin-left: 6px; }',
       '.gear-desc { font-size: 12px; color: #5A6A78; margin-top: 2px; line-height: 1.4; }',
 
-      /* 法律聲明必勾同意（文案待補，這裡只負責互動邏輯與樣式） */
+      /* 法律聲明必勾同意（定稿文字：滑雪裝備租賃風險與責任聲明） */
       '.cs2-legal-consent { margin-top: 18px; padding-top: 16px; border-top: 1px solid #e4ecf3; }',
+      '.cs2-legal-scrollbox { max-height: 200px; overflow-y: auto; border: 1px solid #7AB3D4; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; background: #fafcff; }',
+      '.cs2-legal-scrollbox h4 { color: #1A2E4A; font-size: 14px; font-weight: 800; margin: 0 0 10px 0; }',
+      '.cs2-legal-scrollbox h5 { color: #1A2E4A; font-size: 13px; font-weight: 700; margin: 14px 0 4px 0; }',
+      '.cs2-legal-scrollbox h5:first-of-type { margin-top: 0; }',
+      '.cs2-legal-scrollbox p { font-size: 12.5px; color: #3A4A5A; line-height: 1.6; margin: 0 0 4px 0; }',
+      '.cs2-legal-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12.5px; }',
+      '.cs2-legal-table th { background: #1A2E4A; color: #fff; padding: 6px 8px; text-align: left; font-weight: 700; }',
+      '.cs2-legal-table td { padding: 6px 8px; border-bottom: 1px solid #e4ecf3; color: #1A2E4A; }',
+      '.cs2-legal-table tr:nth-child(even) td { background: #E8F4FA; }',
+      '.cs2-legal-note { font-size: 12px; color: #5A6A78; margin: 6px 0 0 0; }',
       '.cs2-legal-consent-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }',
       '.cs2-legal-consent-label input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; border: 2px solid #7AB3D4; border-radius: 4px; background-color: #fff; cursor: pointer; transition: all 0.15s; position: relative; }',
       '.cs2-legal-consent-label input[type="checkbox"]:checked { background-color: #1A2E4A; border-color: #1A2E4A; }',
@@ -208,9 +218,40 @@
             '</div>' +
           '</div>' +
           '<div class="cs2-legal-consent">' +
+            '<div class="cs2-legal-scrollbox" tabindex="0" aria-label="裝備租賃風險與責任聲明">' +
+              '<h4>滑雪裝備租賃風險與責任聲明</h4>' +
+              '<h5>一、裝備確認</h5>' +
+              '<p>租賃開始前，出租方與租賃者已共同確認租賃裝備外觀與功能均為正常、可使用狀態。</p>' +
+              '<h5>二、運動風險及責任歸屬</h5>' +
+              '<p>租賃者知悉並同意，滑雪屬於具高度風險之運動，於滑雪過程中，可能因跌倒、碰撞、雪況、地形或其他不可預期因素，導致裝備損壞、功能異常，甚至造成人身受傷或其他損害。</p>' +
+              '<p>上述因滑雪運動本身所產生之風險、損害或意外情事，均屬租賃者自行承擔之範圍，租賃者不得因此向出租方主張任何形式之賠償或責任。</p>' +
+              '<h5>三、裝備保管責任</h5>' +
+              '<p>租賃期間內，所有裝備（包含但不限於滑雪器材、防護裝備及服裝）皆由租用者自行負責妥善保管與使用。</p>' +
+              '<p>若因個人疏忽、遺失、未歸還、遭第三人取走，或非正常使用情況導致裝備無法回收，將視同遺失處理。</p>' +
+              '<h5>四、遺失賠償原則</h5>' +
+              '<p>租賃期間內，所有裝備皆由租賃者自行負責保管。如發生遺失、未歸還或無法回收之情形，租賃者同意依下列金額賠償：</p>' +
+              '<table class="cs2-legal-table">' +
+                '<thead><tr><th>裝備項目</th><th>NT$</th><th>¥</th></tr></thead>' +
+                '<tbody>' +
+                  '<tr><td>安全帽</td><td>1,000</td><td>5,000</td></tr>' +
+                  '<tr><td>雪鏡</td><td>1,000</td><td>5,000</td></tr>' +
+                  '<tr><td>護臀</td><td>500</td><td>2,500</td></tr>' +
+                  '<tr><td>護膝</td><td>500</td><td>2,500</td></tr>' +
+                  '<tr><td>雪服</td><td>2,000</td><td>10,000</td></tr>' +
+                  '<tr><td>雪褲</td><td>2,000</td><td>10,000</td></tr>' +
+                  '<tr><td>雪鞋</td><td>6,000</td><td>30,000</td></tr>' +
+                  '<tr><td>雪板＋固定器</td><td>8,000</td><td>40,000</td></tr>' +
+                '</tbody>' +
+              '</table>' +
+              '<p class="cs2-legal-note">※ 若同時遺失多項裝備，將依實際遺失項目累計計算賠償金額。</p>' +
+              '<h5>五、特別提醒</h5>' +
+              '<p>請勿將裝備隨意放置於雪場公共區域。休息、用餐或離場時，請務必確認裝備已妥善存放。</p>' +
+              '<h5>六、同意聲明</h5>' +
+              '<p>完成租賃即視為租賃者已詳閱、理解並同意上述所有內容。</p>' +
+            '</div>' +
             '<label class="cs2-legal-consent-label">' +
               '<input type="checkbox" data-cs2-legal-checkbox>' +
-              '<span class="cs2-legal-consent-text">我已閱讀並同意上述裝備租賃聲明（文案待補）</span>' +
+              '<span class="cs2-legal-consent-text">我已詳閱並同意上述《滑雪裝備租賃風險與責任聲明》全部內容</span>' +
             '</label>' +
             '<p class="cs2-legal-consent-warning" data-cs2-legal-warning hidden>請先閱讀並同意租賃聲明</p>' +
           '</div>' +
