@@ -3,6 +3,30 @@
   snippets/course-booking-form.liquid
 {% endcomment %}
 
+{% comment %}
+  「實際參加人數」前端驗證（方案 A）：BTA Booking Fields 已查證不支援依 Variant 動態限制選項
+  範圍，「實際參加人數」欄位只能做成單一 1-4 範圍下拉選單，需要疊加前端驗證比對「Stage 1
+  選擇的人數方案（Variant）」是否跟這個欄位的值合理對應。
+
+  這段必須用獨立、不 defer 的 <script> 放在 BTA App Embed 腳本執行「之前」（越早越好），
+  因為 Bta.callbacks.variantChanged 是 BTA 官方支援、但要求「widget 初始化前就要存在」的
+  回呼掛鉤——已實機測試確認：如果 BTA 自己的 bootstrap 腳本先跑、我們才設 window.Bta，
+  它會直接整個覆蓋掉，我們掛的 callback 永遠不會被呼叫。用 window 屬性橋接給下面主要邏輯
+  的 IIFE 讀取（兩個 <script> 標籤不共用同一個變數作用域）。
+
+  已實機驗證這個回呼「頁面載入時」跟「使用者變更人數方案下拉選單時」都會正確觸發（曾查到
+  2019 年 Shopify 社群回報「只在頁面載入時觸發一次」的舊 bug，這次實測在目前版本已經不
+  reproduce，不能照抄舊資訊，這裡是實測結論）。variant.title 實測格式為「1 ~ 2 人」／
+  「3 ~ 4 人」（數字 空格 波浪號 空格 數字 空格 人）。
+{% endcomment %}
+<script>
+window.Bta = window.Bta || {};
+window.Bta.callbacks = window.Bta.callbacks || {};
+window.Bta.callbacks.variantChanged = function(variant) {
+  window.__cbfSelectedVariantTitle = (variant && variant.title) ? variant.title : null;
+};
+</script>
+
 <style>
 
 /* ==========================================================================
@@ -928,6 +952,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       '.form-control { border: 1px solid #B8D9ED !important; border-radius: 8px !important; }',
       '.form-control:focus { border-color: #7AB3D4 !important; }',
       'button[data-type="submit"] { background-color: #1A2E4A !important; border-radius: 10px !important; font-weight: 700 !important; }',
+      '.cbf-attendee-count-error { color: #C0392B !important; font-size: 12px !important; font-weight: 700 !important; margin: 6px 0 0 0 !important; display: none; }',
     ].join('\n');
     doc.head.appendChild(style);
   };
@@ -1023,6 +1048,65 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
         panel.style.setProperty('box-shadow', '0 12px 36px -4px rgba(26,46,74,0.12)', 'important');
       };
 
+      /* 「實際參加人數」前端驗證（方案 A）：從 variant.title（例如「1 ~ 2 人」）解析出
+         這個方案允許的人數範圍。BTA 官方 Add-on／Booking Field 都沒有 variant 層級限制
+         選項的機制（已查證，2026-08-11），所以這裡自己算範圍再跟使用者填的「實際參加
+         人數」比對，純前端疊加驗證，不動 BTA 原生任何邏輯。 */
+      const parseAttendeeRange = (title) => {
+        if (!title) return null;
+        const match = title.match(/(\d+)\s*[~～\-]\s*(\d+)/);
+        if (!match) return null;
+        return { min: parseInt(match[1], 10), max: parseInt(match[2], 10) };
+      };
+
+      /* 用 capture phase 監聽掛在 doc 最外層（不是掛在按鈕本身——按鈕會被 React 每次重新
+         渲染成新節點，直接掛監聽器會變成死監聽器，跟這個檔案其他地方「監聽穩定容器、
+         不監聽會被取代的節點」是同一個教訓）。capture phase 保證比 BTA 自己 React 事件
+         系統的監聽時機更早攔截到，驗證不通過就 stopPropagation/stopImmediatePropagation，
+         讓事件根本不會傳到 BTA 自己的 handler，等同「疊加防呆、不修改原生送出邏輯」。
+         只在事件觸發當下才去查「實際參加人數」欄位在不在（比對送出當下的 DOM 現況），
+         不會影響完全沒有這個欄位的畫面（例如選日期那一步，或欄位還沒在 BTA 後台建立時）。
+         這個監聽器只需要掛一次，掛在 doc 上不會因為 BTA 重繪內容而失效。 */
+      const setupAttendeeCountValidation = () => {
+        doc.addEventListener('click', (event) => {
+          const btn = event.target.closest && event.target.closest('button[data-type="submit"]');
+          if (!btn) return;
+
+          const select = doc.querySelector('select[name="實際參加人數"]');
+          if (!select) return; // 這個畫面沒有這個欄位，不驗證，正常放行
+
+          const container = select.closest('.field-input-container') || select.parentElement;
+          let errorEl = doc.getElementById('cbf-attendee-count-error');
+          if (!errorEl) {
+            errorEl = doc.createElement('p');
+            errorEl.id = 'cbf-attendee-count-error';
+            errorEl.className = 'cbf-attendee-count-error';
+            container.appendChild(errorEl);
+          }
+
+          const range = parseAttendeeRange(window.__cbfSelectedVariantTitle);
+          if (!range) {
+            /* 邊界情況：抓不到目前選擇的方案（variantChanged 沒有如預期觸發，或文字格式
+               跟預期不同）。這層驗證是加分防呆，不應該變成擋住正常流程的新故障點，記錄
+               警告方便日後排查，然後正常放行送出。 */
+            console.warn('[實際參加人數驗證] 無法判斷目前選擇的方案人數範圍（variant title: ' + window.__cbfSelectedVariantTitle + '），略過這層驗證，正常放行送出。');
+            errorEl.style.display = 'none';
+            return;
+          }
+
+          const count = parseInt(select.value, 10);
+          if (!count || count < range.min || count > range.max) {
+            errorEl.textContent = '您選擇的方案為 ' + range.min + '-' + range.max + ' 人，請填寫對應的實際參加人數';
+            errorEl.style.display = 'block';
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+          } else {
+            errorEl.style.display = 'none';
+          }
+        }, true);
+      };
+
       let pending = false;
       const runUpdates = () => {
         injectBtaStyleSkin(doc);
@@ -1044,6 +1128,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
         childList: true, subtree: true, characterData: true,
         attributes: true, attributeFilter: ['class'],
       });
+      setupAttendeeCountValidation();
       runUpdates();
     } catch (e) {
       /* 存取被拒或結構不符預期，靜默略過，不拋錯打斷其他既有功能 */

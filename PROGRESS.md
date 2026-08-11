@@ -1,6 +1,115 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-10
+最後更新：2026-08-11
+
+## 📋 2026-08-11 更新：Variant 層級限制查證 + 「實際參加人數」前端驗證（方案 A）已完成
+
+**今天沒有處理「🔴 明天最優先」的 Sidekick proxyBaseUrl 線索**（使用者這次對話沒有指派這個任務，優先權留待下次），純粹先處理「實際參加人數」欄位設計方向查證跟前端驗證邏輯，業主同一天稍晚在 BTA 後台建好欄位後，已用真正欄位補測六個驗收情境全數通過並 commit（見下方第 3 節）。
+
+### 1. 查證結論：BTA Booking Fields 不支援依 Variant 動態限制選項範圍
+
+逐一檢查 BTA 後台 Booking Fields 所有現有欄位（雪板類型、滑雪場、時段等）的「Apply to specific products」設定，**介面上明確寫著「by entering multiple tags (comma separated)」**，下拉選單列出的可選項目全部是 Shopify 商品 tag（`halfday`/`fullday`/`test-course`/`test-halfday`/`test-fullday`...），沒有任何 Variant 層級的選項。官方文件 [📝 Booking Fields](https://support.bookthatapp.com/hc/en-us/articles/360000335275--Booking-Fields) 也明確寫「Product-Specific Fields... using product tags」，全文沒有出現 "variant" 字眼。另外查到一個容易混淆的相似功能「[⚙️ Variant Actions in BookThatApp](https://support.bookthatapp.com/hc/en-us/articles/115001168503-Date-Picker-Settings)」，但那是完全不同的機制（每個 Variant 的容量 Units、隱藏日曆的 Hide 開關），跟限制 Booking Field 選項內容無關，已排除混淆。
+
+**結論：「實際參加人數」只能做成單一 1-4 範圍下拉選單，不分級距**，需要另外疊加前端驗證。
+
+### 2. 「實際參加人數」前端驗證（方案 A）已實作完成（`snippets/course-booking-form.liquid`）
+
+**技術路徑，跟規格文件假設不完全一樣，過程中重要發現**：
+
+- `window.Bta.callbacks.variantChanged` 這個 BTA 官方回呼**確實存在且可用，但要在 BTA App Embed 腳本執行「之前」就先掛好**（本檔案最上方新增一段不 defer 的 `<script>`，早於 BTA 自己的 bootstrap）。**實測證實**：如果 `window.Bta` 先被 BTA 自己的腳本初始化，才輪到我們設定，會被整個覆蓋掉，callback 永遠不會被呼叫。
+- 網路上查到一篇 2019 年 Shopify 社群舊文，回報「`variantChanged` 只在頁面載入時觸發一次，使用者改選項不會再觸發」——**這次實機測試在目前版本已經不 reproduce**：頁面載入時觸發一次（拿到預設 variant），使用者切換「人數」下拉選單（1~2人 ↔ 3~4人）時也確實會再次觸發，拿到正確的新 variant。**沒有照抄舊資訊，是用真實環境重新測過的結論**，用 `window.__cbfSelectedVariantTitle` 這個橋接變數存起來供後面驗證邏輯讀取。
+- `variant.title` 實測格式為 `"1 ~ 2 人"`／`"3 ~ 4 人"`（數字 空格 波浪號 空格 數字 空格 人），用正則 `/(\d+)\s*[~～\-]\s*(\d+)/` 解析出 min/max。
+- 送出攔截手法：`doc.addEventListener('click', handler, true)` 掛在 iframe 的 `contentDocument` 最外層（capture phase），比 BTA 自己 React 事件系統的監聽時機更早攔截到點擊，偵測到 `button[data-type="submit"]` 被點、且「實際參加人數」欄位存在時才驗證；不合理就 `preventDefault`/`stopPropagation`/`stopImmediatePropagation`，讓事件完全不會傳到 BTA 自己的 handler。跟決策6、Stage3 checkbox 是同一種「疊加防呆、不改原生邏輯」手法。
+- 邊界情況：抓不到 variant 資訊（`variantChanged` 沒觸發、或格式解析失敗）→ `console.warn` 記錄，直接放行，不擋住正常送出流程。
+
+**實際欄位 DOM 結構（用既有的雪板類型欄位反查，供未來參考）**：BTA 的 Dropdown 型 Booking Field 是原生 `<select class="form-control" name="{欄位Label文字}">`，`name` 屬性直接等於後台設定的 Label——這是為什麼驗證邏輯可以用 `select[name="實際參加人數"]` 精準定位，前提是 BTA 後台那個欄位的 Label 要精確填「實際參加人數」四個字。
+
+### 3. ✅ 已用真正的 BTA 欄位重新完整驗證通過（同一天稍晚，欄位建好後補測）
+
+業主在 BTA 後台建好「實際參加人數」欄位後（Label 精確為「實際參加人數」，Apply to specific products 設 `test-fullday`／`test-halfday` 兩個 tag——跟原建議的 `test-course` 不同，但兩個 tag 合起來涵蓋全部四個測試商品，功能等價，不需要改），**用真正的欄位重新測了一次全部六個驗收情境，不再是模擬欄位**：
+
+- 用 DOM 檢查確認真實欄位的 `<option>` **value 屬性本身就帶「人」字**（例如 `value="1人"`），不是單純數字——這點跟原本設計假設一致，但這次是實測確認，不是憑印象假設。`parseInt("1人", 10)` 這種寫法本來就會正確解析出前導數字、忽略非數字字尾，所以不需要為了「人」字另外改程式碼。
+- `test-course-fullday-peak`（`test-fullday` tag）：1-2人組 + 選1人 → 放行 ✅；1-2人組 + 選3人 → 攔截，紅字正確 ✅；3-4人組 + 選3人 → 放行 ✅；3-4人組 + 選1人 → 攔截，紅字正確 ✅（含真實切換 BTA 人數方案下拉選單觸發 `variantChanged`，不是用 JS 硬塞變數）
+- 模擬 `variantChanged` 未觸發（`window.__cbfSelectedVariantTitle = undefined`）→ 正常放行，`console.warn` 正確記錄 ✅
+- `test-course-halfday-peak`（`test-halfday` tag）手機 375px：1-2人組 + 選4人 → 攔截，紅字正確 ✅
+- 全程 Console 無新增錯誤
+
+**六個驗收情境全數通過，且是用真正的 BTA 欄位驗證，不再只是模擬欄位的間接證明。已 commit。**
+
+### 涉及檔案
+
+- `snippets/course-booking-form.liquid`（唯一異動）：新增 `Bta.callbacks.variantChanged` 早期掛鉤、`parseAttendeeRange()`、`setupAttendeeCountValidation()`，以及 `.cbf-attendee-count-error` 樣式
+
+---
+
+## 📋 2026-08-10 整日總結（新對話串接手第一件事，先讀這段）
+
+今天完成了 Stage 3 裝備加租的完整收尾（必勾同意 checkbox → 法律聲明定稿文字 → 學員組數動態化），過程中意外在 BTA 後台發現一條可能直接解開「測試 Widget 127.0.0.1」懸案的線索，但因為工具環境問題卡在點擊不動，**這是明天的最優先任務**，細節跳到下方「🔴 明天最優先」章節。
+
+1. **Stage 3 必勾同意 checkbox**（commit `1de8f5c`）：依規格選項 B 實作，開啟預設 disabled、勾選即時連動、送出防呆、繞過測試驗證通過、同頁連續開兩次 Modal 驗證重置邏輯正確。
+2. **法律聲明定稿文字置入**（commit `11dde85`）：讀取業主提供的 PDF 原文逐字比對確認一致，置入可捲動聲明框（含賠償金額對照表），只動 HTML/CSS，checkbox 邏輯完全沒動。
+3. **Stage 3 裝備加購組數對應實際人數**（commit `fd39027`）：抓到根因——`course-stage2-module.js` 的組數渲染邏輯本來就是動態的，問題出在 `cart-stage2-trigger.liquid` 把 `attendeeCount` 設成 Shopify 的 `quantity`（這類人數級距套裝價商品 `quantity` 恆為 1）。改成讀取 line item properties 的「實際參加人數」欄位，加上缺欄位時預設 1 組 + console 警告的防呆。2人→2組、4人→4組、缺欄位→fallback 1組，皆已實測驗證通過。**BTA 後台「實際參加人數」欄位本身還沒建立**，需要業主自己動手（見下方待辦），這件事今天卡在 BTA 後台 iframe 點擊環境異常，沒辦法代為操作。
+4. **🔴 意外發現、明天最優先查看的線索**：在 BTA 後台側邊欄看到一個 Sidekick（Shopify AI）建議項目，文字是「更改 BTA proxyBaseUrl 設定」——名稱正好命中 2026-08-09/10 查了老半天、只能建議聯繫 BTA 客服的那個測試 Widget（124456）`proxyBaseUrl` 誤指向 `127.0.0.1` 的問題。因為當時 BTA 後台整個 iframe 點擊都失效，沒能點進去看內容，**明天第一件事應該先去看這個 Sidekick 建議在講什麼，很可能不用聯繫客服就能解決**。
+
+**今天新增三個 commit**：`1de8f5c`（Stage3 checkbox）→ `11dde85`（法律聲明文字）→ `fd39027`（學員組數對應人數）。working tree 目前乾淨。
+
+---
+
+## 🔴 明天最優先：查看 BTA 後台 Sidekick 建議「更改 BTA proxyBaseUrl 設定」
+
+**背景**：2026-08-10 查證「BTA 測試 Widget（124456）`proxyBaseUrl` 誤指向 127.0.0.1」問題時（見下方「✅ 已定位根因」專章），已經確認正式 Widget（111783）不受影響、不是緊急事件，當時建議的解法只剩兩條：使用者自己的 bookthatapp.com 獨立後台，或聯繫 BTA 客服。
+
+**今天在排查「實際參加人數」欄位建立方式時，意外在 BTA 後台左側欄「Sidekick 建議」區塊看到一個項目，文字是「更改 BTA proxyBaseUrl 設定」**——這個標題幾乎可以肯定就是在講同一件事。但當下 BTA 後台整個嵌入 iframe（`bookthatapp.com`）的點擊完全沒反應（見下方「⚠️ 今天卡住的技術問題」段落），沒能點進去看這個建議的完整內容跟操作方式。
+
+**明天第一件事**：
+1. 進入 Shopify 後台 → BTA: Booking App，看左側欄「Sidekick 建議」底下是否還有「更改 BTA proxyBaseUrl 設定」這個項目（截圖當時同時還看到另外兩個「本機迴路 IP 位址設定問題」「搜尋本機迴路 IP 位址」，命名都跟這個問題高度相關）
+2. 點開看內容，確認是否真的針對測試 Widget（124456）的 `proxyBaseUrl` 問題
+3. 如果點擊功能已經恢復正常（今天的異常有可能只是暫時性的環境問題），照建議操作；如果又點不動，需要換一種方式（例如請使用者自己點開看內容截圖給我，或建議使用者直接照 Sidekick 建議自己操作）
+4. 修好後，記得回去補測「決策6/E-1」驗證過的完整 BTA 端對端流程（選日期→送出→加購→加入購物車），確認 properties 正確帶入
+
+---
+
+## ✅ 2026-08-10 更新：Stage 3 裝備加購組數對應實際人數（commit `fd39027`）
+
+**問題**：課程人數選項是「1-2人組」「3-4人組」這種價格級距（同級距內不管實際去幾人，價錢一樣，是套裝價不是依人頭計價），但 Stage 3 裝備加購固定只顯示「學員1」1 組，導致「1-2人組」選 2 人一起去時，第二人沒有管道加購裝備。
+
+### 根因（比預期的簡單很多）
+
+追查後發現 `assets/course-stage2-module.js` 的 `renderGearRentalSection()` 組數渲染邏輯**本來就是完全動態的**（`for (var a = 1; a <= attendeeCount; a++)`，每組的 checkbox 都正確帶 `data-attendee="N"`，送出時也正確以 `學員N_加購_XXX` 分開寫入 properties）——問題單純出在呼叫端 `snippets/cart-stage2-trigger.liquid` 把 `attendeeCount` 設成 **Shopify 的 `quantity`**，而這類人數級距套裝價商品的 `quantity` 恆為 1（人數是靠選不同「變體」，例如「1~2人」「3~4人」，不是靠 Shopify 數量欄位），所以永遠只會渲染 1 組。
+
+### 修法
+
+`cart-stage2-trigger.liquid` 新增 `getAttendeeCount(item)` 函式，改成讀取 line item properties 裡「實際參加人數」這個 key（未來由 BTA Booking Field 寫入），取代原本的 `targetItem.quantity`：
+- 有值且是合法數字 → 用該數字
+- 缺欄位或非數字（舊訂單／舊測試流程還沒填過新欄位）→ **fallback 顯示 1 組，並印出 `console.warn` 附上 line item key**，方便之後排查，不會報錯或空白
+
+`course-stage2-module.js` **完全沒有改動**。
+
+### 實測驗證（草稿預覽網域，用 `/cart/add.js` 直接帶 `實際參加人數` 屬性模擬，因為 BTA 表單本身還沒有這個欄位）
+
+- `實際參加人數=2` → 正確顯示「學員1」「學員2」2 組（`document.querySelectorAll('.attendee-gear-group-box')` 驗證 `length===2`）
+- `實際參加人數=4` → 正確顯示 4 組
+- 缺欄位 → fallback 顯示 1 組，Console 出現 `[CourseStage2] 購物車項目缺少「實際參加人數」欄位資料，預設顯示 1 組加購選項。line item key: ...`
+- 送出後 `/cart.js` 驗證：`學員1_加購_單板鞋組`／`學員2_加購_雪鏡` 各自獨立正確寫入，`實際參加人數` 屬性本身也完整保留（`writeCourseFormDataToCart` 的 merge 邏輯沒有把它洗掉）
+- 桌機 + 手機 375px 都驗證過，Console 沒有新增錯誤（剩下的都是既有已知問題：BTA 測試環境 CORS/422、已記錄過的 `cart:update` detail payload 問題）
+
+### ⚠️ 今天卡住的技術問題：BTA 後台 iframe 完全點不動，「實際參加人數」欄位沒能代為建立
+
+規格要求在 BTA 後台 Booking Fields 新增「實際參加人數」欄位（比照先前「滑雪場」「時段」欄位的做法），**這次沒能完成**——不是找不到路徑，是整個 BTA 後台嵌入的跨網域 iframe（`bookthatapp.com`）今天完全點不動：
+
+- Settings 總覽頁的卡片（Resources、Staff accounts、Booking fields...）點擊沒反應
+- 連明顯的黑色「Open BookThatApp.com」按鈕都點擊沒反應
+- 連本次對話**之前確實成功點擊過**的「Widgets → Snow class booking (測試)」也重新測過，一樣點不動
+- 排除是座標算錯：在同一個瀏覽器分頁的**非 iframe** 頁面（一般 lifechillsnow.com 商品頁）點擊完全正常，證實問題侷限在這個特定跨網域 iframe，不是瀏覽器工具整體故障
+
+**判斷是環境層級的暫時性問題，不是操作方法錯誤**，明天新對話串可以先重試一次（很可能就恢復正常了）。
+
+### 涉及檔案
+
+- `snippets/cart-stage2-trigger.liquid`（唯一異動，commit `fd39027`）
+- `assets/course-stage2-module.js`（沒有改動，組數渲染邏輯本來就是對的）
+
+---
 
 ## ✅ 2026-08-10 更新：裝備租賃法律聲明定稿文字已置入 Stage 3 Modal
 
@@ -703,3 +812,6 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 26. ~~底部「加入購物車」滿版按鈕排查~~ ✅ 已於 2026-08-09 完成排查並實測驗證，發現真正的功能性漏洞（原生按鈕繞過 BTA 流程造成空白訂單），修法方向已規劃完成，**執行本身變成新的待辦 0（🔴 明天最優先）**，細節見文件最上方兩個專章
 27. 🟡 **中等優先，不急但別忘記**：`assets/course-stage2-module.js` 的 `writeCourseFormDataToCart()` 送出後 `dispatchEvent(new CustomEvent('cart:update'))` 沒帶 `detail` payload，導致主題原生購物車元件（`cart-drawer.js`／`cart-icon.js`／`sticky-add-to-cart.js`／`component-cart-items.js`／`header-actions.js` 等，grep `detail\.resource|detail\.data` 共 15 個檔案）在 Console 噴 `Cannot read properties of null (reading 'resource'/'data')`。2026-08-10 驗證 Stage3 checkbox 時意外發現，**是既有問題，不是這次 checkbox 改動造成的**，目前沒觀察到畫面功能異常（Modal 關閉、purchase flow 都正常），但屬於確認存在的錯誤，找時間應該修掉，避免原生元件之後默默壞掉。修法方向：`dispatchEvent` 時要帶正確的 `detail` 結構（需要先讀懂 `cart-drawer.js` 等檔案實際依賴 `event.detail` 的哪些欄位），或改用主題現成的 cart 更新輔助函式。已另開一個背景任務記錄（task_a3177bff）。
 28. ~~`layout/theme.liquid` 未預期本機異動（拿掉 `.shopifypreview.com` 白名單）~~ ✅ 已釐清並復原。使用者確認這是自己手動改的，**原意是想解決 BTA 測試 Widget（124456）`proxyBaseUrl` 誤指向 127.0.0.1 的問題**——但這兩者完全不相關：`theme.liquid` 這段是純前端連結改寫腳本（瀏覽器讀完頁面後改寫 `<a>` 標籤），只影響「測試連結會不會被導去正式站」；BTA 的 `proxyBaseUrl` 是 BTA 後端伺服器回應內容裡寫死的值，發生在瀏覽器執行任何主題 JS 之前，兩者無法互相影響。已用 `git checkout -- layout/theme.liquid` 復原成最新 commit 版本（含 `.shopifypreview.com` 白名單），確認 `git diff` 無異動。**BTA 測試 Widget 的問題仍未解決，真正能修的路徑還是只有 bookthatapp.com 獨立後台或聯繫 BTA 客服**，見待辦 0 / 文件中段「✅ 已定位根因」專章。
+29. ~~Stage 3 裝備加購組數對應實際人數~~ ✅ 程式碼側已於 2026-08-10 完成並實測驗證通過（commit `fd39027`），細節見文件最上方對應專章。**唯一還沒完成的是 BTA 後台「實際參加人數」欄位本身**，見待辦 30。
+30. ~~BTA 後台建立「實際參加人數」欄位~~ ✅ 業主已建好（Label「實際參加人數」，Apply = `test-fullday`／`test-halfday`，Options 1人~4人），並用真正欄位重新驗證六個情境全數通過，細節見文件最上方第 3 節「已用真正的 BTA 欄位重新完整驗證通過」。
+31. 🔴 **明天最優先**：BTA 後台左側欄看到 Sidekick 建議「更改 BTA proxyBaseUrl 設定」，命名高度疑似直接對應測試 Widget（124456）`proxyBaseUrl` 誤指向 127.0.0.1 的問題，但 2026-08-10 當時 BTA 後台 iframe 整個點擊失效（包含明顯的「Open BookThatApp.com」按鈕、先前確實成功點擊過的 Widget 編輯頁），沒能點進去看內容。細節、判斷依據見文件最上方「🔴 明天最優先」跟「⚠️ 今天卡住的技術問題」兩個章節。**新對話串第一件事應該先重試點擊（很可能只是暫時性環境問題）**，看得到內容後照建議操作，或視情況請業主自己操作。
