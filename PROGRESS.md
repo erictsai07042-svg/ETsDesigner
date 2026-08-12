@@ -2,6 +2,29 @@
 
 最後更新：2026-08-12
 
+## ✅ 2026-08-12（更晚）：Stage 3 加購過程同步金額總計
+
+**需求**：Stage 3 裝備加購 Modal 裡，客人勾選/取消加購項目時即時顯示目前累計金額總計（課程原價 + 已勾選加購項目加總），不用等送出才知道總金額。**只改了 `assets/course-stage2-module.js`、`snippets/cart-stage2-trigger.liquid`，尚未 commit。**
+
+**實作內容**：
+1. `snippets/cart-stage2-trigger.liquid`：呼叫 `renderStage2Form` 時新增 `coursePriceCents` 參數，直接讀購物車該筆 line item 現有金額（`final_line_price` 優先，退回 `line_price`/`price`），不寫死任何金額。
+2. `assets/course-stage2-module.js` 的 `renderStage2Form`：
+   - 送出按鈕正上方新增 `.cs2-total-summary`（「結帳總額 $X,XXX.00」），比照先前「實際參加人數」按鈕旁提示文字的位置邏輯。
+   - `updateTotal()` 讀 `gearControls.getSelectedGear()`（原本就有、內部比對 `GEAR_ITEMS` 這個唯一價格資料來源）加總已勾選項目金額，加上 `coursePriceCents` 後格式化顯示。金額完全不寫死、不重複解析，價格調整只需要改 `GEAR_ITEMS`。
+   - 在 `gearRoot` 上掛一個 `change` 事件委派監聽（這裡的 checkbox 是我們自己渲染的靜態 DOM，不像 BTA iframe 會被 React 重繪替換節點，不需要 capture phase 那套疊加防呆）。
+   - Modal 開啟時立即呼叫一次 `updateTotal()`，滿足「初始顯示課程原價」的要求。
+
+**驗證**（草稿預覽網域 `lifechillsnow.com?preview_theme_id=147355926611`，非 127.0.0.1，`javascript_tool` 操作 DOM）：
+- 桌機（`test-course-fullday-peak`）：Modal 開啟時總計正確顯示課程原價 `$13,175.00`；勾選「單板鞋組」→ `$14,375.00`；再勾選「雪服帽鏡組」+「安全帽」→ `$15,675.00`；取消「單板鞋組」→ `$14,475.00`，每一步金額都手動核對加總正確。跟必勾同意 checkbox 邏輯並存驗證：勾選加購項目不影響送出按鈕的 disabled 狀態（仍然要勾了法律聲明才會 enable），送出後 `/cart.js` 確認只有當下實際勾選的項目被寫入 properties。
+- 手機（375px，`test-course-halfday-peak`）：同樣驗證初始總計、多選加總（`$9,350.00` → `$12,150.00`）都正確，`.cs2-total-summary` 沒有橫向溢出、頁面本身也沒有橫向捲動。
+- 跟「實際參加人數」驗證邏輯並存：測試過程中意外用錯人數（選了「3人」但方案是「1~2人」），BTA 送出按鈕正確維持 disabled，證實兩套邏輯確實互不干擾（各自監聽各自的 DOM 事件，沒有共用狀態）。
+- Console 檢查：只有既有已知的 `cart:update` 缺少 `detail` payload 錯誤（2026-08-10 就記錄過），沒有新增錯誤。
+- 測試完成後已清空購物車，沒有留測試資料。
+
+**過程中一個踩到的環境問題**：這次對話開始時 `shopify theme dev` 背景程序（上一輪對話留下的）已經停止執行，改用 `preview_start({url:...})` 開瀏覽器分頁不會自動啟動它，導致一開始程式碼怎麼改、草稿主題都沒有同步更新（`fetch` 資產內容比對確認過，資產完全是舊版）。改成直接用 Bash 背景執行 `shopify theme dev --theme 147355926611`（不透過會自動開 localhost 分頁的 `preview_start({name:...})`，避免走上次記錄過的「Browser tool 一旦連過 127.0.0.1 可能污染同一個 session 其他分頁」那個坑）解決，之後才恢復正常同步。**下次新對話串接手，如果發現改了程式碼但瀏覽器怎麼測都沒反應，先確認 `shopify theme dev` 背景程序是不是還活著**（`Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'theme dev' }`），不要預設它一直在跑。
+
+---
+
 ## ✅ 2026-08-12（稍晚）：測試 Widget Redirect 設定改為 Cart Page，端對端流程完整驗證通過
 
 使用者把測試 Widget（`124456`）的 Redirect 設定從「Continue Shopping」改成「Cart Page」，跟正式 Widget（`111783`）設定一致後，這次對話完整驗證了整條端對端流程，並確認先前功能都沒有被這次設定改動影響。**沒有異動任何程式碼**，只有更新這份文件的決策記錄（見下方「決策 3 修正註記」）跟 `snippets/cart-stage2-trigger.liquid` 一則過時的程式碼註解。

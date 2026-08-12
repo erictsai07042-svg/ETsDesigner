@@ -51,6 +51,11 @@
         window.CourseStage2Module.renderStage2Form(mount, {
           attendeeCount: getAttendeeCount(targetItem),
           productTitle: targetItem.product_title,
+          /* 課程原價直接讀購物車該筆 line item 現有金額（分為單位，Shopify /cart.js 慣例），
+             優先用 final_line_price（含 cart 層折扣分攤），沒有才退回 line_price / price——
+             不寫死任何金額，價格調整時這裡不需要跟著改。 */
+          coursePriceCents: targetItem.final_line_price != null ? targetItem.final_line_price :
+            (targetItem.line_price != null ? targetItem.line_price : targetItem.price),
           onSubmit: function (properties) {
             properties[STAGE2_DONE_KEY] = 'true';
             window.CourseStage2Module.writeCourseFormDataToCart(targetItem.key, properties).then(function () {

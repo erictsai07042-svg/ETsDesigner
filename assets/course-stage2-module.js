@@ -92,6 +92,12 @@
       '.cs2-legal-consent-warning { color: #C0392B; font-size: 12px; font-weight: 700; margin: 6px 0 0 28px; }',
       '.cs2-legal-consent-warning[hidden] { display: none; }',
 
+      /* 金額總計（課程原價 + 已勾選加購項目），放在送出按鈕正上方，比照「實際參加人數」
+         驗證那則按鈕旁提示文字的位置邏輯，讓客人捲到按鈕位置就能直接看到，不用往上找 */
+      '.cs2-total-summary { display: flex; justify-content: flex-end; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px dashed #B8D9ED; }',
+      '.cs2-total-label { font-size: 14px; font-weight: 700; color: #5A6A78; }',
+      '.cs2-total-amount { font-size: 20px; font-weight: 800; color: #1A2E4A; white-space: nowrap; }',
+
       '.cs2-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }',
       '.cs2-btn-primary { background: #1A2E4A; color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }',
       '.cs2-btn-primary:hover { background: #2D5F8A; }',
@@ -255,6 +261,10 @@
             '</label>' +
             '<p class="cs2-legal-consent-warning" data-cs2-legal-warning hidden>請先閱讀並同意租賃聲明</p>' +
           '</div>' +
+          '<div class="cs2-total-summary">' +
+            '<span class="cs2-total-label">結帳總額</span>' +
+            '<span class="cs2-total-amount" data-cs2-total-amount>$0.00</span>' +
+          '</div>' +
           '<div class="cs2-footer">' +
             '<button type="button" class="cs2-btn-skip" data-cs2-skip>略過，之後再補</button>' +
             '<button type="button" class="cs2-btn-primary" data-cs2-submit disabled>確認加購</button>' +
@@ -265,6 +275,30 @@
     var gearRoot = container.querySelector('[data-gear-rental-root]');
     var gearControls = renderGearRentalSection(gearRoot, { attendeeCount: attendeeCount });
     wireAccordionToggle(container.querySelector('[data-gear-toggle]'), container.querySelector('[data-gear-content]'));
+
+    /* 金額總計即時連動：課程原價（呼叫端從購物車 line item 帶進來，單位是分）加上目前所有
+       已勾選加購項目的金額。加購金額一律透過 getSelectedGear() 讀（它內部比對 GEAR_ITEMS
+       這個唯一的價格資料來源），不在這裡另外寫死或重複解析金額，價格調整只需要改
+       GEAR_ITEMS，這裡完全不用動。checkbox 是這次渲染出來的靜態 DOM（不像 BTA iframe
+       會被 React 重繪替換節點），監聽器直接掛一次即可，不需要 capture phase 委派。 */
+    var coursePriceCents = Number(options.coursePriceCents) || 0;
+    var totalAmountEl = container.querySelector('[data-cs2-total-amount]');
+
+    function formatCurrency(cents) {
+      return '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function updateTotal() {
+      var gearCents = gearControls.getSelectedGear().reduce(function (sum, g) { return sum + g.price * 100; }, 0);
+      totalAmountEl.textContent = formatCurrency(coursePriceCents + gearCents);
+    }
+    updateTotal();
+
+    gearRoot.addEventListener('change', function (event) {
+      if (event.target && event.target.matches && event.target.matches('[data-gear-checkbox]')) {
+        updateTotal();
+      }
+    });
 
     /* 法律聲明必勾同意：checkbox 未勾選時「確認加購」按鈕強制 disabled，
        兩者即時雙向連動。因為 Modal 本身每次開啟都是 container.innerHTML 整段重新渲染
