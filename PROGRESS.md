@@ -1,6 +1,32 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-11
+最後更新：2026-08-12
+
+## ✅ 2026-08-12：實際參加人數驗證「錯誤提示可見性優化」已完成（尚未 commit）
+
+接續 2026-08-11 排定的下一個優先任務，把「實際參加人數」跟「人數方案」不符時的錯誤提示，從「只在送出時攔截、只顯示在欄位旁」升級成比照 Stage3 checkbox 的「即時反應」模式。**只改了 `snippets/course-booking-form.liquid`，working tree 尚未 commit，等使用者確認。**
+
+**實作內容**：
+1. 新增 `checkAttendeeCount(select)` 純計算函式，把「範圍解析＋比對」邏輯抽出來，`validateAttendeeCount()`（即時 UI 連動）跟送出攔截的 click handler 共用同一套判斷與文案，不再各自維護。
+2. 新增 `validateAttendeeCount()`：「實際參加人數」select 的 `change` 事件、Stage1 人數方案切換（`cbf:variantChanged` 自訂事件）任一觸發，就重新判斷並同步三件事——送出按鈕 `disabled` 狀態、按鈕正上方新增的提示文字（`.cbf-attendee-count-button-hint`）、欄位旁原有錯誤提示（沿用不變，文字跟按鈕旁提示完全一致）。只清除「我們自己」造成的 disabled（用 `data-cbf-attendee-invalid` 標記），不會蓋掉 BTA 自己因其他必填欄位缺漏而設的 disabled 狀態。
+3. `Bta.callbacks.variantChanged`（檔案最上方早期 `<script>`）新增 `document.dispatchEvent(new CustomEvent('cbf:variantChanged'))`，橋接給主要邏輯（在 iframe 內執行、不共用作用域）。
+
+**過程中抓到並修正兩個實測才發現的問題（沒有照抄原本規格假設）**：
+- **送出按鈕誤判問題**：Stage2 確認 Modal 開啟後，Stage1 日曆畫面自己的 `button[data-type="submit"]`（文字「下一頁」）依然留在 DOM 裡沒被移除（Stage2 是疊加的 ReactModal，不是取代 Stage1），導致整份 `doc` 裡同時存在兩個 `button[data-type="submit"]`。原本天真地用 `doc.querySelector(...)` 抓「第一個」會抓錯，變成在操作「下一頁」而不是真正的「立即預訂」。修法：優先在「實際參加人數」select 所在的 `.ReactModal__Content` 範圍內找按鈕，範圍找不到才退回全域第一個。
+- **初始渲染有時抓不到的問題**：Stage2 Modal 剛開啟、使用者還沒手動變動任何欄位的那個當下，實測發現 `MutationObserver` 有時不會如預期觸發 `runUpdates()`（`syncProgressStep()` 這個既有函式也一起受影響、不會把進度條同步到步驟2，證實不是這次新增邏輯的問題，是 BTA Modal 開啟時的 DOM 變動有時候不會被目前的 observer 設定完整捕捉到），導致「預設值不合理時按鈕應立即 disabled」這條驗收標準摸不到。修法：比照這個檔案別處已有的「MutationObserver 保底輪詢」模式（`checkAndReveal` 旁的 `pollId`），新增 `setInterval(validateAttendeeCount, 700)` 當保底，跟 MutationObserver 雙重覆蓋，函式本身很輕量，indefinite 輪詢成本可忽略。
+
+**驗證方式**：因為這次工具環境的 Browser pane 一直很不穩定（`navigate`/`screenshot` 頻繁 timeout、`shopify theme dev` reload 偶發連不上 BTA 導致 widget 完全不掛載、且這個 session 一開始 `preview_start` 自動開了一個 `localhost` 分頁——**踩到之前記錄過的「Browser tool proxy contamination」教訓**，懷疑污染了同一個 session 裡其他「乾淨」分頁的行為），改用直接在草稿預覽網域（`lifechillsnow.com?preview_theme_id=147355926611`，`test-course-fullday-peak`）用 `javascript_tool` 精準操作 DOM（點日期、點「下一頁」、對 select 派發真實 `change` 事件、直接呼叫 `window.Bta.callbacks.variantChanged(...)` 模擬人數方案切換）取代滑鼠座標點擊，逐一讀取 DOM 狀態驗證：
+- 未觸碰任何欄位、Stage2 剛開啟的預設狀態（select 值為空）→ 按鈕立即 `disabled`、按鈕旁提示文字立即顯示、文字正確 ✅（這條在加保底輪詢前一度驗證失敗，加了才過）
+- 選到跟方案相符的值（1-2人方案選 2人）→ 按鈕立即恢復可點擊、兩處提示都消失 ✅
+- 模擬人數方案從「1~2人」切換到「3~4人」（不重新選 select，維持原本選的「2人」）→ 立即重新判定為不符、按鈕重新 disabled、提示文字正確更新成新範圍「3-4 人」的文案 ✅
+- 手機版（375px）：提示文字沒有橫向溢出（`scrollWidth === clientWidth`）、跟按鈕間距 18px 不會擠在一起 ✅
+- 為了排除是不是自己改壞了東西，曾用 `git stash` 切回 2026-08-11 commit 的原始程式碼、在同一個受污染的瀏覽器 session 裡重跑一次同樣流程，**同樣重現「Modal 剛開啟時 `syncProgressStep` 不會同步」的現象**，證實這是既有邏輯在這個工具環境下的既有限制或環境雜訊，不是這次改動造成的新回歸，才放心保留「保底輪詢」這個防禦性修法並還原自己的改動。
+
+**還沒做到、下一個對話串可以視情況補的部分**：
+- 沒有用滑鼠真實點擊操作走過一次完整視覺畫面（螢幕截圖這次工具環境一直失敗，`computer`/`screenshot` 全部 timeout），這次驗證全部是用 `javascript_tool` 讀 DOM 狀態間接證明邏輯正確，不是肉眼視覺確認。**建議使用者自己在瀏覽器實際操作一次（選「1-2人組」但實際參加人數留預設或選錯 → 看按鈕是否變灰、按鈕上方是否出現提示文字），做最終視覺把關。**
+- 沒有測試桌機視覺（只驗證了 DOM 狀態邏輯，沒有截圖比對按鈕變灰的視覺效果、提示文字排版是否好看）。
+
+---
 
 ## 📋 2026-08-11 整日總結（新對話串接手第一件事，先讀這段）
 
@@ -14,7 +40,9 @@
 
 ---
 
-## 🔴 下一個對話串優先任務：實際參加人數驗證的錯誤提示可見性優化
+## ✅ 已完成（2026-08-12，見上方新章節）：實際參加人數驗證的錯誤提示可見性優化
+
+**這個任務已經完成，細節見文件最上方「✅ 2026-08-12：實際參加人數驗證『錯誤提示可見性優化』已完成」章節，下面是當初 2026-08-11 交接時寫的原始規格，保留供參考。**
 
 **問題**：目前「實際參加人數」前端驗證（commit `58b44c5`）攔截不合理組合時，錯誤提示文字（例如「您選擇的方案為 1-2 人，請填寫對應的實際參加人數」）**只出現在「實際參加人數」欄位正下方**。Stage2 表單是一個固定高度、可捲動的區塊，欄位在表單中段、送出按鈕在最下方——使用者填完欄位往下捲到按鈕位置點擊送出時，畫面上通常已經看不到欄位旁邊那則錯誤提示了，點擊沒反應但看不出原因，體驗上容易誤以為按鈕壞掉。
 

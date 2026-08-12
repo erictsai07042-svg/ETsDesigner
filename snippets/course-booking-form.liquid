@@ -24,6 +24,10 @@ window.Bta = window.Bta || {};
 window.Bta.callbacks = window.Bta.callbacks || {};
 window.Bta.callbacks.variantChanged = function(variant) {
   window.__cbfSelectedVariantTitle = (variant && variant.title) ? variant.title : null;
+  /* 「實際參加人數」錯誤提示可見性優化（2026-08-12）：即時連動送出按鈕跟按鈕旁提示文字，
+     不能只在送出時才驗證。這個回呼跟主要驗證邏輯（setupAttendeeCountValidation，在
+     iframe 內的 attachTranslationAndStepSync 裡）不共用作用域，用自訂事件橋接通知。 */
+  document.dispatchEvent(new CustomEvent('cbf:variantChanged'));
 };
 </script>
 
@@ -953,6 +957,8 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       '.form-control:focus { border-color: #7AB3D4 !important; }',
       'button[data-type="submit"] { background-color: #1A2E4A !important; border-radius: 10px !important; font-weight: 700 !important; }',
       '.cbf-attendee-count-error { color: #C0392B !important; font-size: 12px !important; font-weight: 700 !important; margin: 6px 0 0 0 !important; display: none; }',
+      'button[data-type="submit"]:disabled { opacity: 0.45 !important; cursor: not-allowed !important; }',
+      '.cbf-attendee-count-button-hint { color: #C0392B !important; font-size: 12px !important; font-weight: 700 !important; margin: 0 0 8px 0 !important; text-align: center !important; display: none; }',
     ].join('\n');
     doc.head.appendChild(style);
   };
@@ -1059,52 +1065,149 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
         return { min: parseInt(match[1], 10), max: parseInt(match[2], 10) };
       };
 
-      /* 用 capture phase 監聽掛在 doc 最外層（不是掛在按鈕本身——按鈕會被 React 每次重新
-         渲染成新節點，直接掛監聽器會變成死監聽器，跟這個檔案其他地方「監聽穩定容器、
-         不監聽會被取代的節點」是同一個教訓）。capture phase 保證比 BTA 自己 React 事件
-         系統的監聽時機更早攔截到，驗證不通過就 stopPropagation/stopImmediatePropagation，
-         讓事件根本不會傳到 BTA 自己的 handler，等同「疊加防呆、不修改原生送出邏輯」。
-         只在事件觸發當下才去查「實際參加人數」欄位在不在（比對送出當下的 DOM 現況），
-         不會影響完全沒有這個欄位的畫面（例如選日期那一步，或欄位還沒在 BTA 後台建立時）。
-         這個監聽器只需要掛一次，掛在 doc 上不會因為 BTA 重繪內容而失效。 */
+      /* 純計算、不動 DOM：判斷目前「人數方案」（variant）跟「實際參加人數」select 的值
+         是否相符。即時 disabled 連動（validateAttendeeCount）跟送出攔截（click capture）
+         共用同一套判斷邏輯跟訊息文字，避免兩處各自維護，以後改文案只需要改一個地方。 */
+      const checkAttendeeCount = (select) => {
+        const range = parseAttendeeRange(window.__cbfSelectedVariantTitle);
+        if (!range) return { valid: true, range: null };
+        const count = parseInt(select.value, 10);
+        const valid = !!count && count >= range.min && count <= range.max;
+        return {
+          valid,
+          range,
+          message: '您選擇的方案為 ' + range.min + '-' + range.max + ' 人，請填寫對應的實際參加人數',
+        };
+      };
+
+      /* 錯誤提示可見性優化（2026-08-12）：比照 Stage3 checkbox 已驗證過的「即時反應」模式，
+         不再只在送出時才攔截。「實際參加人數」select 的 change、Stage1「人數方案」variant
+         切換（cbf:variantChanged 自訂事件，見檔案最上方早期 <script>）任一觸發，都重新
+         執行這個函式，同步更新三件事：
+         1) 送出按鈕 disabled 狀態——送出按鈕會被 BTA React 重繪成新節點，所以這裡也跟著
+            runUpdates() 的其他函式一樣每次重繪後都要重新套用，不能只設一次就放著
+         2) 按鈕正上方新增的提示文字，讓使用者捲到按鈕位置時不用往回捲就能看到原因
+         3) 欄位旁原有的錯誤提示，沿用既有邏輯不變，跟按鈕旁提示同時存在、文字一致
+         只清除「我們自己」造成的 disabled（用 data-cbf-attendee-invalid 標記），避免蓋掉
+         BTA 自己因其他必填欄位缺漏而設的 disabled 狀態（兩者互不干擾）。 */
+      const validateAttendeeCount = () => {
+        const select = doc.querySelector('select[name="實際參加人數"]');
+
+        /* 實測發現：Stage1 的日曆畫面（含它自己的 button[data-type="submit"]「下一頁」）
+           在切到 Stage2 確認畫面後依然留在 DOM 裡（Stage2 是疊加的 ReactModal，不是取代
+           Stage1），所以整份 doc 裡同時存在兩個 button[data-type="submit"]。如果直接用
+           doc.querySelector 抓「第一個」會抓到 Stage1 的「下一頁」而不是 Stage2 真正的
+           「立即預訂」。改成優先在「實際參加人數」select 所在的 .ReactModal__Content 範圍
+           內找，範圍找不到才退回全域第一個（沒有這個欄位的畫面本來就會提早 return）。 */
+        const scope = (select && (select.closest('.ReactModal__Content') || select.closest('form'))) || doc;
+        const btn = scope.querySelector('button[data-type="submit"]') || doc.querySelector('button[data-type="submit"]');
+        if (!btn) return;
+
+        let errorEl = doc.getElementById('cbf-attendee-count-error');
+        let hintEl = doc.getElementById('cbf-attendee-count-button-hint');
+
+        if (!select) {
+          // 這個畫面沒有這個欄位（例如選日期那一步），清掉可能殘留的狀態，正常放行
+          if (errorEl) errorEl.style.display = 'none';
+          if (hintEl) hintEl.style.display = 'none';
+          if (btn.dataset.cbfAttendeeInvalid) {
+            btn.disabled = false;
+            delete btn.dataset.cbfAttendeeInvalid;
+          }
+          return;
+        }
+
+        const container = select.closest('.field-input-container') || select.parentElement;
+        if (!errorEl) {
+          errorEl = doc.createElement('p');
+          errorEl.id = 'cbf-attendee-count-error';
+          errorEl.className = 'cbf-attendee-count-error';
+          container.appendChild(errorEl);
+        }
+        if (!hintEl) {
+          hintEl = doc.createElement('p');
+          hintEl.id = 'cbf-attendee-count-button-hint';
+          hintEl.className = 'cbf-attendee-count-button-hint';
+        }
+        // 按鈕本身每次重繪都是新節點，這裡確保提示文字永遠緊貼在「目前這顆」按鈕正上方
+        if (btn.parentNode && hintEl.nextSibling !== btn) {
+          btn.parentNode.insertBefore(hintEl, btn);
+        }
+
+        const result = checkAttendeeCount(select);
+        if (!result.range) {
+          /* 邊界情況：抓不到目前選擇的方案（variantChanged 沒有如預期觸發，或文字格式
+             跟預期不同）。這層驗證是加分防呆，不應該變成擋住正常流程的新故障點，記錄
+             警告方便日後排查，然後正常放行。 */
+          console.warn('[實際參加人數驗證] 無法判斷目前選擇的方案人數範圍（variant title: ' + window.__cbfSelectedVariantTitle + '），略過這層驗證，正常放行送出。');
+          errorEl.style.display = 'none';
+          hintEl.style.display = 'none';
+          if (btn.dataset.cbfAttendeeInvalid) {
+            btn.disabled = false;
+            delete btn.dataset.cbfAttendeeInvalid;
+          }
+          return;
+        }
+
+        if (!result.valid) {
+          errorEl.textContent = result.message;
+          errorEl.style.display = 'block';
+          hintEl.textContent = result.message;
+          hintEl.style.display = 'block';
+          btn.disabled = true;
+          btn.dataset.cbfAttendeeInvalid = '1';
+        } else {
+          errorEl.style.display = 'none';
+          hintEl.style.display = 'none';
+          if (btn.dataset.cbfAttendeeInvalid) {
+            btn.disabled = false;
+            delete btn.dataset.cbfAttendeeInvalid;
+          }
+        }
+      };
+
+      /* 用 capture phase 監聽掛在 doc 最外層（不是掛在按鈕/select 本身——兩者都會被 React
+         每次重新渲染成新節點，直接掛監聽器會變成死監聽器，跟這個檔案其他地方「監聽穩定
+         容器、不監聽會被取代的節點」是同一個教訓）。這些監聽器只需要掛一次，掛在 doc 上
+         不會因為 BTA 重繪內容而失效。 */
       const setupAttendeeCountValidation = () => {
+        /* 送出時的最後一道防呆（雙重防呆，比照 Stage3 checkbox 模式）：即使 disabled
+           理論上點不到，capture phase 攔截仍保留，避免 disabled 屬性被其他腳本／瀏覽器
+           擴充功能意外移除而繞過檢查。capture phase 保證比 BTA 自己 React 事件系統的
+           監聽時機更早攔截到，驗證不通過就 stopPropagation/stopImmediatePropagation，
+           讓事件根本不會傳到 BTA 自己的 handler。 */
         doc.addEventListener('click', (event) => {
           const btn = event.target.closest && event.target.closest('button[data-type="submit"]');
           if (!btn) return;
-
           const select = doc.querySelector('select[name="實際參加人數"]');
-          if (!select) return; // 這個畫面沒有這個欄位，不驗證，正常放行
-
-          const container = select.closest('.field-input-container') || select.parentElement;
-          let errorEl = doc.getElementById('cbf-attendee-count-error');
-          if (!errorEl) {
-            errorEl = doc.createElement('p');
-            errorEl.id = 'cbf-attendee-count-error';
-            errorEl.className = 'cbf-attendee-count-error';
-            container.appendChild(errorEl);
-          }
-
-          const range = parseAttendeeRange(window.__cbfSelectedVariantTitle);
-          if (!range) {
-            /* 邊界情況：抓不到目前選擇的方案（variantChanged 沒有如預期觸發，或文字格式
-               跟預期不同）。這層驗證是加分防呆，不應該變成擋住正常流程的新故障點，記錄
-               警告方便日後排查，然後正常放行送出。 */
-            console.warn('[實際參加人數驗證] 無法判斷目前選擇的方案人數範圍（variant title: ' + window.__cbfSelectedVariantTitle + '），略過這層驗證，正常放行送出。');
-            errorEl.style.display = 'none';
-            return;
-          }
-
-          const count = parseInt(select.value, 10);
-          if (!count || count < range.min || count > range.max) {
-            errorEl.textContent = '您選擇的方案為 ' + range.min + '-' + range.max + ' 人，請填寫對應的實際參加人數';
-            errorEl.style.display = 'block';
+          if (!select) return;
+          const result = checkAttendeeCount(select);
+          if (result.range && !result.valid) {
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
-          } else {
-            errorEl.style.display = 'none';
           }
         }, true);
+
+        // 「實際參加人數」select 變動：即時重新驗證，不用等送出才知道
+        doc.addEventListener('change', (event) => {
+          const select = event.target.closest && event.target.closest('select[name="實際參加人數"]');
+          if (!select) return;
+          validateAttendeeCount();
+        }, true);
+
+        // 「人數方案」（Stage1 variant）切換：橋接自訂事件掛在頂層 document 上（見檔案
+        // 最上方早期 <script>，跟這裡不共用作用域，用自訂事件通知）。
+        document.addEventListener('cbf:variantChanged', validateAttendeeCount);
+
+        /* 保底輪詢：跟這個檔案別處「MutationObserver 可能因為 BTA 特殊的 DOM 操作方式而
+           沒被觸發」是同一個既有教訓（見 checkAndReveal 旁的 pollId 保底輪詢）。實測發現
+           Stage2 確認 Modal 剛開啟、使用者還沒手動變動任何欄位的那個當下，偶爾會遇到
+           MutationObserver 沒有如預期觸發 runUpdates() 的情況，導致「預設值不合理時按鈕
+           應立即 disabled」這條驗收標準在部分情況下摸不到——用低頻率輪詢當保底，跟
+           MutationObserver 雙重覆蓋，函式本身很輕量（純 querySelector 比對），indefinite
+           輪詢的成本可以忽略。 */
+        setInterval(validateAttendeeCount, 700);
       };
 
       let pending = false;
@@ -1115,6 +1218,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
         applyInsuranceTextFix();
         applyRequiredAsterisks();
         syncProgressStep();
+        validateAttendeeCount();
       };
       const contentObserver = new MutationObserver(() => {
         if (pending) return;
