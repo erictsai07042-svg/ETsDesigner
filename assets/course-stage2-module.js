@@ -36,7 +36,7 @@
       '.step-item.is-done .step-dot { background-color: #2D5F8A; color: #fff; }',
       '.step-item.is-active { color: #1A2E4A; }',
       '.step-item.is-active .step-dot { background-color: #1A2E4A; color: #fff; }',
-      '.step-line { color: #3A7AB5; font-weight: 800; margin: 0 4px; }',
+      '.step-line { flex: 1; height: 2px; background-color: #3A7AB5; margin: 0 8px; border-radius: 1px; }',
 
       /* 雙軌加購卡片（原封不動照搬 dual-track-container / accordion-card / toggle-switch） */
       '.dual-track-container { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }',
@@ -112,9 +112,9 @@
     return '' +
       '<div class="booking-progress-stepper">' +
         '<div class="step-item is-done"><span class="step-dot">✓</span><span>日期</span></div>' +
-        '<div class="step-line">➔</div>' +
+        '<div class="step-line"></div>' +
         '<div class="step-item is-done"><span class="step-dot">✓</span><span>資訊</span></div>' +
-        '<div class="step-line">➔</div>' +
+        '<div class="step-line"></div>' +
         '<div class="step-item is-active"><span class="step-dot">3</span><span>加購</span></div>' +
       '</div>';
   }

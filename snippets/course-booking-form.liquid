@@ -605,7 +605,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 .step-item.is-done .step-dot { background-color: #2D5F8A; color: #fff; }
 .step-item.is-active { color: #1A2E4A; }
 .step-item.is-active .step-dot { background-color: #1A2E4A; color: #fff; }
-.step-line { color: #3A7AB5; font-weight: 800; margin: 0 4px; }
+.step-line { flex: 1; height: 2px; background-color: #3A7AB5; margin: 0 8px; border-radius: 1px; }
 @media (max-width: 480px) {
   .booking-progress-stepper { font-size: 12px; padding: 10px 10px; }
   .step-item .step-dot { width: 18px; height: 18px; font-size: 11px; }
@@ -662,9 +662,9 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
           <div id="bta-step-progress-bar" class="bta-step-progress-bar">
             <div class="booking-progress-stepper">
               <div class="step-item is-active" data-step="1"><span class="step-dot">1</span><span>日期</span></div>
-              <div class="step-line">➔</div>
+              <div class="step-line"></div>
               <div class="step-item" data-step="2"><span class="step-dot">2</span><span>資訊</span></div>
-              <div class="step-line">➔</div>
+              <div class="step-line"></div>
               <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
             </div>
           </div>
@@ -680,7 +680,14 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       <div class="info-highlight-box">
         <span class="box-tag">時段與集合地點</span>
         <p class="box-main" id="DynamicCourseTimeText">
-          {% if product.tags contains '全天班' %}
+          {% comment %}
+            2026-08-12 修正：原本判斷條件是 product.tags contains '全天班'，但實際商品
+            tag 是英文的 test-fullday/fullday 等，從來沒有任何商品真的帶「全天班」這個
+            中文 tag，導致條件永遠不成立、全部商品都落到 else 分支顯示半天班文字（含全天
+            商品，造成客人誤解上課時間的資料正確性問題）。改成跟 snippets/breadcrumbs.liquid
+            已經在用、也已驗證過的 handle/title 雙重比對慣例一致，不再依賴不存在的 tag。
+          {% endcomment %}
+          {% if product.handle contains 'fullday' or product.title contains '全天' %}
             全天班（6小時，含1小時午休）｜ 課程時間：09:00～15:00
           {% else %}
             半天班（3小時）｜ 上午：09:00～12:00 ／ 下午：13:00～16:00

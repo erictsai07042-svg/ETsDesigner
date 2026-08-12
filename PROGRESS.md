@@ -2,6 +2,36 @@
 
 最後更新：2026-08-12
 
+## ✅ 2026-08-12（最晚）：步驟指示條箭頭改為 2px 細線
+
+**需求**：「日期→資訊→加購」步驟指示條中間的箭頭符號「➔」，改成一條約 2px 的細線。
+
+**改動範圍**：這個步驟指示條有兩處複製（`assets/course-stage2-module.js` 的註解本來就寫「原封不動照搬」），兩處都改了，維持視覺一致：
+- `snippets/course-booking-form.liquid`：產品頁 Stage1-3 頂部的進度條
+- `assets/course-stage2-module.js`：購物車頁 Stage3 Modal 自己的進度條
+
+`.step-line` 從純文字箭頭（`color`/`font-weight`）改成 `flex: 1; height: 2px; background-color: #3A7AB5;` 的線段，HTML 內容從 `➔` 改成空 `<div>`。用 `flex:1` 讓線段自動撐滿兩個步驟圓點之間的間距（原本 `justify-content: space-between` 的版面不用調整）。
+
+**驗證**（草稿預覽網域，非 127.0.0.1，桌機 + 手機 375px 截圖確認）：產品頁進度條、購物車 Stage3 Modal 進度條，兩處都正確顯示 2px 細線（`getComputedStyle` 確認高度精確為 `2px`），沒有破版或跟圓點重疊，Console 沒有新增錯誤。
+
+---
+
+## ✅ 2026-08-12（最晚）：方案資訊欄位內容錯置（全日/半日）已修正
+
+**問題**：「您選擇的方案資訊」卡片的「時段與集合地點」文字，全日課程商品頁誤顯示成半日課程的時段資訊，屬於會誤導客人的資料正確性問題。**只改了 `snippets/course-booking-form.liquid`，尚未 commit。**
+
+**根因**：[snippets/course-booking-form.liquid:683](snippets/course-booking-form.liquid:683)（修正前）判斷條件寫的是 `product.tags contains '全天班'`，但實測四個測試商品的實際 tag 都是英文（`test-fullday`／`test-halfday`／`fullday`／`halfday`），**從來沒有任何商品真的帶「全天班」這個中文 tag**，導致這個條件永遠不成立，所有商品（包含全天商品）都掉進 `else` 分支，固定顯示半天班文字。不是條件寫反、也不是拼錯字，是比對了一個實際上不存在的 tag。
+
+**修法**：改成跟 `snippets/breadcrumbs.liquid` 已經在用、也已經驗證過的 handle/title 雙重比對慣例一致：`product.handle contains 'fullday' or product.title contains '全天'`，不再依賴不存在的 tag，也讓兩處判斷全日/半日的邏輯保持一致（之後如果這個慣例要調整，兩處要一起改）。
+
+**四個測試商品逐一核對**（草稿預覽網域，桌機 + 手機 375px）：
+- `test-course-fullday-peak`／`test-course-fullday-offpeak`：正確顯示「全天班（6小時，含1小時午休）｜ 課程時間：09:00～15:00」✅
+- `test-course-halfday-peak`／`test-course-halfday-offpeak`：正確顯示「半天班（3小時）｜ 上午：09:00～12:00 ／ 下午：13:00～16:00」✅
+
+**正式商品排查結果**：用 `/collections/all/products.json` 列出全店 18 個商品逐一檢查 `product_type`／`handle`，**目前沒有任何正式（非測試）商品的 handle 帶「course」或 type 是「Course」**——`course-booking-form.liquid` 的掛載條件（`blocks/buy-buttons.liquid:225`）是 `product.type == 'Course' or product.handle contains 'course'`，兩者都不成立就完全不會渲染這段「方案資訊」卡片。實測 `fullday-class-peak-season`（PROGRESS.md 記錄的「黃金基準」原生商品）頁面上確認 `#DynamicCourseTimeText` 這個元素根本不存在，證實這個 bug **目前只影響四個測試商品，沒有影響任何真實客人看得到的正式商品頁**，不需要提高處理急迫性或另外回報。**這個結論只反映現在的商品清單狀態**——之後業主把正式課程商品也串接同一套 STEP UI（handle 或 type 符合上述條件）時，這個修正會自動套用到那些商品上，不需要再另外處理。
+
+---
+
 ## ✅ 2026-08-12（更晚）：Stage 3 加購過程同步金額總計
 
 **需求**：Stage 3 裝備加購 Modal 裡，客人勾選/取消加購項目時即時顯示目前累計金額總計（課程原價 + 已勾選加購項目加總），不用等送出才知道總金額。**只改了 `assets/course-stage2-module.js`、`snippets/cart-stage2-trigger.liquid`，尚未 commit。**
