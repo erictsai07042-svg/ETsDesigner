@@ -2,6 +2,27 @@
 
 最後更新：2026-08-12
 
+## ✅ 2026-08-12（稍晚）：測試 Widget Redirect 設定改為 Cart Page，端對端流程完整驗證通過
+
+使用者把測試 Widget（`124456`）的 Redirect 設定從「Continue Shopping」改成「Cart Page」，跟正式 Widget（`111783`）設定一致後，這次對話完整驗證了整條端對端流程，並確認先前功能都沒有被這次設定改動影響。**沒有異動任何程式碼**，只有更新這份文件的決策記錄（見下方「決策 3 修正註記」）跟 `snippets/cart-stage2-trigger.liquid` 一則過時的程式碼註解。
+
+**完整端對端流程驗證（草稿預覽網域 `lifechillsnow.com?preview_theme_id=147355926611`，非 127.0.0.1）**：
+- 桌機：`test-course-fullday-peak`，Stage1 選日期 → Stage2 填完整資料（雪板類型/滑雪場/實際參加人數/通訊軟體/語言/兒童同行/保險同意）→ 送出 → **確認自動跳轉到 `/cart`**（改設定後才有這個行為，改之前用 Continue Shopping 會停留在原產品頁）→ Stage3 Modal 立即彈出 → 點「略過」→ `/cart.js` 確認 `_stage2_completed: "skipped"`、其餘 BTA 收集的 properties 全部正確、`quantity` 沒被重置 → 重新整理購物車頁確認 Modal 不會重複彈出。
+- 手機（375px）：`test-course-halfday-peak`（含半天班專屬的「時段」欄位），同樣走完 Stage1→Stage2→送出→跳轉購物車→Stage3，這次改成**完整勾選裝備加購並送出**（而不是略過）→ `/cart.js` 確認 `_stage2_completed: "true"`、`學員1_加購_單板鞋組: "需要"` 正確寫入，且跟桌機那筆課程商品的 properties 完全沒有互相污染（各自 line item 獨立）。
+- 兩次測試的購物車 properties 都完整，包含日期、滑雪場、雪板類型等 BTA 原生欄位，訂單資料完整性確認正常。
+
+**回歸測試（確認沒有被這次設定改動影響）**：
+- Stage 3 必勾同意 checkbox：預設 disabled、勾選/取消即時雙向連動，桌機上額外驗證了勾選→取消→再勾選三段式切換，行為正常 ✅
+- 實際參加人數驗證（2026-08-12 稍早新增的即時連動功能）：Stage2 Modal 剛開啟、未觸碰任何欄位的預設狀態就正確顯示按鈕 disabled + 按鈕旁提示文字，選到相符的值後即時恢復正常，桌機/手機都驗證通過，手機版提示文字沒有橫向溢出 ✅
+- 原生「加入購物車」按鈕在 Course 商品頁依然正確隱藏（`display:none`，且 `sticky-add-to-cart` 元件不存在）✅
+- Console 檢查：只有既有已知的 `cart:update` 缺少 `detail` payload 錯誤（2026-08-10 就記錄過的舊問題，跟這次設定改動無關），沒有新增錯誤 ✅
+
+**測試完成後已清空購物車**（`/cart/clear.js`），沒有留下測試資料。
+
+**文件修正**：原本「決策 3」記錄的「未來可能升級成 Plan A（商品頁不跳轉，同頁完成）」這個前提，這次確認不成立——Stage 3 技術上只能實作在購物車頁，BTA widget 完全沒有在單一產品頁收集加購資料的機制，不是「還沒做」，是「這條路徑不存在」。已在決策 3 原始記錄下方用引註方式補充修正說明（沒有刪除原始討論脈絡），另外一併修正了 `cart-stage2-trigger.liquid` 呼應這個前提的過時程式碼註解。
+
+---
+
 ## ✅ 2026-08-12：實際參加人數驗證「錯誤提示可見性優化」已完成並 commit（`7842272`）
 
 接續 2026-08-11 排定的下一個優先任務，把「實際參加人數」跟「人數方案」不符時的錯誤提示，從「只在送出時攔截、只顯示在欄位旁」升級成比照 Stage3 checkbox 的「即時反應」模式。**只改了 `snippets/course-booking-form.liquid`，已 commit（`7842272`）。**
@@ -789,6 +810,12 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 - **Stage 3（裝備加租）改成「加入購物車之後」的步驟**：在購物車頁監聽/檢查，偵測到 BTA 剛把課程商品加進購物車、且尚未補裝備資料時，跳出一個 Modal 收集裝備加購，用 `/cart/change.js` 追加寫入該 line item 的 properties。
 - **未來可能升級成 Plan A（商品頁不跳轉，同頁完成）**——所以要求把「顯示什麼內容」（渲染邏輯）跟「何時該顯示」（觸發邏輯）拆成兩個獨立模組，未來只需要換觸發邏輯，渲染邏輯完全不用動。
 
+> **📌 2026-08-12 修正註記（不刪除上面原始記錄，補充後續結論）**：上面「未來可能升級成 Plan A（商品頁不跳轉，同頁完成）」這個前提**不成立，已確認排除**。原因：Stage 3（裝備加租）技術上只能實作在購物車頁（監聽 `/cart.js`、用 `/cart/change.js` 追加寫入 line item properties），BTA widget 本身完全不提供在單一產品頁內、加入購物車前就能收集「加購」這種跟課程商品本身無關的額外資料的機制——這不是實作選擇，是 BTA 平台能力的硬限制，所以「同頁完成」這個方向從一開始就不可能達成，不是「還沒升級」，是「這條路徑不存在」。
+>
+> 這件事在 2026-08-12 測試 Widget（`124456`）的 Redirect 設定從「Continue Shopping」改成「Cart Page」、跑完整端對端流程後被明確驗證：BTA 送出訂單後**必須**先跳轉到購物車頁（這正是 Redirect 設定要改成 Cart Page 的原因——改之前用 Continue Shopping 會停留在原產品頁，Stage 3 Modal 沒有觸發時機），Stage 3 Modal 才能在購物車頁被 `cart-stage2-trigger.liquid` 偵測到並跳出。
+>
+> **目前確定的架構是**：Stage 1-2 在產品頁完成（BTA widget 處理，不跳轉），送出後**跳轉到購物車頁**完成 Stage 3（我們自建的裝備加購 Modal）。這是最終形態，不是過渡期方案，上面「Plan A」這個名稱之後不用再提。
+
 ### 決策 4：已拍板，執行中（見上方「中斷點」）
 
 使用者回覆：
@@ -827,7 +854,7 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 - 只負責「何時該顯示」：購物車頁載入 / `cart:update` 事件時，檢查 `/cart.js` 有沒有課程商品（`product_type === 'Course'` 或 handle 含 `course`）缺少 `_stage2_completed` 這個 properties 標記，有的話呼叫 `CourseStage2Module.renderStage2Form(...)`
 - `_stage2_completed` 用底線開頭，Shopify 會自動不顯示在客戶看到的購物車/結帳頁面
 - 「略過」也會寫入 `_stage2_completed: "skipped"`，避免重複糾纏使用者
-- **未來升級成 Plan A 時，這個檔案可以整個刪除、換一個監聽商品頁 add-to-cart 事件的新觸發器，`course-stage2-module.js` 完全不用改**
+- **未來升級成 Plan A 時，這個檔案可以整個刪除、換一個監聽商品頁 add-to-cart 事件的新觸發器，`course-stage2-module.js` 完全不用改**（2026-08-12 修正：此路徑已確認不成立，見上方決策 3 的修正註記，這個檔案會是長期存在的架構，不會被替換）
 
 ### `sections/main-cart.liquid`（一行掛載）
 

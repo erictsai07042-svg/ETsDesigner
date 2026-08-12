@@ -1,8 +1,9 @@
 {% comment %}
   Plan B 觸發器：購物車頁載入/更新時，檢查有沒有課程商品還沒補 Stage 2/3 資料，有的話跳出 Modal。
   只負責「何時該顯示」，「顯示什麼」完全交給 assets/course-stage2-module.js。
-  未來升級成 Plan A（商品頁不跳轉）時，只需要另外寫一個監聽 add-to-cart 的觸發器，
-  這個檔案可以整個刪除，course-stage2-module.js 不需要改動。
+  2026-08-12 確認：這是長期架構，不是過渡方案。Stage 3 技術上只能實作在購物車頁（BTA widget
+  不提供在單一產品頁、加入購物車前收集加購資料的機制），送出後跳轉購物車頁完成 Stage 3 是
+  最終形態，不會被「商品頁不跳轉」的版本取代，這個檔案不會被刪除。詳見 PROGRESS.md 決策 3。
 {% endcomment %}
 <script src="{{ 'course-stage2-module.js' | asset_url }}" defer></script>
 <div id="cart-stage2-trigger-mount"></div>
