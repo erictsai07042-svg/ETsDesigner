@@ -2,6 +2,52 @@
 
 最後更新：2026-08-13
 
+## 🔍 2026-08-13：多天預訂（最多3-4天）可行性查證——查證任務，未動任何程式碼
+
+**任務性質**：業主想知道能不能讓客人選連續多天（最多3-4天）的課程日期範圍，而不是目前的單一日期。這次只查證可行性跟風險，**沒有實作任何功能，沒有異動任何程式碼**。
+
+### 結論：技術上可行，不需要切換 Booking Type，而且有兩條實作路徑可選
+
+目前設定 Booking Type: Rentals（BTA 內部對應「Product」booking profile），查證確認**這個 profile 原生就支援多天預訂**，不需要換成 Appointments/Classes/Events 等其他 Booking Type。查到兩條路徑，風險/複雜度差很多：
+
+**路徑 A：`Allow Date Range`（日期範圍選擇器，客人選起訖兩個日期）**
+- Widget 設定裡有一個現成的 `Allow Date Range` 勾選項（在 Widgets → Rentals 的設定面板，跟目前已經打過交道的 `Redirect` 設定同一個面板），開啟後日曆從「選單一天」變成「選一個起訖區間」。
+- 要配合開啟 BTA 後台 `Settings → Order Processing → Date range updates quantity?`，之後 BTA 才會依選中的天數自動把 Shopify 購物車的 `quantity` 設成天數，達到「每天加價」的計價效果（`每日單價 × 選中天數`）。
+- **這是店鋪層級（store-wide）的設定，不是單一 Widget 專屬**——文件沒有明確寫清楚這個開關會不會連帶影響「沒有開 Allow Date Range」的其他既有商品（例如目前的課程商品是單日期選擇，quantity 恆為 1），這點需要實際在後台看到 Settings 頁面完整說明才能確認範圍，**這次沒能查證到**（見下方「未能完成查證的部分」）。
+- **對現有架構的風險**：這條路徑會讓 Shopify 的 `quantity` 開始代表「天數」，直接踩到專案裡已經記錄多次的核心假設「課程商品 quantity 恆為 1，不能用 quantity 推算人數/資料」（[cart-stage2-trigger.liquid](snippets/cart-stage2-trigger.liquid) 的 `getAttendeeCount()` 特地繞開 `quantity`、改讀「實際參加人數」property 就是為了這個原因）。如果改用這條路徑，`quantity` 的語意會被 BTA 自己接管去表示天數，雖然「實際參加人數」目前是獨立的 property、理論上不會被覆蓋，但整體上這是對既有架構假設影響最大的一條路徑。日曆從單日互動變成範圍選擇（通常是兩次點擊：先選起始日、再選結束日），widget 的 DOM 結構/高度變化目前沒有實測confirm過，**決策 6 的定位邏輯（`position:absolute` + Hero banner 高度量測 + 雙 `ResizeObserver`）理論上因為本來就是動態量測 widget 實際高度，換成範圍選擇器應該還是能運作，但沒有實測驗證過，不能保證**。
+
+**路徑 B：Duration 變體（用 Shopify Variant 表示天數，客人只選一個起始日期）**——**這條路徑風險明顯低很多，建議優先考慮**
+- 官方文件明確描述這是「Pricing Based on Rental Duration」情境的標準做法：**在 Shopify 建立代表天數的 Variant（例如「1天」「2天」「3天」「4天」，各自設定價格），BTA 這邊把 Duration 基準設成 Variant 層級，客人的操作流程是「先選 Variant（天數方案）→ 再選一個起始日期」**——日曆本身完全不需要切換成範圍選擇器，維持現在的單日期選擇互動模式，BTA 會依 Variant 設定的天數自動計算應該連續佔用/鎖定的日期區間（這正是「Duration」欄位存在的目的，不需要另外開發）。
+- **這條路徑幾乎是現有「人數方案」變體模式（`1~2人`／`3~4人`）的直接延伸**——專案已經有成熟的「用 Variant 表示分級選項、前端疊加驗證比對」的模式（實際參加人數驗證功能整套邏輯就是這樣做的），用同樣的手法多加一個「天數」維度，架構上是「做同樣的事情、多一組資料」，不是全新模式。
+- **不需要開店鋪層級的 `Date range updates quantity?` 設定**，`quantity` 語意完全不受影響，繼續維持現有「恆為 1」的假設不變。
+- **日曆互動模式不變**（維持單日期選擇），決策 6 的定位邏輯需要調整的可能性遠低於路徑 A——但因為沒能實測「多一個 Duration 下拉選單後 widget 實際渲染高度變化」，`ResizeObserver` 動態量測機制理論上會自動適應（這正是決策 6 當初刻意設計成動態量測而非寫死高度的原因），但仍建議实作前先用測試 Widget 實測一次確認。
+
+### 對現有已完成功能的潛在影響評估
+
+- **Stage2 Booking Fields（雪板類型/滑雪場/實際參加人數/通訊軟體等）**：這些是綁定商品 tag 的 BTA Booking Fields，跟日期選擇機制（單日 vs 範圍 vs Duration 變體）彼此獨立，**兩條路徑都不影響**。
+- **Stage3 裝備加購／必勾同意 checkbox**：完全是購物車頁面獨立運作的邏輯（讀「實際參加人數」property、跟 BTA 送出流程解耦），**兩條路徑都不影響**。
+- **「實際參加人數」驗證邏輯（2026-08-12 剛完成）**：`parseAttendeeRange()` 目前用正則解析 `variant.title`（例如「1 ~ 2 人」）取得人數範圍。**路徑 A（Allow Date Range）不影響**這個邏輯，因為人數方案 Variant 不變。**路徑 B（Duration 變體）如果把「天數」也做成 Variant 維度、跟「人數方案」合併成同一組 Variant（例如「1~2人 / 3天」），`variant.title` 的文字格式會改變，現有正則會解析失敗，需要同步更新**——但如果「天數」是獨立於「人數方案」之外的另一個獨立 Variant 選項（Shopify 商品可以有多個 Option 維度），這個既有邏輯完全不用動。這是實作前需要跟業主確認的產品設計細節，不是技術限制。
+- **整體評估：路徑 B 是小改動**（沿用既有變體+前端驗證模式，日曆互動不變）；**路徑 A 是中等改動**（需要處理範圍選擇器 UI、店鋪層級設定變更、quantity 語意變化，且需要重新驗證決策 6 的日曆定位邏輯），都不是需要重新設計整體架構的大工程。
+
+### 查證方式與依據
+
+**已完成（純文件查證，公開資訊、不需要登入）**：
+- [⚙️ Rental Widget Settings in BookThatApp](https://support.bookthatapp.com/hc/en-us/articles/5974258635663--Rental-Widget-Settings-in-BookThatApp)：確認現代 Widget（我們目前用的架構，非 Classic Booking Form）設定面板裡有 `Allow Date Range`、`Include Return Date`、`Show Choosing Duration` 等欄位，且面板同時列出 `Redirect` 設定——跟這次對話早些時候實際操作過的 Redirect 設定是同一個面板結構，確認文件描述的介面跟我們實際在用的介面一致，不是查到不相關版本的文件。
+- [Product Rental Widget](https://support.bookthatapp.com/hc/en-us/articles/360001602196-Product-Rental-Widget)：現代 Widget 架構下完整的三種計價模型（固定天數 Variant／固定日租金／依天數分級日租金）設定流程，明確寫出「Booking type 選 Product」（對應我們的 Rentals）+「Widgets → Rentals」的安裝路徑，並指出「若用模型 b/c 記得開 Allow Date Range」——反向確認模型 a（固定天數 Variant，即路徑 B）**不需要**開 Allow Date Range。
+- [How To Set Up Product Pricing Options](https://support.bookthatapp.com/hc/en-us/articles/213137343-How-To-Set-Up-Product-Pricing)：明確寫出模型 a 的「Customer Experience：Customers select the rental duration (variant) first and then select the start date」——直接證實路徑 B 的日曆互動維持單日期選擇，不是範圍選擇器。
+- 另外兩篇 Classic Booking Form 舊版文件（[Item Rentals - Customer Specified Start and End Date](https://support.bookthatapp.com/hc/en-us/articles/333756999716-Item-Rentals-Customer-Specified-Start-and-End-Date)、[Item Rentals - Set Rental Period](https://support.bookthatapp.com/hc/en-us/articles/333757000136-Item-Rentals-Set-Rental-Period)）查過但**不是我們架構適用的文件**（BTA 自己在文件裡註明「Widgets are our newest type of booking form. We highly recommend using a widget over a classic form」），只用來交叉確認底層機制（日期範圍會轉換成 quantity 計算）跟現代 Widget 文件描述一致，沒有拿來當作主要依據。
+- [How Do I Choose the Right Booking Form/Booking Type?](https://support.bookthatapp.com/hc/en-us/articles/211514406-How-Do-I-Choose-the-Right-Booking-Form-Booking-Type)：確認「As of May 2022, widgets are available for all booking scenarios except those that require Booking Form 6」——只有 Form 6（範圍+時間選擇器）不支援 Widget 化，我們需要的 Form 2（純日期範圍，無時間）功能有被 Widget 涵蓋。
+
+**未能完成查證的部分（誠實記錄，不要假裝已確認）**：
+- **沒有實際進到 BTA 後台看我們自己這個測試 Widget（124456）或正式 Widget（111783）的設定畫面**，無法用截圖確認 `Allow Date Range` 這個選項在我們自己的 Widget 設定介面上實際存在、長什麼樣子。原因：從 Shopify 後台點「Open BookThatApp.com」要跳轉到 BTA 獨立後台時，**Shopify 觸發了帳號身分驗證關卡（`TrustChallengeRequiredError`，導向 `admin.shopify.com/challenges/user_verification`，要求輸入 Shopify 帳號密碼）**——這是使用者帳號本身的安全機制，**不是我能夠或應該代為輸入密碼的地方，已停止嘗試繞過**，改用純文件查證的方式完成這次任務。
+- **沒有新建任何測試用的 Widget/Service**（原規格要求的備案方式），因為同樣卡在上述登入門檻，進不去後台建立。
+- 因此也**沒有實測「開啟 Allow Date Range 後，widget 實際渲染的 DOM 結構/高度變化」**，決策 6 定位邏輯是否需要調整，目前只是根據既有動態量測機制的設計推論「理論上應該還能運作」，不是實測結果。
+- **「Date range updates quantity?」這個店鋪層級設定，具體的作用範圍（是否會影響沒開 Allow Date Range 的其他商品）沒有查到明確文件說明**，需要實際在 Settings → Order Processing 頁面看到完整敘述文字才能確認。
+
+**建議下一步**：如果業主想繼續推進這個功能，建議先請使用者自己完成一次 Shopify 帳號驗證（清掉這個 trust challenge），下一個對話串就能接著實際進 BTA 後台截圖確認 `Allow Date Range` 設定畫面、並在一個新建的測試 Widget 上實測路徑 B（Duration 變體）的日曆行為，不影響任何正式商品或正式 Widget。
+
+---
+
 ## ✅ 2026-08-13：`proxyBaseUrl` 問題已確認修復並結案
 
 **背景**：測試 Widget（124456）`proxyBaseUrl` 誤指向 `127.0.0.1` 這個問題（見文件下方「✅ 已定位根因（2026-08-10）」專章），2026-08-11 已回報 BTA 客服。這次對話 BTA 客服回報已修正，比照當初定位問題時用過的嚴謹方法（完全跳出瀏覽器的 `curl`、不帶 cookie/session、交叉比對測試 Widget 跟正式 Widget）重新驗證，避免重蹈先前「這次有、下次沒有」的間歇性假象覆轍。
