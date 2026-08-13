@@ -1,6 +1,37 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-12
+最後更新：2026-08-13
+
+## ✅ 2026-08-13：`proxyBaseUrl` 問題已確認修復並結案
+
+**背景**：測試 Widget（124456）`proxyBaseUrl` 誤指向 `127.0.0.1` 這個問題（見文件下方「✅ 已定位根因（2026-08-10）」專章），2026-08-11 已回報 BTA 客服。這次對話 BTA 客服回報已修正，比照當初定位問題時用過的嚴謹方法（完全跳出瀏覽器的 `curl`、不帶 cookie/session、交叉比對測試 Widget 跟正式 Widget）重新驗證，避免重蹈先前「這次有、下次沒有」的間歇性假象覆轍。
+
+**驗證方式與結果**：
+
+1. **第一次 curl 測試**（伺服器時間 `2026-08-13 13:43:37 GMT`，本機時間 21:43:06 台北時間）：
+   ```
+   curl -sD headers.txt "https://lifechillsnow.com/apps/bookthatapp/widgets/124456?locale=zh-TW&pp=disabled&product=8029961846867&shop=qgfchv-py&hostname=lifechillsnow.com&widgetPath=products" -o body.html
+   ```
+   回應內容（54,361 bytes）逐字串搜尋 `127.0.0.1` → **0 筆符合**（`grep -c` 結果為 0）。關鍵兩個信號都正確：
+   ```
+   <link rel="preconnect" href="https://lifechillsnow.com/apps/bookthatapp">
+   <link rel="dns-prefetch" href="https://lifechillsnow.com/apps/bookthatapp">
+   proxyBaseUrl: 'https://lifechillsnow.com/apps/bookthatapp'
+   ```
+
+2. **第二次 curl 測試**（伺服器時間 `2026-08-13 13:59:15 GMT`，本機時間 21:59:12 台北時間，**間隔約 15 分 38 秒**，用完全相同的 URL 重新請求）：結果跟第一次**逐位元組（byte-for-byte）完全一致**（`diff test1-body.html test2-body.html` 輸出 0 行差異），同樣 0 筆 `127.0.0.1`、`proxyBaseUrl` 同樣正確指向 `lifechillsnow.com`。**證實不是當下那一刻剛好正常的偶發性假象，是穩定的修復。**
+
+3. **完整端對端流程驗證**（草稿預覽網域 `lifechillsnow.com?preview_theme_id=147355926611`，非 127.0.0.1，`test-course-fullday-peak`）：
+   - 日曆正常顯示可選日期（22 天可選、20 天不可選，**不再是先前 bug 那樣整月全部顯示 Unavailable**）
+   - 選日期 → Stage2 填完整資料（雪板類型/滑雪場/實際參加人數/通訊軟體/語言/兒童同行/保險同意）→ 送出 → **正確自動跳轉到 `/cart`**
+   - `/cart.js` 確認 properties 完整正確（日期、雪板類型、滑雪場等全部正確寫入）
+   - Stage 3 加購 Modal 正確自動彈出，點「略過」→ `_stage2_completed: "skipped"` 正確寫入
+   - Console 檢查：只剩既有已知的 `cart:update` 缺少 `detail` payload 錯誤（2026-08-10 就記錄過的舊問題，待辦 27），**沒有再出現任何 `127.0.0.1` 相關的連線錯誤或 BTA bootstrap 例外**
+   - 測試完成後已清空購物車
+
+**結論：`proxyBaseUrl` 問題正式結案**，測試 Widget（124456）設定已穩定修復，跟正式 Widget（111783）表現一致。待辦事項第 31 點、「📋 待補事項」第 2 點已同步更新為已結案狀態。
+
+---
 
 ## 📋 2026-08-12 整日總結（新對話串接手第一件事，先讀這段）
 
@@ -151,7 +182,7 @@
 ## 📋 待補事項（非急迫，記錄避免遺忘）
 
 1. `test-course-halfday-offpeak` 端對端流程補測——先前（2026-08-08/09）因瀏覽器自動化工具逾時中斷，沒能確認該筆訂單是否成功進購物車，非阻塞性問題，有空可以重新驗證一次或查 Shopify 後台訂單記錄確認
-2. BTA 客服 email 回覆追蹤——已回報 `proxyBaseUrl` 問題等待回信，收到回覆後照內容處理（或回覆內容不夠具體時再考慮重新查看 Sidekick 建議線索）
+2. ~~BTA 客服 email 回覆追蹤~~ ✅ **已結案（2026-08-13）**：BTA 客服回報已修正測試 Widget（124456）`proxyBaseUrl` 設定，重新驗證通過，細節見文件最上方「✅ 2026-08-13：`proxyBaseUrl` 問題已確認修復並結案」章節。
 
 ---
 
@@ -973,5 +1004,5 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 28. ~~`layout/theme.liquid` 未預期本機異動（拿掉 `.shopifypreview.com` 白名單）~~ ✅ 已釐清並復原。使用者確認這是自己手動改的，**原意是想解決 BTA 測試 Widget（124456）`proxyBaseUrl` 誤指向 127.0.0.1 的問題**——但這兩者完全不相關：`theme.liquid` 這段是純前端連結改寫腳本（瀏覽器讀完頁面後改寫 `<a>` 標籤），只影響「測試連結會不會被導去正式站」；BTA 的 `proxyBaseUrl` 是 BTA 後端伺服器回應內容裡寫死的值，發生在瀏覽器執行任何主題 JS 之前，兩者無法互相影響。已用 `git checkout -- layout/theme.liquid` 復原成最新 commit 版本（含 `.shopifypreview.com` 白名單），確認 `git diff` 無異動。**BTA 測試 Widget 的問題仍未解決，真正能修的路徑還是只有 bookthatapp.com 獨立後台或聯繫 BTA 客服**，見待辦 0 / 文件中段「✅ 已定位根因」專章。
 29. ~~Stage 3 裝備加購組數對應實際人數~~ ✅ 程式碼側已於 2026-08-10 完成並實測驗證通過（commit `fd39027`），細節見文件最上方對應專章。**唯一還沒完成的是 BTA 後台「實際參加人數」欄位本身**，見待辦 30。
 30. ~~BTA 後台建立「實際參加人數」欄位~~ ✅ 業主已建好（Label「實際參加人數」，Apply = `test-fullday`／`test-halfday`，Options 1人~4人），並用真正欄位重新驗證六個情境全數通過，細節見文件最上方第 3 節「已用真正的 BTA 欄位重新完整驗證通過」。
-31. ~~BTA 後台 Sidekick 建議「更改 BTA proxyBaseUrl 設定」~~ 🕒 **狀態變更：改為背景等待中，非急迫**。2026-08-11 使用者已直接把測試 Widget（124456）`proxyBaseUrl` 誤指向 127.0.0.1 的問題回報給 BTA 客服，等對方 email 跟進回覆，不需要主動追蹤這個 Sidekick 建議線索了（除非客服回覆內容不夠具體，屆時再考慮回頭查看）。
+31. ~~BTA 後台 Sidekick 建議「更改 BTA proxyBaseUrl 設定」~~ ✅ **已結案（2026-08-13）**：BTA 客服回報已修正，重新用 curl（不帶 cookie）驗證兩次（間隔約 16 分鐘，回應內容逐位元組比對完全一致）+ 完整端對端流程驗證通過，測試 Widget（124456）`proxyBaseUrl` 穩定指向 `https://lifechillsnow.com/apps/bookthatapp`，不再是 `127.0.0.1`。細節見文件最上方「✅ 2026-08-13：`proxyBaseUrl` 問題已確認修復並結案」章節。
 32. 🔴 **下一個對話串優先任務**：實際參加人數驗證的錯誤提示可見性優化——目前錯誤提示（commit `58b44c5`）只出現在「實際參加人數」欄位旁，使用者捲到送出按鈕位置時看不到，容易誤以為按鈕壞掉。要做：(a) 按鈕即時 disabled/enabled 連動（比照 Stage3 checkbox 的 `syncSubmitButtonState()` 模式）；(b) 按鈕旁新增簡短提示文字。完整規格、技術現況、待確認的風險點見文件最上方「🔴 下一個對話串優先任務」專章。
