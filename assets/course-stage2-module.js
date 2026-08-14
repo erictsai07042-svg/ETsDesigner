@@ -22,11 +22,24 @@
     var style = document.createElement('style');
     style.id = 'course-stage2-styles';
     style.textContent = [
-      /* Modal 外殼 */
+      /* Modal 外殼。桌機版加寬（C 項）：手機維持 width:92% 不變，桌機把 max-width 從 640
+         放寬到 880，讓學員加購選項有空間並排，減少垂直捲動長度。 */
       '.cs2-overlay { position: fixed; inset: 0; z-index: 99998; display: flex; align-items: center; justify-content: center; font-family: var(--brand-font-family, "PingFang TC", "Microsoft JhengHei", sans-serif); }',
       '.cs2-backdrop { position: absolute; inset: 0; background: rgba(17,17,17,0.55); }',
-      '.cs2-panel { position: relative; width: 92%; max-width: 640px; max-height: 88vh; overflow-y: auto; background: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 24px 48px -8px rgba(0,0,0,0.25); }',
-      '.cs2-title { color: #1A2E4A; font-size: 18px; font-weight: 800; margin: 0 0 20px 0; padding-left: 12px; border-left: 4px solid #3A7AB5; }',
+      '.cs2-panel { position: relative; width: 92%; max-width: 640px; max-height: 88vh; overflow-y: auto; overflow-x: hidden; background: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 24px 48px -8px rgba(0,0,0,0.25); }',
+      '@media (min-width: 768px) { .cs2-panel { max-width: 880px; } }',
+      '.cs2-title { color: #1A2E4A; font-size: 18px; font-weight: 800; margin: 0; padding-left: 12px; border-left: 4px solid #3A7AB5; flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }',
+
+      /* 頂部固定區塊（B 項）：進度條 + 商品標題 + 即時總金額摘要，Modal 內容捲動時維持
+         可見。用「負 margin 抵銷 .cs2-panel 的 padding、內部重新補回 padding」這個手法讓
+         sticky 區塊能夠緊貼 .cs2-panel 這個捲動容器的最頂端（sticky 的 top:0 是相對捲動
+         容器的 padding box 算，如果不抵銷 padding，捲動後上緣會多一段空隙、也蓋不住底下
+         內容），同時保留跟面板一致的圓角跟左右留白觀感。 */
+      '.cs2-sticky-header { position: sticky; top: 0; z-index: 5; margin: -24px -24px 16px -24px; padding: 20px 24px 14px 24px; background: #ffffff; border-radius: 16px 16px 0 0; box-shadow: 0 6px 12px -8px rgba(26,46,74,0.18); }',
+      '.cs2-sticky-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; }',
+      '.cs2-sticky-total { display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; background: #E8F4FA; border: 1px solid #B8D9ED; border-radius: 999px; padding: 6px 14px; }',
+      '.cs2-sticky-total .cs2-total-label { font-size: 12px; }',
+      '.cs2-sticky-total .cs2-total-amount { font-size: 15px; }',
 
       /* 步驟指示條（原封不動照搬 booking-progress-stepper / step-item） */
       '.booking-progress-stepper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 12px 16px; background-color: #E8F4FA; border: 1px solid #B8D9ED; border-radius: 12px; font-size: 14px; font-weight: 700; color: #1A2E4A; }',
@@ -57,9 +70,13 @@
       '.hotel-placeholder-box { padding: 24px 20px; text-align: center; font-size: 13px; color: #5A6A78; line-height: 1.7; }',
       '.hotel-placeholder-box .hotel-badge { display: inline-block; background: #1A2E4A; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; margin-bottom: 10px; }',
 
-      /* 學員分組深色標題列（原封不動照搬 attendee-gear-group-box / attendee-group-title / gear-item-box） */
-      '.attendee-gear-group-box { margin-bottom: 14px; border: 1px solid #B8D9ED; border-radius: 10px; overflow: hidden; }',
-      '.attendee-gear-group-box:last-child { margin-bottom: 0; }',
+      /* 學員分組深色標題列（原封不動照搬 attendee-gear-group-box / attendee-group-title / gear-item-box）。
+         學員分組容器（C 項）：手機維持單欄堆疊，桌機（跟 Modal 加寬同一個斷點）改雙欄並排，
+         減少垂直捲動長度。改用容器 gap 控制間距，個別卡片不再自己留 margin-bottom。 */
+      '[data-gear-rental-root] { display: flex; flex-direction: column; gap: 14px; }',
+      '@media (min-width: 768px) { [data-gear-rental-root] { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; } }',
+      '.cs2-gear-list-hidden { display: none !important; }',
+      '.attendee-gear-group-box { border: 1px solid #B8D9ED; border-radius: 10px; overflow: hidden; }',
       '.attendee-group-title { font-weight: 800; letter-spacing: 0.07em; color: #fff; background: linear-gradient(90deg, #1A2E4A 0%, #2D5F8A 100%); padding: 8px 14px; margin: 0; font-size: 12px; }',
       '.gear-grid { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fafcff; }',
       '.gear-item-box { display: flex; align-items: center; gap: 12px; border: 1px solid #B8D9ED; padding: 11px 13px; border-radius: 8px; cursor: pointer; background: #fff; transition: border-color 0.15s, background-color 0.15s; }',
@@ -72,8 +89,10 @@
       '.gear-name strong { color: #2D5F8A; font-weight: 700; margin-left: 6px; }',
       '.gear-desc { font-size: 12px; color: #5A6A78; margin-top: 2px; line-height: 1.4; }',
 
-      /* 法律聲明必勾同意（定稿文字：滑雪裝備租賃風險與責任聲明） */
-      '.cs2-legal-consent { margin-top: 18px; padding-top: 16px; border-top: 1px solid #e4ecf3; }',
+      /* 法律聲明必勾同意（定稿文字：滑雪裝備租賃風險與責任聲明）。A 項：現在巢狀在
+         .accordion-content 裡面（開關打開才看得到），accordion-content 展開時自己已經有
+         border-top/padding，這裡不用再疊一層頂部間距，改成只留跟底下加購清單的間距。 */
+      '.cs2-legal-consent { margin-bottom: 18px; }',
       '.cs2-legal-scrollbox { max-height: 200px; overflow-y: auto; border: 1px solid #7AB3D4; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; background: #fafcff; }',
       '.cs2-legal-scrollbox h4 { color: #1A2E4A; font-size: 14px; font-weight: 800; margin: 0 0 10px 0; }',
       '.cs2-legal-scrollbox h5 { color: #1A2E4A; font-size: 13px; font-weight: 700; margin: 14px 0 4px 0; }',
@@ -188,8 +207,13 @@
       '<div class="cs2-overlay">' +
         '<div class="cs2-backdrop"></div>' +
         '<div class="cs2-panel">' +
-          progressStepperHtml() +
-          '<h3 class="cs2-title">' + (options.productTitle || '完成預訂前的最後一步') + '</h3>' +
+          '<div class="cs2-sticky-header">' +
+            progressStepperHtml() +
+            '<div class="cs2-sticky-title-row">' +
+              '<h3 class="cs2-title">' + (options.productTitle || '完成預訂前的最後一步') + '</h3>' +
+              '<div class="cs2-sticky-total"><span class="cs2-total-label">總額</span><span class="cs2-total-amount" data-cs2-total-amount-sticky>$0.00</span></div>' +
+            '</div>' +
+          '</div>' +
           '<div class="dual-track-container">' +
             '<div class="accordion-card">' +
               '<div class="accordion-header">' +
@@ -198,12 +222,50 @@
                   '<p>課前為您準備，現省自尋租還時間</p>' +
                 '</div>' +
                 '<label class="toggle-switch">' +
-                  '<input type="checkbox" data-gear-toggle checked>' +
+                  '<input type="checkbox" data-gear-toggle>' +
                   '<span class="toggle-slider"></span>' +
                 '</label>' +
               '</div>' +
-              '<div class="accordion-content is-expanded" data-gear-content>' +
-                '<div data-gear-rental-root></div>' +
+              '<div class="accordion-content" data-gear-content>' +
+                '<div class="cs2-legal-consent">' +
+                  '<div class="cs2-legal-scrollbox" tabindex="0" aria-label="裝備租賃風險與責任聲明">' +
+                    '<h4>滑雪裝備租賃風險與責任聲明</h4>' +
+                    '<h5>一、裝備確認</h5>' +
+                    '<p>租賃開始前，出租方與租賃者已共同確認租賃裝備外觀與功能均為正常、可使用狀態。</p>' +
+                    '<h5>二、運動風險及責任歸屬</h5>' +
+                    '<p>租賃者知悉並同意，滑雪屬於具高度風險之運動，於滑雪過程中，可能因跌倒、碰撞、雪況、地形或其他不可預期因素，導致裝備損壞、功能異常，甚至造成人身受傷或其他損害。</p>' +
+                    '<p>上述因滑雪運動本身所產生之風險、損害或意外情事，均屬租賃者自行承擔之範圍，租賃者不得因此向出租方主張任何形式之賠償或責任。</p>' +
+                    '<h5>三、裝備保管責任</h5>' +
+                    '<p>租賃期間內，所有裝備（包含但不限於滑雪器材、防護裝備及服裝）皆由租用者自行負責妥善保管與使用。</p>' +
+                    '<p>若因個人疏忽、遺失、未歸還、遭第三人取走，或非正常使用情況導致裝備無法回收，將視同遺失處理。</p>' +
+                    '<h5>四、遺失賠償原則</h5>' +
+                    '<p>租賃期間內，所有裝備皆由租賃者自行負責保管。如發生遺失、未歸還或無法回收之情形，租賃者同意依下列金額賠償：</p>' +
+                    '<table class="cs2-legal-table">' +
+                      '<thead><tr><th>裝備項目</th><th>NT$</th><th>¥</th></tr></thead>' +
+                      '<tbody>' +
+                        '<tr><td>安全帽</td><td>1,000</td><td>5,000</td></tr>' +
+                        '<tr><td>雪鏡</td><td>1,000</td><td>5,000</td></tr>' +
+                        '<tr><td>護臀</td><td>500</td><td>2,500</td></tr>' +
+                        '<tr><td>護膝</td><td>500</td><td>2,500</td></tr>' +
+                        '<tr><td>雪服</td><td>2,000</td><td>10,000</td></tr>' +
+                        '<tr><td>雪褲</td><td>2,000</td><td>10,000</td></tr>' +
+                        '<tr><td>雪鞋</td><td>6,000</td><td>30,000</td></tr>' +
+                        '<tr><td>雪板＋固定器</td><td>8,000</td><td>40,000</td></tr>' +
+                      '</tbody>' +
+                    '</table>' +
+                    '<p class="cs2-legal-note">※ 若同時遺失多項裝備，將依實際遺失項目累計計算賠償金額。</p>' +
+                    '<h5>五、特別提醒</h5>' +
+                    '<p>請勿將裝備隨意放置於雪場公共區域。休息、用餐或離場時，請務必確認裝備已妥善存放。</p>' +
+                    '<h5>六、同意聲明</h5>' +
+                    '<p>完成租賃即視為租賃者已詳閱、理解並同意上述所有內容。</p>' +
+                  '</div>' +
+                  '<label class="cs2-legal-consent-label">' +
+                    '<input type="checkbox" data-cs2-legal-checkbox>' +
+                    '<span class="cs2-legal-consent-text">我已詳閱並同意上述《滑雪裝備租賃風險與責任聲明》全部內容</span>' +
+                  '</label>' +
+                  '<p class="cs2-legal-consent-warning" data-cs2-legal-warning hidden>請先閱讀並同意租賃聲明</p>' +
+                '</div>' +
+                '<div data-gear-rental-root class="cs2-gear-list-hidden"></div>' +
               '</div>' +
             '</div>' +
             '<div class="accordion-card">' +
@@ -223,76 +285,46 @@
               '</div>' +
             '</div>' +
           '</div>' +
-          '<div class="cs2-legal-consent">' +
-            '<div class="cs2-legal-scrollbox" tabindex="0" aria-label="裝備租賃風險與責任聲明">' +
-              '<h4>滑雪裝備租賃風險與責任聲明</h4>' +
-              '<h5>一、裝備確認</h5>' +
-              '<p>租賃開始前，出租方與租賃者已共同確認租賃裝備外觀與功能均為正常、可使用狀態。</p>' +
-              '<h5>二、運動風險及責任歸屬</h5>' +
-              '<p>租賃者知悉並同意，滑雪屬於具高度風險之運動，於滑雪過程中，可能因跌倒、碰撞、雪況、地形或其他不可預期因素，導致裝備損壞、功能異常，甚至造成人身受傷或其他損害。</p>' +
-              '<p>上述因滑雪運動本身所產生之風險、損害或意外情事，均屬租賃者自行承擔之範圍，租賃者不得因此向出租方主張任何形式之賠償或責任。</p>' +
-              '<h5>三、裝備保管責任</h5>' +
-              '<p>租賃期間內，所有裝備（包含但不限於滑雪器材、防護裝備及服裝）皆由租用者自行負責妥善保管與使用。</p>' +
-              '<p>若因個人疏忽、遺失、未歸還、遭第三人取走，或非正常使用情況導致裝備無法回收，將視同遺失處理。</p>' +
-              '<h5>四、遺失賠償原則</h5>' +
-              '<p>租賃期間內，所有裝備皆由租賃者自行負責保管。如發生遺失、未歸還或無法回收之情形，租賃者同意依下列金額賠償：</p>' +
-              '<table class="cs2-legal-table">' +
-                '<thead><tr><th>裝備項目</th><th>NT$</th><th>¥</th></tr></thead>' +
-                '<tbody>' +
-                  '<tr><td>安全帽</td><td>1,000</td><td>5,000</td></tr>' +
-                  '<tr><td>雪鏡</td><td>1,000</td><td>5,000</td></tr>' +
-                  '<tr><td>護臀</td><td>500</td><td>2,500</td></tr>' +
-                  '<tr><td>護膝</td><td>500</td><td>2,500</td></tr>' +
-                  '<tr><td>雪服</td><td>2,000</td><td>10,000</td></tr>' +
-                  '<tr><td>雪褲</td><td>2,000</td><td>10,000</td></tr>' +
-                  '<tr><td>雪鞋</td><td>6,000</td><td>30,000</td></tr>' +
-                  '<tr><td>雪板＋固定器</td><td>8,000</td><td>40,000</td></tr>' +
-                '</tbody>' +
-              '</table>' +
-              '<p class="cs2-legal-note">※ 若同時遺失多項裝備，將依實際遺失項目累計計算賠償金額。</p>' +
-              '<h5>五、特別提醒</h5>' +
-              '<p>請勿將裝備隨意放置於雪場公共區域。休息、用餐或離場時，請務必確認裝備已妥善存放。</p>' +
-              '<h5>六、同意聲明</h5>' +
-              '<p>完成租賃即視為租賃者已詳閱、理解並同意上述所有內容。</p>' +
-            '</div>' +
-            '<label class="cs2-legal-consent-label">' +
-              '<input type="checkbox" data-cs2-legal-checkbox>' +
-              '<span class="cs2-legal-consent-text">我已詳閱並同意上述《滑雪裝備租賃風險與責任聲明》全部內容</span>' +
-            '</label>' +
-            '<p class="cs2-legal-consent-warning" data-cs2-legal-warning hidden>請先閱讀並同意租賃聲明</p>' +
-          '</div>' +
           '<div class="cs2-total-summary">' +
             '<span class="cs2-total-label">結帳總額</span>' +
             '<span class="cs2-total-amount" data-cs2-total-amount>$0.00</span>' +
           '</div>' +
           '<div class="cs2-footer">' +
             '<button type="button" class="cs2-btn-skip" data-cs2-skip>略過，之後再補</button>' +
-            '<button type="button" class="cs2-btn-primary" data-cs2-submit disabled>確認加購</button>' +
+            '<button type="button" class="cs2-btn-primary" data-cs2-submit>確認加購</button>' +
           '</div>' +
         '</div>' +
       '</div>';
 
     var gearRoot = container.querySelector('[data-gear-rental-root]');
     var gearControls = renderGearRentalSection(gearRoot, { attendeeCount: attendeeCount });
-    wireAccordionToggle(container.querySelector('[data-gear-toggle]'), container.querySelector('[data-gear-content]'));
+    var gearToggle = container.querySelector('[data-gear-toggle]');
+    wireAccordionToggle(gearToggle, container.querySelector('[data-gear-content]'));
 
     /* 金額總計即時連動：課程原價（呼叫端從購物車 line item 帶進來，單位是分）加上目前所有
        已勾選加購項目的金額。加購金額一律透過 getSelectedGear() 讀（它內部比對 GEAR_ITEMS
        這個唯一的價格資料來源），不在這裡另外寫死或重複解析金額，價格調整只需要改
        GEAR_ITEMS，這裡完全不用動。checkbox 是這次渲染出來的靜態 DOM（不像 BTA iframe
-       會被 React 重繪替換節點），監聽器直接掛一次即可，不需要 capture phase 委派。 */
+       會被 React 重繪替換節點），監聽器直接掛一次即可，不需要 capture phase 委派。
+       兩處都要更新（底部原有位置 + 頂部新增的 sticky 位置），同一個數字，只是顯示兩處。 */
     var coursePriceCents = Number(options.coursePriceCents) || 0;
     var totalAmountEl = container.querySelector('[data-cs2-total-amount]');
+    var totalAmountStickyEl = container.querySelector('[data-cs2-total-amount-sticky]');
 
     function formatCurrency(cents) {
       return '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    /* A 項：加購開關關閉時，客人根本沒有要租裝備，金額總計不應該把（可能殘留在隱藏清單
+       裡、之前勾過又關掉開關的）加購項目算進去，只算課程原價。 */
     function updateTotal() {
-      var gearCents = gearControls.getSelectedGear().reduce(function (sum, g) { return sum + g.price * 100; }, 0);
-      totalAmountEl.textContent = formatCurrency(coursePriceCents + gearCents);
+      var gearCents = gearToggle.checked
+        ? gearControls.getSelectedGear().reduce(function (sum, g) { return sum + g.price * 100; }, 0)
+        : 0;
+      var text = formatCurrency(coursePriceCents + gearCents);
+      totalAmountEl.textContent = text;
+      totalAmountStickyEl.textContent = text;
     }
-    updateTotal();
 
     gearRoot.addEventListener('change', function (event) {
       if (event.target && event.target.matches && event.target.matches('[data-gear-checkbox]')) {
@@ -300,19 +332,52 @@
       }
     });
 
-    /* 法律聲明必勾同意：checkbox 未勾選時「確認加購」按鈕強制 disabled，
-       兩者即時雙向連動。因為 Modal 本身每次開啟都是 container.innerHTML 整段重新渲染
-       （見 close()／呼叫端 checkAndTrigger()），checkbox 天生不會沿用上次的勾選狀態，
-       不需要額外的重置邏輯。 */
+    /* 法律聲明必勾同意：checkbox 未勾選時「確認加購」按鈕強制 disabled，兩者即時雙向連動。
+       因為 Modal 本身每次開啟都是 container.innerHTML 整段重新渲染（見 close()／呼叫端
+       checkAndTrigger()），checkbox 天生不會沿用上次的勾選狀態，不需要額外的重置邏輯。
+
+       A 項擴充：現在這整組（風險聲明／必勾同意／加購清單）都巢狀在「官方專屬裝備加租」
+       這個開關底下——開關本身已經用 wireAccordionToggle 控制展開/收合（決定看不看得到），
+       這裡另外處理「開關狀態如何影響送出按鈕的 disabled 判斷」與「加購清單什麼時候該
+       出現」：
+       - 開關關閉：客人不打算加租裝備，不需要同意任何聲明，送出按鈕不因為 legalCheckbox
+         而被 disabled；加購清單維持隱藏（即使裡面有殘留勾選也不重要，updateTotal 已經
+         把這個狀態排除在計算之外，送出時也一樣排除，見下方 submitBtn 的 click handler）。
+       - 開關打開但未勾同意：送出按鈕 disabled，加購清單維持隱藏（先看完聲明、同意了才
+         看得到清單，避免客人在還沒同意風險聲明前就先選裝備）。
+       - 開關打開且已勾同意：送出按鈕可點擊，加購清單展開。 */
     var legalCheckbox = container.querySelector('[data-cs2-legal-checkbox]');
     var legalWarning = container.querySelector('[data-cs2-legal-warning]');
     var submitBtn = container.querySelector('[data-cs2-submit]');
 
     function syncSubmitButtonState() {
-      submitBtn.disabled = !legalCheckbox.checked;
-      if (legalCheckbox.checked) legalWarning.hidden = true;
+      var needsConsent = gearToggle.checked;
+      submitBtn.disabled = needsConsent && !legalCheckbox.checked;
+      if (!needsConsent || legalCheckbox.checked) legalWarning.hidden = true;
     }
-    legalCheckbox.addEventListener('change', syncSubmitButtonState);
+
+    function syncGearListVisibility() {
+      gearRoot.classList.toggle('cs2-gear-list-hidden', !(gearToggle.checked && legalCheckbox.checked));
+    }
+
+    function handleGearToggleChange() {
+      syncSubmitButtonState();
+      syncGearListVisibility();
+      updateTotal();
+    }
+    gearToggle.addEventListener('change', handleGearToggleChange);
+
+    function handleLegalCheckboxChange() {
+      syncSubmitButtonState();
+      syncGearListVisibility();
+      updateTotal();
+    }
+    legalCheckbox.addEventListener('change', handleLegalCheckboxChange);
+
+    // 初始狀態同步：開關預設關閉，這裡確保按鈕/清單/總金額一開始就是正確狀態，不依賴 HTML 寫死的屬性。
+    syncSubmitButtonState();
+    syncGearListVisibility();
+    updateTotal();
 
     function close() {
       container.innerHTML = '';
@@ -327,12 +392,13 @@
 
     submitBtn.addEventListener('click', function () {
       /* 雙重防呆：即使 disabled 理論上點不到，仍在送出邏輯最前面擋一次，
-         避免 disabled 屬性被其他腳本／瀏覽器擴充功能意外移除而繞過檢查。 */
-      if (!legalCheckbox.checked) {
+         避免 disabled 屬性被其他腳本／瀏覽器擴充功能意外移除而繞過檢查。
+         只有開關打開時才需要同意聲明——開關關閉時完全跳過這個檢查。 */
+      if (gearToggle.checked && !legalCheckbox.checked) {
         legalWarning.hidden = false;
         return;
       }
-      var selectedGear = gearControls.getSelectedGear();
+      var selectedGear = gearToggle.checked ? gearControls.getSelectedGear() : [];
       var properties = {};
       selectedGear.forEach(function (g) {
         properties['學員' + g.attendee + '_加購_' + g.key] = '需要';

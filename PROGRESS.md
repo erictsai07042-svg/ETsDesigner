@@ -1,6 +1,39 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-13
+最後更新：2026-08-15
+
+## ✅ 2026-08-15：Stage 3 加購 Modal 三項體驗優化（風險聲明條件觸發 + 頂部固定總金額 + 桌機加寬）
+
+**只改了 `assets/course-stage2-module.js`（`snippets/cart-stage2-trigger.liquid` 沒有異動，呼叫端介面沒變）。尚未 commit。**
+
+### A：風險聲明改為條件觸發
+
+原本不管「官方專屬裝備加租」開關開不開，風險聲明＋必勾同意 checkbox 都固定顯示。改成把風險聲明整段（連同必勾同意 checkbox）搬進 `.accordion-content`（開關本身既有的展開/收合容器）裡面，並在其後新增加購清單的巢狀顯示條件：
+
+- 開關預設**改成關閉**（原本是 `checked`）。
+- 開關關閉：整段（聲明＋checkbox＋清單）維持收合，送出按鈕**不**因為必勾同意而 disabled。
+- 開關打開：聲明＋checkbox 出現，但加購清單仍隱藏（新增 `cs2-gear-list-hidden` class，`display:none !important`，獨立於 accordion 展開/收合的疊加防呆）；此時送出按鈕 disabled，直到勾選同意。
+- 勾選同意：加購清單才出現，送出按鈕解除 disabled。
+- **邊界情況**：開關打開→勾同意→選了裝備→又把開關關掉，此時即使加購 checkbox 底層還留著勾選狀態，`updateTotal()` 與送出時的屬性收集都改成先檢查 `gearToggle.checked`，開關關閉一律當作「沒有要加購」處理，不會把殘留的勾選算進總金額或送出資料裡。
+
+### B：Modal 頂部固定顯示（含即時總金額）
+
+新增 `.cs2-sticky-header`（`position: sticky; top: 0`），把進度條＋商品標題包進去，用「負 margin 抵銷 `.cs2-panel` 的 padding、內部重新補回 padding」讓它能貼齊捲動容器最頂端、蓋住底下捲動內容，同時維持跟面板一致的圓角。標題旁新增一個小總金額徽章（`.cs2-sticky-total`），跟原本按鈕上方的總金額（保留，沒有移除）由同一個 `updateTotal()` 同步更新，兩處數字一致。
+
+### C：桌機版 Modal 加寬
+
+`.cs2-panel` 的 `max-width` 在 `min-width:768px` 時從 640px 放寬到 880px，手機維持 `width:92%` 不變。學員加購清單容器（`[data-gear-rental-root]`）同步在桌機改成 `grid-template-columns: 1fr 1fr` 雙欄並排（手機維持單欄 flex 堆疊），減少垂直捲動長度。
+
+### 驗證結果（草稿預覽網域，非 127.0.0.1，`test-course-fullday-peak` + `test-course-halfday-peak`）
+
+- **A**：初始狀態確認 `accordion-content` 高度/opacity 皆為 0（真正收合，不是只有視覺遮蔽）、送出按鈕不 disabled；開關打開→聲明出現但清單仍帶 `cs2-gear-list-hidden`、按鈕變 disabled；勾同意→清單出現（`gearGroupCount` 正確對應人數）、按鈕解除 disabled；取消勾選→清單重新隱藏、按鈕重新 disabled；**開關關閉的邊界情況**：先勾同意選了「單板鞋組」（總金額正確變成 $14,375）後把開關關掉，確認總金額立即退回課程原價 $13,175、送出按鈕不 disabled，且送出後 `/cart.js` 確認**沒有**寫入任何 `學員N_加購_XXX` 屬性——殘留的勾選狀態確實在開關關閉時被正確排除。
+- **B**：用 `getBoundingClientRect()` 在捲動前後比對 `.cs2-sticky-header` 的 `top` 值，確認捲動 300-400px 後完全沒有位移（同時用 `.cs2-footer` 的位置變化證實捲動確實有發生，不是誤判），總金額徽章在捲動到清單中段時即時更新正確。桌機截圖直接肉眼確認：進度條＋標題＋總金額徽章固定在畫面頂端，底下加購清單正常捲動。
+- **C**：分別在 1280px、1440px、1920px 三種桌機視窗寬度下確認 `.cs2-panel` 都精準卡在 880px（沒有超版），且 `document.body.scrollWidth` 沒有超出視窗寬度；桌機截圖確認學員 1、學員 2 加購清單雙欄並排顯示。手機 375px 確認 Modal 寬度維持 92%（345px，未受桌機加寬影響），加購清單維持單欄堆疊（`display:flex`，不是 grid）。
+- **與既有功能並存驗證**：完整走過兩次端對端流程（桌機 + 手機各一次，含勾選加購項目、勾必勾同意、送出），`/cart.js` 確認 properties 精準對應實際勾選狀態；「實際參加人數」驗證邏輯（在商品頁 BTA iframe 內、跟這次改動完全不同的程式碼路徑）另外單獨重測一次，預設不合理值時按鈕正確 disabled、提示文字正確顯示，確認沒有被這次 Stage 3 Modal 的改動影響。
+- Console 檢查：只有既有已知的 `cart:update` 缺少 `detail` payload 錯誤，沒有新增錯誤。
+- 測試完成後已清空購物車，沒有留測試資料。
+
+---
 
 ## ✅ 2026-08-13（最晚）：Stage 3 加購金額總計——重新完整驗證通過（沒有程式碼改動）
 
