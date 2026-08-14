@@ -4,7 +4,7 @@
 
 ## ✅ 2026-08-15：Stage 3 加購 Modal 三項體驗優化（風險聲明條件觸發 + 頂部固定總金額 + 桌機加寬）
 
-**只改了 `assets/course-stage2-module.js`（`snippets/cart-stage2-trigger.liquid` 沒有異動，呼叫端介面沒變）。尚未 commit。**
+**只改了 `assets/course-stage2-module.js`（`snippets/cart-stage2-trigger.liquid` 沒有異動，呼叫端介面沒變）。已 commit（`0a8b2fc`），三項優化正式完工。**
 
 ### A：風險聲明改為條件觸發
 
