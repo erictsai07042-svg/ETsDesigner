@@ -1,6 +1,32 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-15
+最後更新：2026-08-16
+
+## ✅ 2026-08-16：課程介紹頁「立即預訂」連結導向錯誤已修正（含一次誤修正的教訓）
+
+**問題**：業主回報 `[課程介紹]` 頁面的 `[立即預定]` 導到的位置不是目前在測的（測試）全日/半日預訂頁面。
+
+**第一次嘗試（commit `a52b6e0`）——事後發現改錯地方**：在 `templates/page.course-introduction.json` 裡找到兩個 label 為「立即預定」、`link` 設定寫死 `shopify://collections/all` 的按鈕（`button_zrD79a`／`button_NcGzpp`），改成分別指向 `test-course-fullday-peak`／`test-course-halfday-peak` 並 commit。**業主接著要求逐一核對全日/半日 × 旺季/淡季四個對應關係，重新到草稿預覽網域實測時才發現：這兩顆按鈕所在的整個區塊 `section_i3RqDb` 其實是 `"disabled": true`，從來沒有在頁面上顯示過**——修的是永遠不會被使用者看到的死連結。
+
+**根因與正確修法（commit `9bf7709`）**：頁面真正渲染在畫面上的是另一個獨立、**沒有停用**的區塊 `custom_liquid_f6QHJr`（原生 HTML + JS 的分頁版型，「全天課／半天課」兩個 tab，各自旺季/淡季兩張卡片），這是 2026-08-08 就處理過相對路徑問題的同一個區塊（見下方「課程介紹頁『立即預訂』按鈕改成相對路徑」段落）——**當時的決定是連結該指向正式商品，這次業主的新決定是要先導去測試商品**，兩次要求不衝突，只是時間點跟目的不同（現在還在測試階段）。這個區塊裡 4 個「立即預訂」連結原本指向正式商品（`fullday-class-peak-season`／`fullday-class-off-season`／`halfday-class-peak-season`／`halfday-class-off-season`），改成對應的測試商品：
+
+| 時段 | 季節 | 商品 handle |
+|---|---|---|
+| 全日 | 旺季 | `test-course-fullday-peak` |
+| 全日 | 淡季 | `test-course-fullday-offpeak` |
+| 半日 | 旺季 | `test-course-halfday-peak` |
+| 半日 | 淡季 | `test-course-halfday-offpeak` |
+
+**額外發現**：`page.course-introduction.json` 裡其實有兩份幾乎一模一樣的分頁版型 HTML（`custom_liquid_wwqhPF`，巢狀在已停用的 `section_i3RqDb` 底下；`custom_liquid_f6QHJr`，獨立且啟用中），內容/CSS/連結結構高度重複，只有啟用中的那份會顯示。這次用 `replace_all` 把兩份裡的 href 都一併改掉（反正沒被用到的那份也改成一致內容不會有壞處，避免以後有人誤看那份舊副本當作真正在跑的版本）。
+
+**驗證**（草稿預覽網域 `lifechillsnow.com?preview_theme_id=147355926611`，非 127.0.0.1）：
+- 確認 4 個「立即預訂」連結的 `href` 都正確指向對應測試商品（用 `document.querySelectorAll('a')` 過濾文字比對）
+- 實際點擊「半日旺季」連結，確認成功導向 `test-course-halfday-peak` 商品頁（`window.location.href` 核對）
+- Console 沒有新增錯誤
+
+**這次教訓**：Shopify JSON 模板裡同時存在「區塊層級 disabled」與「區塊本身內容近乎重複」的情況時，光憑 grep 找到符合關鍵字的區塊就動手改，不足以確認改的是「使用者實際會看到」的那一份——**改完後務必回到實機頁面用文字內容/連結交叉比對，確認真的是同一個區塊**，不能只看 JSON 結構就下結論。這次是業主主動要求逐一核對才抓到，下次應該養成習慣主動做這一步。
+
+---
 
 ## ✅ 2026-08-15：Stage 3 加購 Modal 三項體驗優化（風險聲明條件觸發 + 頂部固定總金額 + 桌機加寬）
 
