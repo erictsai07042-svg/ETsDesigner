@@ -548,7 +548,7 @@
                   "name": "t:names.button",
                   "settings": {
                     "label": "立即預定 →",
-                    "link": "shopify://collections/all",
+                    "link": "shopify://products/test-course-fullday-peak",
                     "open_in_new_tab": false,
                     "style_class": "button",
                     "width": "custom",
@@ -735,7 +735,7 @@
                   "name": "t:names.button",
                   "settings": {
                     "label": "立即預定 →",
-                    "link": "shopify://collections/all",
+                    "link": "shopify://products/test-course-halfday-peak",
                     "open_in_new_tab": false,
                     "style_class": "button",
                     "width": "custom",
