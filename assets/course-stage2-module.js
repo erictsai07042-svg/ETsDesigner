@@ -16,6 +16,16 @@
     { key: '滑雪護具', price: 200, skiType: null, desc: '加強防護設計', isCombo: false, isMutual: false },
   ];
 
+  /* 指定教練加購：整組課程層級的單選（不是每學員各自選），固定加價 NT$400，
+     跟哪一位教練無關（三選一，價格一致）。跟裝備加租不同，資料寫入時只會有
+     一個 line item property（例如 `指定教練`: `阿哲`），不比照 `學員N_加購_XXX` 的每人一筆格式。 */
+  var COACH_PRICE = 400;
+  var COACH_ITEMS = [
+    { key: '阿哲', label: '教練：阿哲' },
+    { key: 'Angus', label: '教練：Angus' },
+    { key: 'Kris', label: '教練：Kris' },
+  ];
+
   /* 品牌色彩／既有元件樣式，原封不動從 course-booking-form.liquid 搬過來（該檔案的 :root 變數在購物車頁不存在，這裡直接寫死色碼） */
   function injectStylesOnce() {
     if (document.getElementById('course-stage2-styles')) return;
@@ -53,7 +63,7 @@
 
       /* 雙軌加購卡片（原封不動照搬 dual-track-container / accordion-card / toggle-switch） */
       '.dual-track-container { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }',
-      '@media (min-width: 640px) { .dual-track-container { display: grid; grid-template-columns: 1fr 1fr; align-items: start; } }',
+      '@media (min-width: 640px) { .dual-track-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; } }',
       '.accordion-card { background: #fff; border: 1px solid #e4ecf3; border-radius: 12px; overflow: hidden; }',
       '.accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: #E8F4FA; gap: 14px; }',
       '.card-info h4 { font-size: 15px; font-weight: 700; color: #1A2E4A; margin: 0 0 3px 0; }',
@@ -88,6 +98,19 @@
       '.gear-name { font-size: 14px; font-weight: 700; color: #1A2E4A; line-height: 1.3; }',
       '.gear-name strong { color: #2D5F8A; font-weight: 700; margin-left: 6px; }',
       '.gear-desc { font-size: 12px; color: #5A6A78; margin-top: 2px; line-height: 1.4; }',
+
+      /* 指定教練單選清單（整組課程層級，跟裝備加租的每學員分組不同，沒有分組標題列）。
+         視覺沿用 gear-item-box 的卡片式選取列樣式，勾選標記從方形打勾改成圓形實心點，
+         呼應 radio（單選）跟 checkbox（可複選）語意上的差異。 */
+      '.coach-select-list { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fafcff; }',
+      '.coach-item-box { display: flex; align-items: center; gap: 12px; border: 1px solid #B8D9ED; padding: 11px 13px; border-radius: 8px; cursor: pointer; background: #fff; transition: border-color 0.15s, background-color 0.15s; }',
+      '.coach-item-box:hover { border-color: #7AB3D4; background: #f5faff; }',
+      '.coach-item-box input[type="radio"] { appearance: none; -webkit-appearance: none; width: 17px; height: 17px; flex-shrink: 0; border: 2px solid #B8D9ED; border-radius: 50%; background-color: #E8F4FA; cursor: pointer; transition: all 0.15s; position: relative; }',
+      '.coach-item-box input[type="radio"]:checked { border-color: #1A2E4A; }',
+      '.coach-item-box input[type="radio"]:checked::after { content: ""; position: absolute; top: 50%; left: 50%; width: 9px; height: 9px; border-radius: 50%; background: #1A2E4A; transform: translate(-50%,-50%); }',
+      '.coach-name { font-size: 14px; font-weight: 700; color: #1A2E4A; }',
+      '.cs2-coach-warning { color: #C0392B; font-size: 12px; font-weight: 700; margin: 10px 2px 0 2px; }',
+      '.cs2-coach-warning[hidden] { display: none; }',
 
       /* 法律聲明必勾同意（定稿文字：滑雪裝備租賃風險與責任聲明）。A 項：現在巢狀在
          .accordion-content 裡面（開關打開才看得到），accordion-content 展開時自己已經有
@@ -185,6 +208,32 @@
     };
   }
 
+  /**
+   * 渲染指定教練單選清單。整組課程只選一位教練（不是每學員各自選），純函式：
+   * 只依賴傳入的 container，不假設自己被放在哪個卡片裡。
+   * @param {HTMLElement} container
+   * @returns {{ getSelectedCoach: () => string|null }}
+   */
+  function renderCoachSelectSection(container) {
+    var html = '<div class="coach-select-list">';
+    COACH_ITEMS.forEach(function (item) {
+      html += '' +
+        '<label class="coach-item-box">' +
+          '<input type="radio" name="cs2-coach-select" data-coach-radio value="' + item.key + '">' +
+          '<span class="coach-name">' + item.label + '</span>' +
+        '</label>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+
+    return {
+      getSelectedCoach: function () {
+        var checked = container.querySelector('[data-coach-radio]:checked');
+        return checked ? checked.value : null;
+      },
+    };
+  }
+
   function wireAccordionToggle(toggleInput, contentEl) {
     toggleInput.addEventListener('change', function () {
       contentEl.classList.toggle('is-expanded', toggleInput.checked);
@@ -271,6 +320,22 @@
             '<div class="accordion-card">' +
               '<div class="accordion-header">' +
                 '<div class="card-info">' +
+                  '<h4>指定教練</h4>' +
+                  '<p>加價 NT$400，全程由指定教練帶您的整組課程</p>' +
+                '</div>' +
+                '<label class="toggle-switch">' +
+                  '<input type="checkbox" data-coach-toggle>' +
+                  '<span class="toggle-slider"></span>' +
+                '</label>' +
+              '</div>' +
+              '<div class="accordion-content" data-coach-content>' +
+                '<div data-coach-select-root></div>' +
+                '<p class="cs2-coach-warning" data-cs2-coach-warning hidden>請先選擇一位教練</p>' +
+              '</div>' +
+            '</div>' +
+            '<div class="accordion-card">' +
+              '<div class="accordion-header">' +
+                '<div class="card-info">' +
                   '<h4>專屬特約民宿加購</h4>' +
                   '<p>10 月份開放預訂・搶先預留官方民宿</p>' +
                 '</div>' +
@@ -301,6 +366,11 @@
     var gearToggle = container.querySelector('[data-gear-toggle]');
     wireAccordionToggle(gearToggle, container.querySelector('[data-gear-content]'));
 
+    var coachRoot = container.querySelector('[data-coach-select-root]');
+    var coachControls = renderCoachSelectSection(coachRoot);
+    var coachToggle = container.querySelector('[data-coach-toggle]');
+    wireAccordionToggle(coachToggle, container.querySelector('[data-coach-content]'));
+
     /* 金額總計即時連動：課程原價（呼叫端從購物車 line item 帶進來，單位是分）加上目前所有
        已勾選加購項目的金額。加購金額一律透過 getSelectedGear() 讀（它內部比對 GEAR_ITEMS
        這個唯一的價格資料來源），不在這裡另外寫死或重複解析金額，價格調整只需要改
@@ -321,13 +391,21 @@
       var gearCents = gearToggle.checked
         ? gearControls.getSelectedGear().reduce(function (sum, g) { return sum + g.price * 100; }, 0)
         : 0;
-      var text = formatCurrency(coursePriceCents + gearCents);
+      var coachCents = (coachToggle.checked && coachControls.getSelectedCoach()) ? COACH_PRICE * 100 : 0;
+      var text = formatCurrency(coursePriceCents + gearCents + coachCents);
       totalAmountEl.textContent = text;
       totalAmountStickyEl.textContent = text;
     }
 
     gearRoot.addEventListener('change', function (event) {
       if (event.target && event.target.matches && event.target.matches('[data-gear-checkbox]')) {
+        updateTotal();
+      }
+    });
+
+    coachRoot.addEventListener('change', function (event) {
+      if (event.target && event.target.matches && event.target.matches('[data-coach-radio]')) {
+        syncSubmitButtonState();
         updateTotal();
       }
     });
@@ -348,12 +426,17 @@
        - 開關打開且已勾同意：送出按鈕可點擊，加購清單展開。 */
     var legalCheckbox = container.querySelector('[data-cs2-legal-checkbox]');
     var legalWarning = container.querySelector('[data-cs2-legal-warning]');
+    var coachWarning = container.querySelector('[data-cs2-coach-warning]');
     var submitBtn = container.querySelector('[data-cs2-submit]');
 
+    /* 指定教練不需要另外簽同意聲明，只需要「開關打開就必須選一位教練」這個較簡單的檢查，
+       跟裝備加租的必勾同意聲明是兩條互不相關的 disabled 條件，用 || 疊加。 */
     function syncSubmitButtonState() {
       var needsConsent = gearToggle.checked;
-      submitBtn.disabled = needsConsent && !legalCheckbox.checked;
+      var needsCoach = coachToggle.checked && !coachControls.getSelectedCoach();
+      submitBtn.disabled = (needsConsent && !legalCheckbox.checked) || needsCoach;
       if (!needsConsent || legalCheckbox.checked) legalWarning.hidden = true;
+      if (!needsCoach) coachWarning.hidden = true;
     }
 
     function syncGearListVisibility() {
@@ -373,6 +456,12 @@
       updateTotal();
     }
     legalCheckbox.addEventListener('change', handleLegalCheckboxChange);
+
+    function handleCoachToggleChange() {
+      syncSubmitButtonState();
+      updateTotal();
+    }
+    coachToggle.addEventListener('change', handleCoachToggleChange);
 
     // 初始狀態同步：開關預設關閉，這裡確保按鈕/清單/總金額一開始就是正確狀態，不依賴 HTML 寫死的屬性。
     syncSubmitButtonState();
@@ -398,11 +487,19 @@
         legalWarning.hidden = false;
         return;
       }
+      if (coachToggle.checked && !coachControls.getSelectedCoach()) {
+        coachWarning.hidden = false;
+        return;
+      }
       var selectedGear = gearToggle.checked ? gearControls.getSelectedGear() : [];
       var properties = {};
       selectedGear.forEach(function (g) {
         properties['學員' + g.attendee + '_加購_' + g.key] = '需要';
       });
+      if (coachToggle.checked) {
+        var selectedCoach = coachControls.getSelectedCoach();
+        if (selectedCoach) properties['指定教練'] = selectedCoach;
+      }
       close();
       if (options.onSubmit) options.onSubmit(properties);
     });
@@ -438,7 +535,10 @@
   window.CourseStage2Module = {
     renderStage2Form: renderStage2Form,
     renderGearRentalSection: renderGearRentalSection,
+    renderCoachSelectSection: renderCoachSelectSection,
     writeCourseFormDataToCart: writeCourseFormDataToCart,
     GEAR_ITEMS: GEAR_ITEMS,
+    COACH_ITEMS: COACH_ITEMS,
+    COACH_PRICE: COACH_PRICE,
   };
 })();
