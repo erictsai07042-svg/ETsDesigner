@@ -574,6 +574,16 @@
     opacity: 1;
   }
 
+  /* 防禦性補強（未經實機驗證能否徹底解決，見 PROGRESS.md 說明）：多加一條純
+     CSS :hover 路徑，不透過 aria-expanded、不依賴 JS 的 pointerenter 事件有沒有
+     準確觸發——只要滑鼠真的停在 .menu-list__compact-anchor（包住觸發連結跟下拉
+     內容兩者）範圍內，瀏覽器原生 :hover machinery 就會顯示，作為 JS 那條路徑的
+     保底，兩條路徑任一成立就會顯示。 */
+  .menu-list__compact-anchor:hover .menu-list__submenu--compact {
+    visibility: visible;
+    opacity: 1;
+  }
+
   /* 正常頂層狀態：absolute 錨定在 .menu-list__compact-anchor 身上。選擇器加上
      .menu-list__list-item 前綴提高 specificity，確保贏過下方「mega menu」段落
      .menu-list__submenu-inner 那組同名屬性（transform/max-height/overflow-x/
@@ -646,6 +656,15 @@
   }
 
   .menu-list__list-item[slot='overflow'] .menu-list__link[aria-expanded='true'] + .menu-list__submenu--compact {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+  }
+
+  /* 同一條防禦性補強在 overflow 狀態的對應版本：這裡預設是 display:none（不只
+     visibility），純 CSS :hover 路徑除了 visibility/opacity 也要一併把 display
+     打開，否則 hover 上去還是不會展開。 */
+  .menu-list__list-item[slot='overflow'] .menu-list__compact-anchor:hover .menu-list__submenu--compact {
     display: block;
     visibility: visible;
     opacity: 1;
