@@ -966,6 +966,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       '.cbf-attendee-count-error { color: #C0392B !important; font-size: 12px !important; font-weight: 700 !important; margin: 6px 0 0 0 !important; display: none; }',
       'button[data-type="submit"]:disabled { opacity: 0.45 !important; cursor: not-allowed !important; }',
       '.cbf-attendee-count-button-hint { color: #C0392B !important; font-size: 12px !important; font-weight: 700 !important; margin: 0 0 8px 0 !important; text-align: center !important; display: none; }',
+      '.cbf-required-fields-hint { color: #C0392B !important; font-size: 12px !important; font-weight: 700 !important; margin: 0 0 8px 0 !important; text-align: center !important; display: none; }',
     ].join('\n');
     doc.head.appendChild(style);
   };
@@ -1087,6 +1088,64 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
         };
       };
 
+      /* Stage2 必填欄位完整性驗證（2026-08-17）：BTA 原生驗證只會在欄位旁邊跳出紅字提示，
+         使用者往下捲到送出按鈕附近時完全看不到，只看到按鈕沒反應、不知道問題出在哪裡。
+         這裡疊加「捲動到第一個未填必填欄位＋按鈕正上方提示文字」。
+
+         原本設計是直接掃 [required] 屬性 + 呼叫原生 checkValidity()（模仿「實際參加
+         人數」capture-phase 攔截的做法）——但實機查證發現 BTA 渲染出來的 <select>/
+         <input>／<textarea> 全部都沒有 required 屬性（doc.querySelectorAll('[required]')
+         是空的），必填與否是 BTA 自己內部 state 決定，只有在使用者「按下送出」的當下才
+         由它自己的邏輯即時判斷、反映在 DOM 上：必填但空白的欄位，select／input(text) 會
+         被直接加上 class="error"；checkbox／radio 則是它外層的 .form-group 容器被加上
+         這個 class（輸入元素本身不會有）；同時會插入一個 .error-tooltip 顯示「必填項目」。
+         已實機確認 BTA 自己就會擋下這次送出（不會真的觸發 API 呼叫或跳轉頁面），不需要
+         我們自己再攔一次——這裡純粹是疊加體驗層：等 BTA 自己的驗證跑完，直接讀它自己
+         標記出來的 .error 狀態去找第一個沒填的欄位捲過去、按鈕上方補一句提示。這樣完全
+         沒有自己另外定義「哪些欄位必填」，直接用 BTA 原生驗證結果判斷，BTA 後台調整
+         必填設定時這裡會自動跟著同步，不需要改程式碼。也已實機確認：使用者把某個欄位
+         填好之後，BTA 會自動清掉那個欄位自己的 .error（不用等下一次送出），所以「捲到
+         下一個未填欄位」這個行為不需要額外邏輯，直接沿用 BTA 自己的即時狀態就會自然成立。
+
+         監聽器刻意不掛 capture phase、也不 preventDefault/stopPropagation：這點跟「實際
+         參加人數」的攔截邏輯是相反的教訓——那邊要在 BTA 自己的邏輯「跑之前」攔截，這裡
+         反過來要等 BTA 自己的驗證「跑完之後」才能讀到 .error 結果，如果在 capture phase
+         就 stopPropagation，事件根本傳不到 BTA 自己的 click handler，它連驗證都不會跑，
+         .error 永遠不會出現，這層體驗優化會直接整個失效。實測 dispatchEvent 完整跑完
+         （含 BTA 自己的處理）之後立即讀取 .error 就能拿到正確結果，不需要額外等待，但
+         仍包一層 requestAnimationFrame 當保險，跟這個檔案別處「等 BTA 重繪完再讀」是
+         同一個教訓，避免極少數情況下的時序差異。
+
+         範圍鎖定在「送出按鈕自己所在的 .ReactModal__Content」而不是整份 doc：Stage1 的
+         「下一頁」按鈕跟 Stage2「立即預訂」按鈕共用同一個 button[data-type="submit"] 選擇器，
+         但只有 Stage2 按鈕會巢狀在 .ReactModal__Content 底下（同一個教訓見上面「實際參加
+         人數」驗證的註解）——用按鈕自己的 closest 往上找，不會誤判到 Stage1，也不會被
+         「Modal 曾經開過、殘留在 DOM 裡」這種情況污染。 */
+      const getFirstInvalidField = (scope) => scope.querySelector('.error');
+
+      const REQUIRED_FIELDS_HINT_TEXT = '請完整填寫上方標示的必填欄位';
+
+      const showRequiredFieldsHint = (btn) => {
+        let hintEl = doc.getElementById('cbf-required-fields-hint');
+        if (!hintEl) {
+          hintEl = doc.createElement('p');
+          hintEl.id = 'cbf-required-fields-hint';
+          hintEl.className = 'cbf-required-fields-hint';
+          hintEl.textContent = REQUIRED_FIELDS_HINT_TEXT;
+        }
+        // 按鈕每次重繪都是新節點，確保提示文字永遠緊貼在「目前這顆」按鈕正上方（同一招見
+        // 上面「實際參加人數」提示的處理方式）。
+        if (btn.parentNode && hintEl.nextSibling !== btn) {
+          btn.parentNode.insertBefore(hintEl, btn);
+        }
+        hintEl.style.display = 'block';
+      };
+
+      const hideRequiredFieldsHint = () => {
+        const hintEl = doc.getElementById('cbf-required-fields-hint');
+        if (hintEl) hintEl.style.display = 'none';
+      };
+
       /* 錯誤提示可見性優化（2026-08-12）：比照 Stage3 checkbox 已驗證過的「即時反應」模式，
          不再只在送出時才攔截。「實際參加人數」select 的 change、Stage1「人數方案」variant
          切換（cbf:variantChanged 自訂事件，見檔案最上方早期 <script>）任一觸發，都重新
@@ -1189,12 +1248,53 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
           const select = doc.querySelector('select[name="實際參加人數"]');
           if (!select) return;
           const result = checkAttendeeCount(select);
-          if (result.range && !result.valid) {
+          /* 只在「已經選了值、但跟人數方案對不上」時才在 capture phase 攔下來（這是 BTA
+             自己完全不知道的業務規則，只能靠這裡疊加）。刻意不包含「完全沒選」的情況：
+             那個情況下方交給下面必填欄位檢查處理即可（不 stopPropagation，讓事件正常
+             傳到 BTA 自己的驗證），避免這裡搶先攔截導致事件傳不到 BTA、連帶讓下面必填
+             欄位檢查在「這欄跟其他欄位同時都沒填」時完全讀不到 BTA 的 .error 狀態。 */
+          if (result.range && !result.valid && select.value !== '') {
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
           }
         }, true);
+
+        /* Stage2 必填欄位完整性檢查：刻意掛在 bubble phase（不是上面攔截用的 capture
+           phase），必須等事件先傳到 BTA 自己的 click handler、讓它自己的驗證跑完，才能
+           讀到它自己標記出來的 .error 狀態（原因見上面 getFirstInvalidField 旁的說明）。
+           只對 Stage2「立即預訂」按鈕生效，Stage1「下一頁」按鈕不巢狀在 .ReactModal__Content
+           底下，closest 找不到就自然跳過。 */
+        doc.addEventListener('click', (event) => {
+          const btn = event.target.closest && event.target.closest('button[data-type="submit"]');
+          if (!btn) return;
+          const modalScope = btn.closest('.ReactModal__Content');
+          if (!modalScope) return;
+
+          const react = () => {
+            const invalidField = getFirstInvalidField(modalScope);
+            if (!invalidField) {
+              hideRequiredFieldsHint();
+              return true;
+            }
+            showRequiredFieldsHint(btn);
+            const scrollTarget = invalidField.closest('.field-input-container') || invalidField;
+            scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const focusable = invalidField.matches('select, input, textarea')
+              ? invalidField
+              : invalidField.querySelector('select, input, textarea');
+            if (focusable && typeof focusable.focus === 'function') focusable.focus({ preventScroll: true });
+            return true;
+          };
+          // 已實測 .error 在 dispatchEvent 完整跑完後立即可讀，只有在極少數時序差異下才
+          // 需要 rAF 這層保險，所以先查一次沒找到才補查一次，避免平白多跑一次
+          // scrollIntoView 造成畫面重複捲動的小抖動。
+          if (!getFirstInvalidField(modalScope)) {
+            requestAnimationFrame(react);
+          } else {
+            react();
+          }
+        });
 
         // 「實際參加人數」select 變動：即時重新驗證，不用等送出才知道
         doc.addEventListener('change', (event) => {
