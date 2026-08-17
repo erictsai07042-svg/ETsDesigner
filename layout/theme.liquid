@@ -312,22 +312,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-  // ① 子選單對齊
-  function alignSubmenus() {
-    document.querySelectorAll('.menu-list__list-item').forEach(function (item) {
-      const trigger = item.querySelector('.menu-list__link');
-      const submenu = item.querySelector('.menu-list__submenu');
-      if (trigger && submenu) {
-        const triggerRect = trigger.getBoundingClientRect();
-        const headerRect = document.querySelector('header').getBoundingClientRect();
-        const offset = triggerRect.left - headerRect.left - 30;
-        submenu.style.setProperty('left', offset + 'px', 'important');
-      }
-    });
-  }
-  alignSubmenus();
-  window.addEventListener('resize', alignSubmenus);
-
   // ② 子選單預載入（避免 hover 延遲）
   customElements.whenDefined('header-menu').then(function () {
     setTimeout(function () {

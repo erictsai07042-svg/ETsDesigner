@@ -84,6 +84,16 @@
 
     {% capture children %}
       {% for link in block_settings.menu.links %}
+        {%- liquid
+          # 緊湊錨定子選單：目前只給「更多服務」用（連結數量少，滿版 mega-menu 面板太重）。
+          # 用連結標題字面比對，不是通用規則——之後如果有其他連結數量少的選單項目也想套用，
+          # 要在這裡明確加入該連結標題，而不是自動套用到所有連結少的項目，避免不小心
+          # 影響到其他預期用 mega-menu 呈現的選單。
+          assign is_compact_submenu = false
+          if link.title == '更多服務'
+            assign is_compact_submenu = true
+          endif
+        -%}
         <li
           role="presentation"
           class="menu-list__list-item"
@@ -92,6 +102,7 @@
           on:pointerenter="/activate"
           on:pointerleave="/deactivate"
         >
+          {%- if is_compact_submenu -%}<span class="menu-list__compact-anchor">{%- endif -%}
           <a
             href="{{ link.url }}"
             data-skip-node-update="true"
@@ -108,7 +119,26 @@
           >
             <span class="menu-list__link-title">{{- link.title -}}</span>
           </a>
-          {%- if link.links != blank -%}
+          {%- if link.links != blank and is_compact_submenu -%}
+            <div class="menu-list__submenu menu-list__submenu--compact{{ color_scheme_classes }}" ref="submenu[]">
+              <div
+                id="submenu-{{ forloop.index }}"
+                class="menu-list__submenu-inner menu-list__submenu-inner--compact"
+              >
+                <ul class="menu-list__compact-list list-unstyled">
+                  {%- for child_link in link.links -%}
+                    <li>
+                      <a href="{{ child_link.url }}" class="menu-list__compact-link">
+                        {{- child_link.title -}}
+                      </a>
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              </div>
+            </div>
+          {%- endif -%}
+          {%- if is_compact_submenu -%}</span>{%- endif -%}
+          {%- if link.links != blank and is_compact_submenu == false -%}
             <div class="menu-list__submenu{{ color_scheme_classes }}" ref="submenu[]">
               <div
                 id="submenu-{{ forloop.index }}"
@@ -471,6 +501,169 @@
     .menu-list__link[aria-expanded='true'] + .menu-list__submenu {
       visibility: visible;
     }
+  }
+
+  /* 緊湊錨定子選單（目前只用在「更多服務」，見上方 Liquid 的 is_compact_submenu 判斷）。
+     正常頂層狀態參照 sections/header.liquid 裡 dropdown-localization-component 的
+     position:relative（觸發元素的包裝層）+ position:absolute（下拉內容）模式，下拉
+     內容錨定在觸發連結自己身上；overflow 溢出彈窗狀態改用一般文件流內縮清單（實測
+     absolute 定位在那個狀態下會蓋住下一列項目，見下方 position:static 那組說明）。
+
+     系統性排查記錄（實作後追加，避免下次改動又漏掉）：這個包裝層讓 <a> 和子選單
+     不再是 <li> 的「直接子元素」，導致既有 mega-menu 規則裡所有用 > 直接子元素
+     選擇器比對選單結構的規則，對這個項目全部悄悄失效（不會報錯，很容易漏掉）：
+       - 預設隱藏子選單、hover 時顯示子選單這兩條規則（上面「mega menu」跟
+         「Show the submenus on hover」段落，都用 `.menu-list__list-item ... >
+         .menu-list__submenu` 比對）——失效後果：子選單從頁面一載入就
+         visibility:visible/opacity:1，不需要 hover 就一直顯示著。
+       - overflow 狀態取消 hover 安全區 ::after 的規則（`[slot='overflow'] >
+         .menu-list__link::after`）——失效後果：安全區的偽元素背景在 overflow
+         狀態下沒被正確取消。
+     另外，`.menu-list__submenu-inner`（滿版面板用，見下方「mega menu」段落）跟這裡
+     的 `.menu-list__submenu-inner--compact` 有好幾個屬性（transform／max-height／
+     overflow-x／overflow-y／padding 四邊）選擇器優先度打平（都只有一個 class），
+     打平時原始碼「後出現的」規則會贏，這裡的覆寫如果寫在那條規則前面就會被吃掉
+     ——例如 transform 沒歸零，子選單內容展開時被平白多推了 82px（因為
+     translateY(calc(--full-open-header-height - --submenu-height)) 是滿版面板
+     專用的位移量，這裡完全不需要）。
+
+     修法：不靠 > 直接子元素、也不依賴原始碼前後順序。
+       1. 顯示/隱藏改用「.menu-list__link + .menu-list__submenu--compact」這組
+          adjacent sibling 選擇器——<a> 跟子選單在兩種狀態下都維持是 sibling
+          （包裝層改變的只是外層容器自己的 display/position，不影響兩者的
+          sibling 關係），一套規則兩種狀態通用，不必分別再寫一次。
+       2. 版面幾何屬性覆寫全部加上 `.menu-list__list-item` 這層祖先前綴，讓
+          selector specificity 確定贏過既有規則，不用依賴「這段 CSS 要寫在
+          既有規則後面」這種容易被之後改動打破的隱性假設。
+       3. `[slot='overflow'] > .menu-list__link::after` 那條另外補一條後代
+          選擇器版本（見最下方），達到同樣的取消效果。 */
+  .menu-list__compact-anchor {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+  }
+
+  /* overflow 狀態的錨定容器覆寫，兩個原因合併寫在一起：
+     1. .menu-list__link 原本才是 grid-area:left 的 grid item（見上方
+        .menu-list__list-item:is([slot='overflow']) 那組規則），但緊湊版把 <a> 包進了
+        .menu-list__compact-anchor 裡面，變成它才是 <li>（display:contents）底下真正的
+        直接子節點、grid 版面的實際成員，所以 grid-area 要改標記在這層包裝上。
+     2. 下拉內容在 overflow 狀態改回一般文件流（見下方 position:static 那組），變成
+        這個包裝層的一個真正排版中的子元素。如果包裝層繼續維持 display:inline-flex
+        （預設橫向排列），連結標題跟展開的清單會並排在同一行，不是疊在下面；改成
+        display:block 讓兩者各自獨立成行、垂直堆疊。 */
+  .menu-list__list-item[slot='overflow'] .menu-list__compact-anchor {
+    display: block;
+    grid-area: left;
+    grid-row: auto;
+    height: min-content;
+  }
+
+  /* 顯示/隱藏：adjacent sibling，不靠 <li> 的直接子元素比對，兩種狀態通用。
+     預設收合（visibility:hidden + opacity:0），不再依賴既有的、對這個包裝層
+     結構已經失效的 > 選擇器。 */
+  .menu-list__link + .menu-list__submenu--compact {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .menu-list__link[aria-expanded='true'] + .menu-list__submenu--compact,
+  .menu-list__submenu--compact:hover {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  /* 正常頂層狀態：absolute 錨定在 .menu-list__compact-anchor 身上。選擇器加上
+     .menu-list__list-item 前綴提高 specificity，確保贏過下方「mega menu」段落
+     .menu-list__submenu-inner 那組同名屬性（transform/max-height/overflow-x/
+     overflow-y/padding），不依賴原始碼前後順序。 */
+  .menu-list__list-item .menu-list__submenu--compact {
+    position: absolute;
+    inset-block-start: 100%;
+    inset-inline-start: 0;
+    inset-inline-end: auto;
+    width: max-content;
+    min-width: 160px;
+    max-width: 260px;
+    padding-inline: 0;
+    clip-path: none;
+    z-index: var(--layer-header-menu);
+    transition: opacity calc(var(--submenu-animation-speed) * 0.75) var(--animation-easing);
+  }
+
+  .menu-list__list-item .menu-list__submenu-inner--compact {
+    padding: var(--padding-sm);
+    transform: none;
+    max-height: none;
+    overflow: visible;
+    background-color: var(--color-background);
+    border: var(--style-border-popover);
+    border-radius: var(--style-border-radius-popover);
+    box-shadow: var(--shadow-popover);
+    display: flex;
+    flex-direction: column;
+    gap: var(--padding-3xs);
+  }
+
+  .menu-list__compact-list {
+    display: contents;
+  }
+
+  .menu-list__compact-link {
+    display: block;
+    padding: var(--padding-2xs) var(--padding-sm);
+    color: var(--menu-child-font-color);
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: var(--style-border-radius-buttons-primary);
+  }
+
+  .menu-list__compact-link:hover {
+    color: var(--menu-child-active-font-color);
+    background-color: rgb(var(--color-foreground-rgb) / var(--opacity-5));
+  }
+
+  /* overflow 狀態：這個連結被收進「更多」彈窗的兩欄 grid 時，實測發現直接沿用上面
+     absolute 定位的做法會出問題——「更多服務」的緊湊選單展開後，會直接浮在它下面
+     那一列「聯絡我們」的正上方，把它整個蓋住（因為 overflow 彈窗的左欄是一份緊密
+     堆疊的清單，沒有預留空間給展開的下拉內容，absolute 定位又不會把下面的項目推開）。
+     改成這個狀態下不要用 absolute，讓緊湊選單變回一般文件流裡的內縮清單，展開時
+     自然把「聯絡我們」推下去，收合時完全不佔空間（用 display 而非只用 visibility
+     切換，避免收合時仍預留高度）。這也連帶避開了 overflow 彈窗本身有 clip-path
+     動態裁切高度的問題——不用 absolute 就不會被裁到。 */
+  .menu-list__list-item[slot='overflow'] .menu-list__submenu--compact {
+    position: static;
+    display: none;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding-inline-start: 0;
+    margin-block-start: var(--padding-3xs);
+    grid-area: unset;
+    grid-row: unset;
+  }
+
+  .menu-list__list-item[slot='overflow'] .menu-list__link[aria-expanded='true'] + .menu-list__submenu--compact {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .menu-list__list-item[slot='overflow'] .menu-list__submenu-inner--compact {
+    border: none;
+    box-shadow: none;
+    background-color: transparent;
+    padding: 0 0 0 var(--padding-sm);
+  }
+
+  /* 修正安全區 ::after 偽元素在 overflow 狀態的取消規則：既有規則
+     `[slot='overflow'] > .menu-list__link::after`（見上方）用 > 直接子元素比對，
+     緊湊版的 <a> 現在包在 .menu-list__compact-anchor 裡面、不是 <li> 的直接
+     子元素，那條規則選不到這裡，改用一般後代選擇器補回同樣的取消效果。 */
+  .menu-list__list-item[slot='overflow'] .menu-list__compact-anchor .menu-list__link::after {
+    content: none;
   }
 
   .header-menu {

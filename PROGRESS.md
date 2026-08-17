@@ -2,6 +2,117 @@
 
 最後更新：2026-08-17
 
+## ✅ 2026-08-17（第十批）：移除 `layout/theme.liquid` 殘留的 `alignSubmenus()` 腳本——縮放視窗會讓第九批的定位修復失效的真實風險
+
+**背景**：第九批完工後，在調查「更多服務」下拉選單的白底樣式問題時，意外在 `layout/theme.liquid` 發現一段跟這次問題無關、但會直接讓前幾批定位修復失效的殘留 JS：`alignSubmenus()`，會在**視窗 resize 時**用 inline `left !important` 強制覆寫 `.menu-list__submenu` 的位置（`triggerRect.left - headerRect.left - 30`）。業主判斷這個風險優先度更高（縮放視窗是使用者日常會做的操作，不是理論邊界情況），要求先處理這個，白底問題留到下一輪。
+
+### 排查：這段腳本是不是還有作用中的功能
+
+查證結果——**沒有找到任何目前有效的用途，判斷是純死程式碼殘留**，證據：
+
+- `git log -S "alignSubmenus"` 確認這段程式碼來自 `a5ef3b3`「Initial commit」（2026-08-08），**比 PROGRESS.md 記錄的所有工作都早**，不是任何一輪協作 session 加的。
+- `grep` 全 repo 確認只有定義處跟呼叫處用到，沒有被任何其他程式碼依賴，完全孤立。
+- 同一段 `<script>` 裡的區塊註解編號是 **①②④⑤，唯獨少了 ③**——明確跡象顯示這段腳本本身就是先前手動改過、刪掉一段但沒有一併清理編號的殘留產物。
+- **實測確認：一般網頁載入（沒有觸發 resize）時，這段腳本從來沒有實際生效過**——連續兩次全新分頁載入後檢查，`.menu-list__submenu` 完全沒有被加上任何 inline style，只有真的觸發 `resize` 事件才會生效（然後就是生效之後直接把第九批修好的定位打壞）。
+- 就算它生效，套用的位移公式在結構上也對不上既有的滿版 mega-menu 面板（`left:0; width:100%`，硬改 `left` 但 `width` 還是 100%，只會讓面板右緣超出容器）——沒有證據顯示這段邏輯曾經對任何現有畫面產生過正確效果。
+
+### 移除範圍
+
+只刪除 `layout/theme.liquid` 裡「① 子選單對齊」這一段（`function alignSubmenus() {...}`、`alignSubmenus();` 初次呼叫、`window.addEventListener('resize', alignSubmenus)`），其餘「② 子選單預載入」「④ Go Top 按鈕」「⑤ 隱藏內建 Scroll down indicator」完全沒有動。
+
+### 驗證結果（草稿預覽網域，非 127.0.0.1，這次的關鍵重現方式：連續縮放視窗）
+
+- 部署後確認頁面原始碼裡 `alignSubmenus` 字串已完全消失。
+- **正常頂層狀態**：連續縮放視窗 4 次（1200→1600→1100→1440px），每次都重新檢查「更多服務」子選單——`inlineStyle` 全程維持空字串（沒有任何殘留腳本注入 inline style），hover 展開後 `left` 精確等於觸發連結、`gap` 精確等於 0。接著在下拉選單**已經展開的狀態下**再連續縮放 2 次（1300→1500px），確認選單全程保持展開、位置正確跟著觸發連結新座標移動（`871px`），沒有被打亂。桌機截圖確認視覺乾淨。
+- **overflow 溢出彈窗狀態**：800px 寬度自然觸發 overflow 後，連續縮放 2 次（750→820px）仍維持 overflow 狀態，展開「更多服務」確認正確內縮顯示、「聯絡我們」正確被推到下方、沒有重疊。
+- Console 沒有新增錯誤。
+
+**往後維護須知**：如果之後又出現「子選單位置跑掉」的回報，先檢查是不是又有類似的獨立 JS 腳本在跟 CSS 定位規則打架，不要預設一定是 CSS 選擇器優先度的問題——這次如果沒有主動搜尋 `layout/theme.liquid`，光看 `blocks/_header-menu.liquid` 內部邏輯是找不到這個根因的，兩個檔案的邏輯互相獨立又會互相影響。
+
+---
+
+## ✅ 2026-08-17（第九批）：Navi Bar「更多服務」緊湊選單系統性排查——修復兩個第八批遺漏的 bug（含對第八批「驗證通過」記錄的誠實更正）
+
+**⚠️ 本批是對下方「第八批」的更正與補完，請先看這段再看第八批內容。**
+
+**背景**：第八批完工並記錄「已驗證通過」後，業主截圖回報桌機正常狀態下「更多服務」子選單懸浮在遠低於觸發連結的位置、中間出現一大段空白、甚至蓋到下方 banner 圖片。排查後發現**第八批的驗證方法本身有盲點**：只用 `getBoundingClientRect()` 量測外層 `.menu-list__submenu--compact`（絕對定位容器）的位置，從沒量過裡面真正顯示內容的 `.menu-list__submenu-inner--compact`；也沒測過「頁面完全沒 hover 過」的初始狀態。這兩個盲點剛好放過了下面兩個實際存在的 bug——**所以第八批記錄的「桌機驗證通過」是不準確的，這裡誠實更正。**
+
+### 用真實滑鼠 hover 重新排查，抓到兩個第八批遺漏的 bug
+
+1. **子選單從頁面一載入就是 `visibility:visible; opacity:1`，不需要 hover 就一直顯示著**——只是碰巧預設狀態的位置跟展開後的位置很接近，肉眼不容易發現。
+2. **展開時內容被平白多推了 82px**（`getBoundingClientRect()` 精確量到 `.menu-list__submenu-inner--compact` 的 `top` 比觸發連結的 `bottom` 多了 82px，跟業主截圖的「大段空白」完全吻合）。
+
+### 根因：包裝層讓既有 mega-menu 規則的 DOM 結構假設全部失效，不只前面發現的那一個
+
+系統性搜尋 `blocks/_header-menu.liquid` 全部提到 `.menu-list__submenu`／`.menu-list__submenu-inner`，以及所有用 `>` 直接子元素選擇器鎖定選單結構的規則，逐條檢查 `.menu-list__compact-anchor` 這個第八批新增的包裝層會不會讓假設失效，結果找到 **3 條用 `>` 直接子元素選擇器、因為包裝層而完全選不到緊湊子選單的既有規則**：
+
+| 規則 | 原本作用 | 失效後果 |
+|---|---|---|
+| `.menu-list__list-item:where(:not([slot='overflow'])) > .menu-list__submenu` | 正常狀態預設隱藏子選單（`visibility:hidden` 等） | 緊湊子選單永遠拿不到「預設隱藏」，變成 bug 1 |
+| `.menu-list__list-item:has([aria-expanded='true']) > .menu-list__submenu` | hover/展開時顯示子選單 | 沒有實際影響（反正上一條已經失效、預設就是顯示），但邏輯上同樣選不到 |
+| `[slot='overflow'] > .menu-list__link::after` | overflow 狀態取消 hover 安全區的 `::after` 偽元素 | 緊湊版觸發連結在 overflow 狀態 hover 時，安全區偽元素沒被正確取消 |
+
+另外還發現 **4 個屬性在既有的 `.menu-list__submenu-inner`（滿版面板用）規則跟第八批新增的 `.menu-list__submenu-inner--compact` 覆寫規則之間「選擇器優先度打平」**（兩邊都只有一個 class，指向同一個元素）：`transform`／`max-height`／`overflow-x`／`overflow-y`／`padding`（四邊）。CSS 規則優先度打平時，原始碼裡「後出現的」規則獲勝——第八批把緊湊樣式那段 CSS 寫在這條既有規則**前面**，所以較晚出現的既有規則贏了，第八批的覆寫全部被吃掉。其中 `transform: translateY(calc(var(--full-open-header-height) - var(--submenu-height)))`（滿版面板專用的展開位移量）就是 bug 2（82px 間距）的直接原因；`padding` 洩漏用了大很多的 `var(--padding-3xl)`（滿版面板的留白）而不是預期的 `var(--padding-sm)`；`max-height`／`overflow-x`／`overflow-y` 洩漏目前因為內容短沒有肉眼可見影響，但同樣是不正確的殘留值，一併修正。
+
+### 修法：不靠 `>` 直接子元素、也不依賴原始碼前後順序
+
+1. **顯示/隱藏改用 adjacent sibling 選擇器**（`.menu-list__link + .menu-list__submenu--compact`）取代 `>` 直接子元素比對——`<a>` 跟子選單在 DOM 裡兩種狀態下都維持是 sibling（包裝層改變的只是外層容器自己的 `display`/`position`，不影響兩者的 sibling 關係），一套規則兩種狀態通用，不必為 overflow 狀態另外寫一次。
+2. **版面幾何屬性覆寫全部加上 `.menu-list__list-item` 祖先前綴**，把選擇器優先度從「一個 class」提高到「一個 class + 一個 class」，確定贏過既有規則，不依賴「這段 CSS 要寫在既有規則後面」這種容易被之後任何改動打破的隱性假設。
+3. `[slot='overflow'] > .menu-list__link::after` 額外補一條後代選擇器版本（`.menu-list__list-item[slot='overflow'] .menu-list__compact-anchor .menu-list__link::after { content: none; }`），達到同樣的取消效果。
+
+### 驗證結果（草稿預覽網域，非 127.0.0.1，重新完整測過一輪，包含這次新發現的兩個場景）
+
+- **完全沒 hover 過的初始狀態**（1440px）：`getComputedStyle()` 確認 `visibility:hidden`、`opacity:0`——不是「visibility:visible 但位置剛好對不上而肉眼看不出來」，是真的正確隱藏。
+- **82px 間距**：hover 展開後，`.menu-list__submenu-inner--compact` 的 `top` 精確等於觸發連結的 `bottom`（差值 0px），`transform` 電腦運算值確認是 `none`；`padding` 確認是 `var(--padding-sm)`（約 11.2px）而不是洩漏的大留白；`max-height:none`、`overflow-y:visible` 也都確認正確，沒有殘留滿版面板的樣式。
+- **正常頂層狀態全部斷點**（930px 以下自然觸發 overflow、940px／1024px／1280px／1440px 皆為正常狀態）：每個斷點都重新測過「載入前隱藏」+「hover 後 0 間距、左對齊」，全部通過，桌機截圖確認視覺效果乾淨（白底卡片、貼齊觸發連結正下方，不再懸浮在遠處或蓋到 banner 圖片）。
+- **overflow 溢出彈窗狀態**：用真實自然觸發（800px 寬度，未強制設定 `slot` 屬性）+ 截圖驗證，「更多服務」展開時正確內縮顯示「裝備租賃」「民宿介紹」，「聯絡我們」正確被推到下方，沒有重疊；收合時完全不佔空間。同時用 `getComputedStyle(link, '::after')` 確認 `content:none` 正確套用，安全區偽元素不再殘留。
+- **手機（375px）**：這次用**真正的視覺截圖**驗證（不是 DOM 檢查）——過程中截圖工具一度出現「畫面不更新」的問題，透過**改變視窗尺寸強制觸發重繪**解決（不是用 DOM 檢查繞過，是換一種方式確認拿到真實畫面）。截圖確認手機漢堡選單抽屜的「更多服務」accordion 展開後，「裝備租賃」「民宿介紹」正確內縮顯示，「聯絡我們」正確在下方，視覺乾淨，不受桌機這次修正影響（手機走的是 `header-drawer.liquid`，完全不同、這兩批都沒有異動的程式碼路徑）。
+- Console 沒有新增錯誤。
+
+**往後維護須知（更新）**：以後如果要新增或修改任何「緊湊子選單」相關的 CSS 覆寫，優先用 adjacent sibling（`+`）或加祖先 class 前綴的方式提高 specificity，不要依賴「這段程式碼寫在既有規則前面還是後面」——這次的兩個 bug 都是同一種模式（借用既有 class 掛新樣式，卻被既有規則的 DOM 結構假設或選擇器優先度悄悄蓋掉），下次改動前建議先重複這次的排查方法：搜尋所有提到相關 class 的既有規則、逐條檢查新的 DOM 結構會不會讓假設失效，而不是等業主截圖回報才發現。
+
+---
+
+## ✅ 2026-08-17（第八批，**部分內容已被上方第九批更正，此節保留原始記錄供對照**）：Navi Bar「更多服務」下拉選單改用緊湊錨定樣式，修復跑位問題
+
+**背景**：業主回報「更多服務」下拉選單（裝備租賃／民宿介紹）有時候正確顯示在正下方靠左對齊，有時候跑到偏右側。排查後確認根因（詳見下方「排查」小節的完整記錄）：這個連結底下的子選單，會因為視窗寬度跨過一個很窄的臨界區間（實測落在 930px～940px 之間），在兩套完全不同的 CSS 版面架構之間切換——正常時是滿版 mega-menu 面板（內容貼齊頁面左邊界，不是跟著觸發項目），被 `overflow-list.js` 收進「更多」溢出彈窗時是另一套兩欄 grid（`grid-area:right`）——兩套架構的子選單天生就長在畫面上不同的位置，這才是「跑位」的真正原因。經業主確認，「更多服務」底下只有 2 個連結，不適合用滿版 mega-menu 面板承載，決定改用緊湊錨定樣式（方案 B）。
+
+**只改了 `blocks/_header-menu.liquid`**（Liquid 渲染邏輯 + `{% stylesheet %}` CSS，沒有動 `assets/header-menu.js`／`assets/overflow-list.js`，也沒有動其他選單項目）：
+
+### 排查：主題是否已有現成的緊湊子選單模式可用
+
+查證結果：**Header 導覽選單本身沒有現成的緊湊模式**——`_header-menu.liquid` 的 `menu_style` 設定只決定滿版面板「裡面放什麼內容類型」（純文字／圖片／精選商品等），不管選哪個，外層永遠是同一套 `.menu-list__submenu` 滿版面板架構，沒有 metafield 或每個連結的獨立設定可以切換。但 `sections/header.liquid` 裡的 `dropdown-localization-component`（語言/幣別切換下拉選單）用的是完全不同、輕量很多的 `position:relative`（觸發元件自己）+ `position:absolute`（下拉內容，`top: calc(100% + 10px)`）模式——下拉內容永遠錨定在觸發元件自己身上，不受外層容器版面影響。這是本次採用方案 B 的技術參照對象。
+
+### 實作內容
+
+- Liquid（第 87-96 行）：`for` 迴圈裡新增 `is_compact_submenu` 判斷，**用連結標題字面比對「更多服務」**（不是通用規則——刻意不自動套用到所有連結少的項目，避免不小心影響其他預期用 mega-menu 呈現的選單；之後如果有其他項目也想套用，要在這裡明確加標題）。
+- 只有 `is_compact_submenu` 為真時，才會多包一層 `<span class="menu-list__compact-anchor">`（同時包住觸發連結 `<a>` 跟子選單 `<div>` 兩者，兩者在 DOM 裡本來就是 sibling），並改渲染簡單的 `<ul><li><a>` 清單（不經過 `mega-menu-list.liquid`、不用 `mega-menu` grid），子選單 `<div>` 加上 `menu-list__submenu--compact` 修飾 class。
+- CSS 新增 `.menu-list__compact-anchor { position: relative; }`，子選單 `.menu-list__submenu--compact { position: absolute; inset-block-start: 100%; inset-inline-start: 0; ...}`——參照 `dropdown-localization-component` 的模式，下拉內容錨定在這層包裝自己身上。
+
+### 實作過程中發現並修正的兩個問題（過程記錄，供之後參考）
+
+1. **一開始把 `position:relative` 直接放在觸發連結 `<a>` 上，結果錨定失敗**（子選單跑到 `left:0`，完全脫離觸發連結）。原因：子選單在 DOM 裡是 `<a>` 的 **sibling**，不是它的子元素——`position:relative` 只對自己的「後代」有效，錨不到旁邊的 sibling。改成用一層額外的 `<span class="menu-list__compact-anchor">` 把兩者一起包起來，`position:relative` 放在這層包裝上才正確錨定（`getBoundingClientRect()` 實測 submenu 的 `left` 跟觸發連結的 `left` 精確相等）。
+
+2. **overflow 溢出彈窗狀態下，沿用同一套 `position:absolute` 定位會出新問題**：「更多服務」展開後的子選單會直接浮在下一列「聯絡我們」的正上方、把它整個蓋住——因為 overflow 彈窗的左欄是一份緊密堆疊的清單，沒有預留空間給展開的下拉內容，absolute 定位也不會主動把下面的項目推開。改成**這個狀態下不用 absolute**，讓子選單變回一般文件流裡的內縮清單（`position: static`），展開時自然把「聯絡我們」推下去，收合時用 `display:none`（不只是 `visibility`）完全不佔空間。這個改動也順便繞開了 overflow 彈窗本身有 `clip-path` 動態裁切高度、absolute 定位內容可能被裁到的風險，因為不用 absolute 就不會被裁。同時要注意：`.menu-list__compact-anchor` 預設是 `display:inline-flex`（正常頂層狀態下讓連結文字跟已脫離文件流的 absolute 子選單並存），改成文件流內清單後如果不覆寫，連結標題會跟展開的清單並排在同一行而不是疊在下面，額外加了 `.menu-list__list-item[slot='overflow'] .menu-list__compact-anchor { display: block; }` 修正。
+
+**這兩個問題都是透過 `getBoundingClientRect()` 精確量測 + 截圖比對抓到的，不是憑空預判**——尤其第 2 點（overflow 狀態的視覺重疊），純看程式碼很難預先想到，是實際把兩個狀態都跑過一次才發現。
+
+### 驗證結果（草稿預覽網域，非 127.0.0.1，`shopify theme dev` 本次對話自己啟動）
+
+> **⚠️ 更正（見上方第九批）**：下面「正常頂層狀態」這條驗證只量測了外層 `.menu-list__submenu--compact`（絕對定位容器）的 `left`，沒有量測裡面實際顯示內容的 `.menu-list__submenu-inner--compact`，也沒有測過「完全沒 hover 過」的初始狀態——這兩個盲點剛好放過了「子選單一直顯示不會自動隱藏」跟「展開時內容被多推 82px」這兩個實際存在的 bug。**這條「桌機驗證通過」的結論不準確，正確結果與修復過程見上方第九批。**
+
+- **正常頂層狀態**（940px／1024px／1280px／1440px 全部測過）：`getBoundingClientRect()` 確認子選單 `left` 精確等於觸發連結 `left`（一路對齊，不再跑位），子選單正確顯示在「更多服務」正下方，桌機截圖確認視覺效果乾淨（白底卡片、圓角、陰影，樣式跟 `dropdown-localization-component` 一致）。
+- **overflow 溢出彈窗狀態**（930px 以下）：截圖 + 量測確認展開時「更多服務」標題下方正確內縮顯示「裝備租賃」「民宿介紹」，「聯絡我們」被正確推到子選單下方（`submenuRect.bottom` 精確等於 `聯絡我們.top`），沒有重疊穿幫；收合時 `display:none`，「聯絡我們」正確回到原位，沒有殘留空白。
+- **手機（375px）**：確認「更多服務」在手機漢堡選單抽屜（`header-drawer.liquid`，完全不同、本次沒有異動的程式碼路徑）正常顯示成 accordion，展開後 `裝備租賃`／`民宿介紹` 兩個子連結都正確存在，不受本次桌機改動影響。
+- **子連結功能**：`裝備租賃`／`民宿介紹` 的 `href` 分別正確指向 `/pages/equipment-rental`／`/pages/民宿介紹-b-b-introduction`，沒有跑掉。
+- **其他選單項目不受影響**：目前這個 Shopify 導覽選單裡，只有「更多服務」設定了子選單（其餘 6 個項目都是純連結、沒有子選單），所以沒有其他實際存在的 mega-menu 項目可以拿來對照測試——但這次改動是 class 修飾（`--compact`）跟連結標題比對（`is_compact_submenu`），完全不動任何既有的 base 選擇器規則，屬於純增量疊加，理論上不影響其他項目，之後如果有其他項目也設定子選單，仍會走原本的 mega-menu 路徑。
+- Console 沒有新增錯誤。
+- **實測過程中的一個插曲，供以後參考**：這次測試自然觸發（不強制設定 `slot` 屬性）overflow 狀態時，偶爾會遇到 `overflow-list.js` 的溢出偵測卡在「畫面上內容明明已經超出容器寬度，但 `slot` 屬性沒有跟著切換成 `overflow`」的狀態，即使多次 reload、resize 都沒有恢復——這個現象在完全沒碰過的全新分頁上也重現過，判斷跟這次改動無關（這次改動沒有觸碰 `overflow-list.js` 或它依賴的 `IntersectionObserver`/`ResizeObserver` 初始化邏輯），比較像是這個元件的初始化機制（`#waitForStyles()` 非同步等樣式表載入 + `IntersectionObserver` 觸發首次計算）在自動化測試環境快速連續 resize/reload 下的既有時序敏感問題，跟上一批「Stage3 24px 縫隙」查證時提到的「字型載入時機」假設方向一致。為了不被這個時序問題卡住驗證進度，overflow 狀態的定位驗證改用**直接設定 `li.slot = 'overflow'`**（`overflow-list.js` 本身用來搬移項目的同一個屬性）來精確、可重現地進入該狀態測試 CSS 行為，這不影響驗證結論的有效性，因為要測的是「進入 overflow 狀態後 CSS 表現正不正確」，不是重新驗證「overflow-list.js 的寬度偵測邏輯本身準不準」（那是上一批任務已經查證過的既有機制，這次沒有改動它）。
+
+**往後維護須知**：`is_compact_submenu` 目前只用連結標題字面比對「更多服務」一個值，之後如果要讓其他連結數量少的選單項目也套用緊湊樣式，直接在 Liquid 那段 `if` 判斷式加入新標題即可；如果之後想改成更穩健的判斷方式（例如比對子選單連結數量 `link.links.size <= 2`），要注意這會自動套用到所有符合條件的項目，需要跟業主確認這是否是預期行為。
+
+---
+
 ## ✅ 2026-08-17（第七批）：排查保險建議欄位異常空白（結論：測試資料誤植，非真實缺陷）+ 改成「摘要＋展開」摺疊顯示
 
 **只改了 `snippets/cart-products.liquid`。**
@@ -315,7 +426,7 @@
 
 ## 📋 簡短總結（新對話串接手第一件事，先讀這段）
 
-近期（2026-08-12～08-17）完成：實際參加人數驗證即時提示、`proxyBaseUrl` 問題結案、Redirect 設定調整、Stage 3 加購金額總計、方案資訊內容修正、多天預訂可行性查證（結論：暫不建議，維持單日選擇）、Stage 3 Modal 三項體驗優化（條件式風險聲明／頂部固定顯示／桌機加寬）、課程介紹頁「立即預訂」連結修正、`test-course-halfday-offpeak` 端對端驗證補完、指定教練加購選項（整組共用一位，NT$400，commit `294a8cb`）已完成並驗證通過、BTA Booking Field 正式/測試資料隔離（7 個混合欄位拆分＋時段(半天專用)測試版加註＋滑雪場補拆分，共 9 組欄位，commit `fbf182a`）已全部完成、PROGRESS.md 內文矛盾修正（commit `7d9d205`）、**Stage 2 表單必填欄位驗證體驗優化（自動捲動到第一個未填欄位＋按鈕上方提示，直接讀 BTA 原生 `.error` 驗證狀態，不自己定義必填清單）已完成並驗證通過**、**「課程分級」正式版欄位補建完成（第 10 組，含補救上一輪「畫面顯示存檔成功但實際沒存進去」的問題，已用即時 JSON 重新驗證），待辦事項正式歸零**、**Stage 3 Modal 三卡片版面優化（展開卡片撐滿整行、其餘兩張收合並排，`dual-track-container` CSS + `wireAccordionToggle` 通用規則，三張卡片共用同一套）已完成並驗證通過**、**修復 Stage 3 Modal 頂部黏頂區塊「24px 縫隙」鏤空穿幫（根因是 08-15 就存在的既有缺陷，`.cs2-sticky-header` 的 `top` 從 `0` 改成 `-24px`，經排查確認與三卡片版面優化那次改動無關，只是被它放大了能見度）已完成並驗證通過**、**購物車頁 line item properties key/value 顏色區分（key 粗體 `#1A2E4A`、value `#3A7AB5`）已完成，並針對保險建議欄位（98 字長文案，套用一般規則會喧賓奪主）用 key 字數 > 40 字門檻加上 `cart-items__property--long` 特殊處理（key 改回淡灰色不加粗，value 維持強調藍不變），全部驗證通過**、**排查保險建議欄位異常空白（結論：上一輪測試資料誤用全形空格示範失真，真實 BTA 資料是半形空格、瀏覽器會正常摺疊，不是真實缺陷，未動任何程式碼）+ 改成「摘要＋可展開」摺疊顯示（原生 `<details>/<summary>`，line item property 資料完整保留，只改顯示層）已完成並驗證通過**（皆見最上方章節，最上方有完整對照表）。**四個測試商品（全日/半日 × 旺季/淡季）的端對端流程全數驗證通過，working tree 乾淨。** 下方「🔴 待辦事項」目前**沒有待處理項目**。
+近期（2026-08-12～08-17）完成：實際參加人數驗證即時提示、`proxyBaseUrl` 問題結案、Redirect 設定調整、Stage 3 加購金額總計、方案資訊內容修正、多天預訂可行性查證（結論：暫不建議，維持單日選擇）、Stage 3 Modal 三項體驗優化（條件式風險聲明／頂部固定顯示／桌機加寬）、課程介紹頁「立即預訂」連結修正、`test-course-halfday-offpeak` 端對端驗證補完、指定教練加購選項（整組共用一位，NT$400，commit `294a8cb`）已完成並驗證通過、BTA Booking Field 正式/測試資料隔離（7 個混合欄位拆分＋時段(半天專用)測試版加註＋滑雪場補拆分，共 9 組欄位，commit `fbf182a`）已全部完成、PROGRESS.md 內文矛盾修正（commit `7d9d205`）、**Stage 2 表單必填欄位驗證體驗優化（自動捲動到第一個未填欄位＋按鈕上方提示，直接讀 BTA 原生 `.error` 驗證狀態，不自己定義必填清單）已完成並驗證通過**、**「課程分級」正式版欄位補建完成（第 10 組，含補救上一輪「畫面顯示存檔成功但實際沒存進去」的問題，已用即時 JSON 重新驗證），待辦事項正式歸零**、**Stage 3 Modal 三卡片版面優化（展開卡片撐滿整行、其餘兩張收合並排，`dual-track-container` CSS + `wireAccordionToggle` 通用規則，三張卡片共用同一套）已完成並驗證通過**、**修復 Stage 3 Modal 頂部黏頂區塊「24px 縫隙」鏤空穿幫（根因是 08-15 就存在的既有缺陷，`.cs2-sticky-header` 的 `top` 從 `0` 改成 `-24px`，經排查確認與三卡片版面優化那次改動無關，只是被它放大了能見度）已完成並驗證通過**、**購物車頁 line item properties key/value 顏色區分（key 粗體 `#1A2E4A`、value `#3A7AB5`）已完成，並針對保險建議欄位（98 字長文案，套用一般規則會喧賓奪主）用 key 字數 > 40 字門檻加上 `cart-items__property--long` 特殊處理（key 改回淡灰色不加粗，value 維持強調藍不變），全部驗證通過**、**排查保險建議欄位異常空白（結論：上一輪測試資料誤用全形空格示範失真，真實 BTA 資料是半形空格、瀏覽器會正常摺疊，不是真實缺陷，未動任何程式碼）+ 改成「摘要＋可展開」摺疊顯示（原生 `<details>/<summary>`，line item property 資料完整保留，只改顯示層）已完成並驗證通過**、**Navi Bar「更多服務」下拉選單改用緊湊錨定樣式修復跑位問題**——分兩批：第八批初版實作後業主截圖回報桌機仍有異常大間距，第九批系統性排查發現第八批驗證有盲點（只測外層容器位置、沒測初始隱藏狀態），揪出兩個遺漏 bug（子選單預設不會隱藏、展開時內容被多推 82px），根因是新增的包裝層讓既有 mega-menu 規則裡所有用 `>` 直接子元素選擇器鎖定選單結構的規則全部失效，改用 adjacent sibling 選擇器 + 提高 specificity 徹底修正（不依賴原始碼順序），重新完整驗證通過（含手機真實截圖）**、**移除 `layout/theme.liquid` 殘留的 `alignSubmenus()` 死程式碼（來自 Initial commit、從未在一般載入時生效、只在 resize 時生效並打壞前幾批的定位修復，git 歷史＋孤立引用＋編號缺③共同佐證是殘留），連續縮放視窗多次（含選單已展開時縮放）重新驗證定位全程正確**（皆見最上方章節，最上方有完整對照表）。**四個測試商品（全日/半日 × 旺季/淡季）的端對端流程全數驗證通過，working tree 乾淨。** 下方「🔴 待辦事項」目前**沒有待處理項目**。
 
 ---
 
