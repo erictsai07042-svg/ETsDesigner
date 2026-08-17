@@ -45,7 +45,12 @@
          sticky 區塊能夠緊貼 .cs2-panel 這個捲動容器的最頂端（sticky 的 top:0 是相對捲動
          容器的 padding box 算，如果不抵銷 padding，捲動後上緣會多一段空隙、也蓋不住底下
          內容），同時保留跟面板一致的圓角跟左右留白觀感。 */
-      '.cs2-sticky-header { position: sticky; top: 0; z-index: 5; margin: -24px -24px 16px -24px; padding: 20px 24px 14px 24px; background: #ffffff; border-radius: 16px 16px 0 0; box-shadow: 0 6px 12px -8px rgba(26,46,74,0.18); }',
+      /* top 刻意設為 -24px（不是 0）：margin-top 用 -24px 抵銷 .cs2-panel 的 padding-top(24px)
+         讓它視覺貼齊面板邊緣，但瀏覽器計算 sticky 黏頂位置時不會把這個負 margin 完全計入，
+         黏頂後框的實際位置會比預期低了 24px，捲動容器最頂端因此留下一條 24px 沒被蓋住的縫隙，
+         底下捲動的內容（例如學員分組深色標題列）會從這條縫隙穿幫透出。top: -24px 讓黏頂
+         位置往上補回這 24px，縫隙才會真正消失（實測 gap 從 24px 變成 0）。 */
+      '.cs2-sticky-header { position: sticky; top: -24px; z-index: 5; margin: -24px -24px 16px -24px; padding: 20px 24px 14px 24px; background: #ffffff; border-radius: 16px 16px 0 0; box-shadow: 0 6px 12px -8px rgba(26,46,74,0.18); }',
       '.cs2-sticky-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; }',
       '.cs2-sticky-total { display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; background: #E8F4FA; border: 1px solid #B8D9ED; border-radius: 999px; padding: 6px 14px; }',
       '.cs2-sticky-total .cs2-total-label { font-size: 12px; }',
@@ -61,9 +66,15 @@
       '.step-item.is-active .step-dot { background-color: #1A2E4A; color: #fff; }',
       '.step-line { flex: 1; height: 2px; background-color: #3A7AB5; margin: 0 8px; border-radius: 1px; }',
 
-      /* 雙軌加購卡片（原封不動照搬 dual-track-container / accordion-card / toggle-switch） */
+      /* 雙軌加購卡片（原封不動照搬 dual-track-container / accordion-card / toggle-switch）。
+         三張卡片（裝備加租／指定教練／民宿加購）固定等寬並排，展開後（尤其裝備加租多學員時）
+         內容被壓縮得很擁擠。改成：任一張卡片展開時（.accordion-card.is-expanded，由
+         wireAccordionToggle 同步標記在卡片本身，不只是 accordion-content），該卡片
+         grid-column 撐滿整行、order 移到最前面；其餘卡片維持預設 order，自然被推到下一排、
+         用 auto-fit 並排（2 欄）。收合回去時 class 移除，三張卡片自動恢復原本的三欄並排。
+         這是通用規則（比對 class，不寫死哪一張卡片），三張卡片共用同一套。 */
       '.dual-track-container { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }',
-      '@media (min-width: 640px) { .dual-track-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; } }',
+      '@media (min-width: 640px) { .dual-track-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; } .dual-track-container .accordion-card.is-expanded { grid-column: 1 / -1; order: -1; } }',
       '.accordion-card { background: #fff; border: 1px solid #e4ecf3; border-radius: 12px; overflow: hidden; }',
       '.accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: #E8F4FA; gap: 14px; }',
       '.card-info h4 { font-size: 15px; font-weight: 700; color: #1A2E4A; margin: 0 0 3px 0; }',
@@ -235,8 +246,10 @@
   }
 
   function wireAccordionToggle(toggleInput, contentEl) {
+    var cardEl = toggleInput.closest('.accordion-card');
     toggleInput.addEventListener('change', function () {
       contentEl.classList.toggle('is-expanded', toggleInput.checked);
+      if (cardEl) cardEl.classList.toggle('is-expanded', toggleInput.checked);
     });
   }
 
