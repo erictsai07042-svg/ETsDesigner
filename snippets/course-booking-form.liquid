@@ -963,7 +963,11 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       '.control-label { color: #1A2E4A !important; font-weight: 600 !important; font-size: 13px !important; }',
       '.form-control { border: 1px solid #B8D9ED !important; border-radius: 8px !important; }',
       '.form-control:focus { border-color: #7AB3D4 !important; }',
-      'button[data-type="submit"] { background-color: #1A2E4A !important; border-radius: 10px !important; font-weight: 700 !important; }',
+      /* 2026-08-18 修正：這條規則原本只設定 background-color，沒有一併設定 color，
+         BTA 自己的預設文字顏色（#3E4E57，深灰藍）疊在這裡新設的品牌深藍底色上，對比度
+         嚴重不足、幾乎看不清楚按鈕文字。改成白字，跟站內其他同樣背景色 #1A2E4A 的主要
+         按鈕（例如 assets/course-stage2-module.js 的 .cs2-btn-primary）維持一致風格。 */
+      'button[data-type="submit"] { background-color: #1A2E4A !important; color: #fff !important; border-radius: 10px !important; font-weight: 700 !important; }',
       '.cbf-attendee-count-error { color: #C0392B !important; font-size: 12px !important; font-weight: 700 !important; margin: 6px 0 0 0 !important; display: none; }',
       'button[data-type="submit"]:disabled { opacity: 0.45 !important; cursor: not-allowed !important; }',
       '.cbf-attendee-count-button-hint { color: #C0392B !important; font-size: 12px !important; font-weight: 700 !important; margin: 0 0 8px 0 !important; text-align: center !important; display: none; }',

@@ -2,6 +2,30 @@
 
 最後更新：2026-08-18
 
+## ✅ 2026-08-18（第五批）：Stage1「下一步」按鈕文字對比度過低已修正
+
+### 背景
+
+業主回報課程商品頁 Stage1（選日期）的「下一步」按鈕，文字幾乎看不清楚。
+
+### 查證結果
+
+按鈕本身是 BTA widget 用 React 渲染在 `srcdoc` iframe 裡（跟外層頁面同源），不是我們主題自己刻的元件。實測量測 `button[data-type="submit"]` 的 computed style：`color: rgb(62, 78, 87)`（`#3E4E57`）疊在 `background-color: rgb(26, 46, 74)`（`#1A2E4A`）上——兩個都是暗色，對比度嚴重不足。追到根因：`course-booking-form.liquid` 既有的 `injectBtaStyleSkin()`（"視覺 QA 修正 B"，之前就有的機制，專門把品牌樣式注入 BTA iframe 自己的 `<head>`，因為 iframe 有獨立 CSS cascade、外層 `<style>` 套用不到）裡，`button[data-type="submit"]` 這條規則只設定了 `background-color: #1A2E4A`（品牌深藍），**沒有一併設定 `color`**，導致沿用 BTA 自己的預設文字色（給白底用的深灰藍），疊在新設的深藍底色上完全看不清楚。禁用狀態（尚未選日期）還疊加既有的 `opacity: 0.45` 規則，更加難以辨識。
+
+### 修法
+
+`injectBtaStyleSkin()` 的 `button[data-type="submit"]` 規則加一個 `color: #fff !important`，比照站內其他同樣用 `#1A2E4A` 底色的主要按鈕（例如 `assets/course-stage2-module.js` 的 `.cs2-btn-primary`，本來就是白字）維持一致風格。這個選擇器同時涵蓋 Stage1「下一步」跟 Stage2「預約」兩個按鈕（兩者共用同一個選擇器，是既有程式碼的既定架構，不是這次新增的耦合），一次修正兩處。
+
+### 驗證結果
+
+- 修正前：`color: rgb(62, 78, 87)` on `rgb(26, 46, 74)`（實測量測，肉眼幾乎不可讀）
+- 修正後：`color: rgb(255, 255, 255)` on `rgb(26, 46, 74)`（白字深藍底，高對比）
+- 桌機 + 手機（375px）都用 computed style 實測確認顏色正確套用，手機寬度下按鈕沒有超出容器
+- Console 沒有新增任何錯誤（既有的本機環境 BTA 網路錯誤/CSP 錯誤跟這次改動無關）
+- **截圖限制**：這次瀏覽器 Side Panel 沒有在使用者畫面上顯示，畫面沒有實際合成，screenshot 動作因此無法擷取——改用 `getComputedStyle()` 直接讀取瀏覽器實際套用的 RGB 值驗證（比截圖更精確，但如果業主想親眼看外觀，建議自己開預覽網域看一次）
+
+---
+
 ## ✅✅✅ 2026-08-18（第四批，全專案關鍵修復）：正式課程商品終於能載入 Stage 2/3 全套客製邏輯（待辦 34 結案）
 
 ### 背景
