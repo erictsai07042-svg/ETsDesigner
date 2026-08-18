@@ -6,6 +6,20 @@
     assign product = collections.all.products.first
   endif
 
+  # 課程商品判斷：改用 tag 比對（halfday/fullday，含 test- 前綴跟 hoshino 系列的
+  # halfday-hoshino/fullday-hoshino 變體），取代原本的 product.handle contains 'course'。
+  # 2026-08-18 發現原本的 handle 判斷完全沒有涵蓋到正式課程商品（handle 例如
+  # fullday-class-peak-season 不含「course」字串），導致 Stage 2/3 全套客製邏輯
+  # （必填驗證、裝備加租 Modal 等）從未在正式商品上生效，只在 test-course-* 測試商品
+  # 上跑過。改用 join 後的 tags 字串做 substring 比對（不是 array 的 exact-match
+  # contains），才抓得到 halfday-hoshino 這種帶字尾的 tag，同時盤點過店內其餘商品
+  # （5 個 gear-rental 系列都只掛 gear-rental 這個 tag）確認不會誤觸。
+  assign product_tags_string = product.tags | join: ','
+  assign is_course_product = false
+  if product.type == 'Course' or product_tags_string contains 'halfday' or product_tags_string contains 'fullday'
+    assign is_course_product = true
+  endif
+
   assign variant = closest.product.selected_or_first_available_variant
   assign inventory_quantity = variant.inventory_quantity
   assign inventory_policy = variant.inventory_policy
@@ -108,7 +122,7 @@
             </div>
           {%- endif -%}
 
-          <div {% if product.type == 'Course' or product.handle contains 'course' %}style="display: none !important;"{% endif %}>
+          <div {% if is_course_product %}style="display: none !important;"{% endif %}>
             {% content_for 'block', type: 'quantity', id: 'quantity' %}
           </div>
 
@@ -221,13 +235,13 @@
               </div>
             </volume-pricing>
           {%- endif -%}
-          {%- if product.type == 'Course' or product.handle contains 'course' -%}
+          {%- if is_course_product -%}
             {%- render 'course-booking-form', product: product -%}
           {%- elsif product.type == 'Accommodation' or product.handle contains 'accommodation' -%}
             {%- render 'accommodation-booking-form', product: product -%}
           {%- endif -%}
 
-          <div{% if product.type == 'Course' or product.handle contains 'course' %} style="display: none !important;"{% endif %}>
+          <div{% if is_course_product %} style="display: none !important;"{% endif %}>
             {% content_for 'block',
               type: 'add-to-cart',
               id: 'add-to-cart',
@@ -238,7 +252,7 @@
 
           {%- liquid
             assign current_show_dynamic_checkout = true
-            if product.type == 'Course' or product.handle contains 'course' or product.type == 'Accommodation' or product.handle contains 'accommodation'
+            if is_course_product or product.type == 'Accommodation' or product.handle contains 'accommodation'
               assign current_show_dynamic_checkout = false
             endif
           -%}

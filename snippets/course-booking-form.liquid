@@ -507,7 +507,8 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 /* ==========================================================================
     【來趣滑雪】終極除錯：強制物理隱藏原廠商品描述，消滅資訊重複
    ========================================================================== */
-{% if product.type == 'Course' or product.handle contains 'course' %}
+{% assign cbf_tags_string = product.tags | join: ',' %}
+{% if product.type == 'Course' or cbf_tags_string contains 'halfday' or cbf_tags_string contains 'fullday' %}
   .product__description,
   .product-single__description,
   .product-description,

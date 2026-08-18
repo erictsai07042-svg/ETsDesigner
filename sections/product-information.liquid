@@ -25,8 +25,12 @@
 {% endcapture %}
 
 {% liquid
+  # 課程商品判斷跟 blocks/buy-buttons.liquid 用同一套 tag 邏輯（halfday/fullday，含
+  # test- 前綴跟 hoshino 系列），不用 product.handle contains 'course'——2026-08-18
+  # 發現正式課程商品 handle 都不含「course」字串，這個判斷從未在正式商品上生效過。
+  assign pi_tags_string = product.tags | join: ','
   assign is_course_product = false
-  if product.type == 'Course' or product.handle contains 'course'
+  if product.type == 'Course' or pi_tags_string contains 'halfday' or pi_tags_string contains 'fullday'
     assign is_course_product = true
   endif
 %}

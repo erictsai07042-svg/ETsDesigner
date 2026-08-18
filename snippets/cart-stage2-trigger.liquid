@@ -5,15 +5,34 @@
   不提供在單一產品頁、加入購物車前收集加購資料的機制），送出後跳轉購物車頁完成 Stage 3 是
   最終形態，不會被「商品頁不跳轉」的版本取代，這個檔案不會被刪除。詳見 PROGRESS.md 決策 3。
 {% endcomment %}
+{%- liquid
+  # 課程商品判斷跟 blocks/buy-buttons.liquid 用同一套 tag 邏輯（halfday/fullday，含
+  # test- 前綴跟 hoshino 系列），不能沿用原本 item.handle.indexOf('course') 那個判斷——
+  # 2026-08-18 發現正式課程商品 handle 都不含「course」字串，這個判斷從未在正式商品上
+  # 生效過。/cart.js 的 line item 本身沒有 tags 欄位，沒辦法在前端 JS 直接查，這裡改成
+  # 在 Liquid 端（cart.items[n].product 有完整 tags）先算出符合的 product_id 清單，
+  # 傳給下面的 JS 查表。這份清單只在頁面載入當下算一次：這個檔案的送出流程只會改動
+  # 既有購物車項目的 properties，不會在同一頁面生命週期內新增全新的課程商品項目
+  # （BTA 加入購物車一律會整頁導向 /cart，course_product_ids 屆時會跟著整頁重新計算），
+  # 不需要即時重算。
+  assign course_product_ids = ''
+  for item in cart.items
+    assign item_tags_string = item.product.tags | join: ','
+    if item.product.type == 'Course' or item_tags_string contains 'halfday' or item_tags_string contains 'fullday'
+      assign course_product_ids = course_product_ids | append: item.product_id | append: ','
+    endif
+  endfor
+-%}
 <script type="module" src="{{ 'course-stage2-module.js' | asset_url }}"></script>
 <div id="cart-stage2-trigger-mount"></div>
 <script>
 (function () {
   var STAGE2_DONE_KEY = '_stage2_completed';
   var ATTENDEE_COUNT_KEY = '實際參加人數';
+  var COURSE_PRODUCT_IDS = '{{ course_product_ids }}'.split(',').filter(Boolean).map(Number);
 
   function isCourseItem(item) {
-    return item.product_type === 'Course' || (item.handle && item.handle.indexOf('course') > -1);
+    return item.product_type === 'Course' || COURSE_PRODUCT_IDS.indexOf(item.product_id) > -1;
   }
 
   function findItemNeedingStage2(cart) {

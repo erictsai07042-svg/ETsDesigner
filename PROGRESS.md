@@ -2,6 +2,58 @@
 
 最後更新：2026-08-18
 
+## ✅✅✅ 2026-08-18（第四批，全專案關鍵修復）：正式課程商品終於能載入 Stage 2/3 全套客製邏輯（待辦 34 結案）
+
+### 背景
+
+上一批驗證「課程分級必填」修復時意外發現：`blocks/buy-buttons.liquid` 判斷「是不是課程商品」的條件是 `product.type == 'Course' or product.handle contains 'course'`，但 8 個正式課程商品（`fullday-class-peak-season`／`halfday-class-off-season-hoshino` 等）的 handle 都不含「course」這個字串，`product.type` 也是空字串——**兩個條件都不成立**。這代表這幾週開發、測試、記錄在 `PROGRESS.md` 裡「已驗證通過」的所有 Stage 2/3 成果（必填欄位驗證、裝備加租 Modal、指定教練加購、結構化尺寸欄位、學員共用性別……），可能從來沒有真正被正式客人用過，實際購買流程一路都是走 Shopify 原生的單頁加入購物車，完全繞過整套客製邏輯。業主確認後拍板修法方向：**改用商品 tag 判斷，不動 handle**（改 handle 會動到既有網址/SEO）。
+
+### 盤點結果：為什麼不能直接比對 tag 是否等於 `halfday`/`fullday`
+
+用 `/products.json` 核對店內全部 18 個商品的 tags，發現：
+
+| 商品分類 | 數量 | 實際掛的 tag |
+|---|---|---|
+| 正式課程（一般） | 4 | `halfday` / `fullday` |
+| 正式課程（星野系列） | 4 | `halfday-hoshino` / `fullday-hoshino` **←注意帶字尾，不是純 `halfday`/`fullday`** |
+| 測試課程 | 4 | `test-course` + `test-halfday` / `test-fullday` |
+| 裝備租賃（不該被判定成課程） | 6 | `gear-rental` |
+
+如果用「tag 完全等於 halfday/fullday」這種 exact-match 判斷，會**漏掉 4 個星野系列商品**——這是這次盤點才發現的細節，如果沒盤點直接動手，改完還是會有 4 個正式商品繼續壞著。改用**substring 比對**（tag 字串裡「含有」halfday 或 fullday，不要求完全相等）就能同時涵蓋 `halfday`／`fullday`／`test-halfday`／`test-fullday`／`halfday-hoshino`／`fullday-hoshino` 六種變體。6 個 `gear-rental` 商品的 tag 跟 halfday/fullday 完全無關，確認不會被誤觸。
+
+### 修法：4 個檔案，同一套 tag 邏輯
+
+判斷條件統一寫成：`product.tags | join: ',' 之後 contains 'halfday' 或 contains 'fullday'`（外加 `product.type == 'Course'` 保底，供業主之後如果改用正規 Product Type 欄位也能相容）。逐一修正所有原本依賴 `product.handle contains 'course'` 的地方：
+
+1. **`blocks/buy-buttons.liquid`**（核心修復）：在檔案最上方 `{% liquid %}` 區塊算出共用的 `is_course_product` 布林變數，取代原本**分散在 4 個地方**、各自重複判斷的寫法（Stage 2/3 表單是否渲染、數量選擇器是否隱藏、原生「加入購物車」按鈕是否隱藏、動態結帳按鈕是否停用）——這 4 個地方原本各自獨立判斷，是這次盤點才發現的重複程式碼，改成單一變數後，以後只要改一處就能同步全部
+2. **`snippets/cart-stage2-trigger.liquid`**（Stage 3 購物車頁觸發器，獨立的第二個 bug）：判斷「購物車裡的項目是不是課程商品」原本也是 `item.handle.indexOf('course')`，同樣的問題。但 `/cart.js` 的 line item **沒有 tags 欄位**，沒辦法在前端 JS 直接查，改成在 Liquid 端（`cart.items[n].product` 才有完整 tags）先算出符合的 `product_id` 清單，用 `{{ course_product_ids }}` 傳給 JS 查表，避免額外的 API 呼叫
+3. **`snippets/course-booking-form.liquid`**：內部有一段獨立的「強制隱藏原廠商品描述避免重複顯示」CSS，也是同樣的判斷邏輯，一併修正
+4. **`sections/product-information.liquid`**：控制「原生 Sticky Add to Cart 浮動條」是否對課程商品停用，也是同樣的判斷邏輯，一併修正（這其實是 `PROGRESS.md` 更早以前就記錄過的已知風險點，「排除 Course 商品的條件寫成 `product.type != 'Course'`，沒有像 `buy-buttons.liquid` 其他判斷式一樣加上後備條件」——這次順便徹底解決，改用跟其他 3 個檔案完全一致的 tag 判斷）
+
+**沒有修改**：`snippets/breadcrumbs.liquid` 雖然也用了同樣的 `handle contains 'course'`，但它還有第三個後備條件 `product.title contains '課程'`，而所有課程商品標題都帶「課程」兩個字，實際上沒有失效，這次不動它，維持現狀。
+
+### 回歸測試結果（本機 `shopify theme dev`，桌機 + 手機 375px）
+
+- **靜態 HTML 矩陣測試**（`fetch()` 直接核對 18 個商品中跟課程相關的 18 個 handle 的伺服器渲染結果，不依賴會偶發失敗的 BTA widget 掛載）：
+  - 8 個正式課程商品（含 4 個星野系列）：`getFirstInvalidField`（Stage 2 必填驗證邏輯）、`booking-current-date-picker`（BTA 錨點）、原生加入購物車按鈕的 `display:none` 全部**正確出現**——修復前這 8 個全部是 `false`
+  - 4 個測試商品：跟修復前完全一致，沒有受影響
+  - 6 個裝備租賃商品：跟修復前完全一致（沒有任何課程邏輯的痕跡），確認沒有被新的判斷條件誤觸
+- **端對端功能測試（正式商品 `fullday-class-peak-season`）**：用 `/cart/add.js` 模擬 BTA 寫入的 `實際參加人數`／備註欄位，走真實 `cart-stage2-trigger.liquid` 觸發流程——**Stage 3 Modal 正確彈出**（修復前完全不會彈出）。勾裝備（雪服帽鏡組）、填尺寸、選共用性別、選指定教練（Angus）、送出後 `/cart.js` 核對：`學員1_加購_雪服帽鏡組`／`_雪服尺碼`／`_安全帽尺寸`／`學員1_性別`／`指定教練` 全部正確寫入**一次**、`備註／其他需求` 原樣保留、**畫面不用重新整理立即顯示新資料**（這一批連同上一批修復的購物車即時刷新，一次驗證通過）
+- **手機端（375px，星野系列 `halfday-class-off-season-hoshino`，4 學員情境）**：同樣完整走一次（Stage3 Modal 彈出、勾滑雪護具、選尺寸、送出），4 個學員分組正確渲染、無橫向溢出、送出後畫面立即更新、`/cart.js` property 正確
+- **Sticky Add to Cart 浮動條**：確認正式商品頁面渲染結果裡沒有 `<sticky-add-to-cart>` 這個自訂元素的開始標籤，確認第 4 點的修正也生效
+- Console：兩次端對端測試都只有既有已知的本機環境 BTA 網路錯誤，沒有新增任何錯誤
+- 測試完成已清空購物車，沒有留下測試資料
+
+### ⚠️ 需要業主確認的重大行為變化（非意外副作用，是這次修復本來就會帶來的結果）
+
+**正式課程商品的購買流程，從這次修復生效後會整個改變**：修復前，正式客人在正式商品頁點「加入購物車」是走 Shopify 原生單頁流程（選人數→直接加入購物車→結帳），完全沒有 BTA 的日期/課程分級/雪板類型等自訂欄位表單，也沒有裝備加租/教練加購這些加購步驟。修復後，正式商品會跟目前的測試商品行為完全一致，變成**三步驟流程**（Stage1 選日期 → Stage2 BTA 表單含必填驗證 → 跳轉購物車頁完成 Stage3 裝備/教練加購），原生加入購物車按鈕跟 Sticky Add to Cart 浮動條都會被隱藏。**這是修復的必然結果、不是意外，但影響範圍是全部正式商品的購買體驗，建議業主知情後再上線。**
+
+### 🙋 強烈建議：業主親自完整走一次正式商品的真實預約流程
+
+這次驗證用的都是模擬資料（`/cart/add.js` 直接模擬 BTA 寫入的欄位，跳過真正的 BTA 日曆選日期步驟），原因是本機開發環境對 BTA widget 的網路請求有已知限制（`proxyBaseUrl` 相關，文件其他地方多次記錄過），沒辦法在這個環境完整走一次「真的點日曆選日期→填 BTA 表單→送出」的全流程。雖然這次同時也在正式商品上直接操作過 BTA widget 的 iframe DOM（驗證 radio 必填欄位那次），確認 BTA widget 本身可以在正式商品上正常運作，但**這是正式客人第一次真正接觸到這整套邏輯的關鍵時刻**，建議業主用真人操作，在正式商品上完整走一次「選日期→填完整 BTA 表單（含課程分級/兒童同行等 radio 欄位留空測試必填攔截）→送出→購物車頁 Stage 3 裝備加租/教練加購→完成結帳」，親眼確認整套流程順暢，再放心讓正式客人使用。
+
+---
+
 ## ✅ 2026-08-18（第三批）：購物車頁不即時刷新 + 課程分級必填沒攔下，兩項修復完成
 
 ### 背景
@@ -1791,4 +1843,4 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 32. 🟡 **中等優先，等有實際需求（例如上雙板品項）再處理**：`GEAR_ITEMS` 裡 `skiType` 互斥鎖定邏輯目前是死代碼——`cart-stage2-trigger.liquid` 從未把 `skiTypeByAttendee` 傳進 `renderStage2Form()`／`renderGearRentalSection()`，而且 BTA「雪板類型」欄位是**整筆訂單層級**單選（`單板SNOWBOARD／雙板SKI`，不是逐學員），跟這個介面原本假設的「逐學員板種」資料格式對不上，導致 `item.skiType !== skiType` 這個鎖定判斷永遠不會生效。2026-08-18 盤點「裝備租賃結構化尺寸欄位」任務時發現並確認業主決定暫緩不修，避免任務範圍擴大，細節見文件最上方「✅ 2026-08-18：裝備租賃結構化尺寸欄位」專章決策依據第 5 點。**未來要新增雙板品項、需要互斥鎖定生效時，這裡要先修**：要嘛把鎖定邏輯改成整筆訂單層級（呼叫端從 BTA 訂單層級「雪板類型」property 帶一個值進來，不分學員），要嘛放棄鎖定機制。
 32-b. 🔴 **下一個對話串優先任務**：實際參加人數驗證的錯誤提示可見性優化——目前錯誤提示（commit `58b44c5`）只出現在「實際參加人數」欄位旁，使用者捲到送出按鈕位置時看不到，容易誤以為按鈕壞掉。要做：(a) 按鈕即時 disabled/enabled 連動（比照 Stage3 checkbox 的 `syncSubmitButtonState()` 模式）；(b) 按鈕旁新增簡短提示文字。完整規格、技術現況、待確認的風險點見文件最上方「🔴 下一個對話串優先任務」專章。
 33. ~~課程分級必填沒攔下（radio 型別欄位）~~ ✅ 已於 2026-08-18 完成並驗證通過，細節見文件最上方「✅ 2026-08-18（第三批）」專章。順帶發現 BTA widget 自己對 radio 型別必填欄位的 `.error` 標記有缺陷（`class="radio undefined"`），已在我們自己的驗證層額外處理，屬於彌補第三方 widget 缺陷的補丁，不是我們程式碼本身的迴歸。
-34. 🔴 **【新發現，優先度高，建議儘快處理】`course-booking-form.liquid`（含 Stage 2/3 全部客製功能：必填驗證提示、裝備加租 Modal 等）從未真正套用在正式課程商品上**——`blocks/buy-buttons.liquid` 第 224 行的啟用條件是 `product.type == 'Course' or product.handle contains 'course'`，正式商品 handle（`fullday-class-peak-season`／`halfday-class-off-season-hoshino` 等 8 個，見下方清單）全部不含「course」這個字串，`product.type` 也是空字串，兩個條件都不成立。2026-08-18 用 `fetch()` 直接核對 8 個正式商品的頁面原始碼，`getFirstInvalidField`／`booking-current-date-picker` 這些只會在啟用時出現的字串**全部找不到**，同一次核對 `test-course-*` 系列（handle 都帶「course」）則正常找到。**這代表這個專案至今所有跟 Stage 2/3 相關的開發成果（必填欄位驗證、裝備加租 Modal、指定教練加購……）可能從來沒有真正被正式客人用過**，先前所有「已驗證通過」的紀錄，用的都是 `test-course-*` 測試商品，不是真正在賣的商品。需要業主決定修法方向：(a) 把正式商品 handle 改成含「course」（例如 `fullday-course-peak-season`，但改 handle 會動到既有網址/SEO，要評估）、(b) 把 `blocks/buy-buttons.liquid` 的啟用條件改成正確辨識正式課程商品的方式（例如改用一個明確的 tag 或 metafield，不依賴 handle 命名）。**這次任務範圍內沒有動這裡，純粹是驗證 Fix 2 時意外發現，需要業主確認方向後才處理。**
+34. ~~正式課程商品從未真正套用 Stage 2/3 全部客製邏輯~~ ✅ **已於 2026-08-18（第四批）完成並驗證通過，全專案關鍵修復**。業主確認方向：改用商品 tag 判斷（substring 比對 halfday/fullday，涵蓋星野系列的 `-hoshino` 字尾變體），不動商品 handle。修正 `blocks/buy-buttons.liquid`（核心，原本分散在 4 處的重複判斷統一成一個變數）、`snippets/cart-stage2-trigger.liquid`（Stage 3 購物車頁觸發器，獨立的第二個 bug，line item 沒有 tags 欄位改成 Liquid 端算好 product_id 清單傳給 JS）、`snippets/course-booking-form.liquid`（原廠描述隱藏 CSS）、`sections/product-information.liquid`（Sticky Add to Cart 停用邏輯）共 4 個檔案。靜態 HTML 矩陣測試（18 個商品）+ 正式商品端對端功能測試（桌機+手機）全數通過，細節見文件最上方「✅✅✅ 2026-08-18（第四批，全專案關鍵修復）」專章。**業主親眼在正式商品走一次真實預約流程的建議仍未執行**，見該專章最後一節。
