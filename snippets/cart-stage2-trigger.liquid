@@ -5,7 +5,7 @@
   不提供在單一產品頁、加入購物車前收集加購資料的機制），送出後跳轉購物車頁完成 Stage 3 是
   最終形態，不會被「商品頁不跳轉」的版本取代，這個檔案不會被刪除。詳見 PROGRESS.md 決策 3。
 {% endcomment %}
-<script src="{{ 'course-stage2-module.js' | asset_url }}" defer></script>
+<script type="module" src="{{ 'course-stage2-module.js' | asset_url }}"></script>
 <div id="cart-stage2-trigger-mount"></div>
 <script>
 (function () {

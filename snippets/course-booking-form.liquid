@@ -1120,8 +1120,37 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
          「下一頁」按鈕跟 Stage2「立即預訂」按鈕共用同一個 button[data-type="submit"] 選擇器，
          但只有 Stage2 按鈕會巢狀在 .ReactModal__Content 底下（同一個教訓見上面「實際參加
          人數」驗證的註解）——用按鈕自己的 closest 往上找，不會誤判到 Stage1，也不會被
-         「Modal 曾經開過、殘留在 DOM 裡」這種情況污染。 */
-      const getFirstInvalidField = (scope) => scope.querySelector('.error');
+         「Modal 曾經開過、殘留在 DOM 裡」這種情況污染。
+
+         2026-08-18 實測發現 BTA 這套 .error 標記機制對 radio 型別欄位有缺陷：select／
+         input(text) 缺漏時欄位本身會被加上 class="error"，但 radio 型別欄位（例如「課程
+         分級」「是否有 6~12 歲兒童同行」）缺漏時，包住每個選項的容器只拿到
+         class="radio undefined"（"undefined" 是 BTA 自己組 className 字串時沒接上
+         "error" 留下的字面字串，是它自己這個 widget 版本的 bug，不是我們這邊的問題）——
+         完全沒有 .error class 可讀，只會在欄位旁邊插入一個跟欄位本身脫鉤的
+         .error-tooltip（顯示英文 "Required"）。上面單純查 .error 的寫法完全抓不到這種
+         情況，送出按鈕不會被擋、也不會捲動提示，使用者往下捲到按鈕位置時完全看不到任何
+         回饋（BTA 後端仍然會擋下這次送出，不是真的資料被繞過，純粹是體驗上像沒反應）。
+         這裡額外檢查「.error-tooltip 所在的 .field-input-container 底下，radio 選項
+         一個都沒被選取」——仍然是動態判斷（不寫死任何欄位名稱／key，任何未來新增的必填
+         radio 型別欄位都會自動被涵蓋），只是多認 BTA 自己這個有缺陷的 DOM 模式，在我們
+         這層補一道防護彌補它的落差。回傳的 .field-input-container 會被下面 react() 的
+         scrollIntoView／focus 邏輯正確處理（focus 會自動找到容器內第一個
+         input，也就是該 radio group 的第一個選項），不需要額外改動呼叫端。 */
+      const getFirstInvalidField = (scope) => {
+        const errorField = scope.querySelector('.error');
+        if (errorField) return errorField;
+
+        const tooltips = scope.querySelectorAll('.error-tooltip');
+        for (const tooltip of tooltips) {
+          const container = tooltip.closest('.field-input-container');
+          if (!container) continue;
+          const hasRadios = container.querySelector('input[type="radio"]');
+          const hasCheckedRadio = container.querySelector('input[type="radio"]:checked');
+          if (hasRadios && !hasCheckedRadio) return container;
+        }
+        return null;
+      };
 
       const REQUIRED_FIELDS_HINT_TEXT = '請完整填寫上方標示的必填欄位';
 

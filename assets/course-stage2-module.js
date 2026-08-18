@@ -5,7 +5,13 @@
  * 純渲染 + 資料函式，不假設自己被放在哪個頁面、哪個容器裡，也不主動判斷「何時該顯示」——
  * 觸發時機由呼叫端（例如 snippets/cart-stage2-trigger.liquid）決定。
  * 掛在 window.CourseStage2Module，供任何頁面的 <script> 直接呼叫。
+ *
+ * ES module（載入端 snippets/cart-stage2-trigger.liquid 用 type="module"）：需要 import
+ * CartUpdateEvent 才能送出主題原生購物車元件（component-cart-items.js／cart-drawer.js 等）
+ * 看得懂的 cart:update 事件，見 writeCourseFormDataToCart() 底部。
  */
+import { CartUpdateEvent } from '@theme/events';
+
 (function () {
   /* 裝備尺寸共用定義（單一資料來源，安全帽頭圍／雪服尺碼範圍調整只需要改這裡）。
      HELMET_SIZE_OPTIONS 的 value 是實際寫入 line item property 的值（S/M/L），
@@ -19,11 +25,21 @@
     '女': ['S', 'M', 'L', 'XL'],
     '男': ['M', 'L', 'XL', '2XL', '3XL'],
   };
+  /* 性別是「學員層級」的共用欄位，不是個別裝備的 sizeFields——同一位學員勾選多項需要
+     性別的裝備時，只填一次、所有裝備共用同一個值，不會出現同一位學員在不同裝備底下
+     填出矛盾性別的可能性（2026-08-18 發現的資料一致性問題，見 renderGearRentalSection
+     的共用性別欄位渲染／wireDependentSizeFields）。GENDER_FIELD 只用來定義這個共用
+     欄位本身的型別/選項，不放進任何 GEAR_ITEMS 的 sizeFields 陣列。 */
   var GENDER_FIELD = { key: 'gender', label: '性別', type: 'select', options: ['男', '女'] };
-  /* select-dependent：選項清單依 dependsOn 指定的欄位（同一裝備底下的 gender）當下的值
-     動態產生，尚未選擇依賴欄位前維持 disabled，見 wireDependentSizeFields()。 */
+  /* select-dependent：選項清單依 dependsOn 指定的欄位當下的值動態產生。dependsOn:'gender'
+     一律解讀成「該學員的共用性別欄位」（不是同一裝備底下的欄位），見
+     wireDependentSizeFields() 對 'gender' 的特殊處理。尚未選擇依賴欄位前維持 disabled。 */
   var CLOTHING_SIZE_FIELD = { key: 'clothingSize', label: '雪服尺碼', type: 'select-dependent', dependsOn: 'gender', optionsByValue: CLOTHING_SIZE_BY_GENDER };
   var HELMET_SIZE_FIELD = { key: 'helmetSize', label: '安全帽尺寸', type: 'select', options: HELMET_SIZE_OPTIONS };
+  /* 這四項裝備勾選任一項時，該學員的共用性別欄位才列為必填——單板鞋組/雪服帽鏡組/雪服
+     需要性別決定雪服尺碼選項，安全帽的性別純資訊性（不連動任何選項）但業主仍要求收集。
+     只勾雪鏡／滑雪護具的學員不需要填性別。 */
+  var GEAR_KEYS_REQUIRING_GENDER = ['單板鞋組', '雪服帽鏡組', '安全帽', '雪服'];
 
   /* sizeFields：裝備勾選後需要客人填寫的結構化尺寸欄位，取代原本只能寫在購物車備註欄
      的自由格式（備註欄仍保留，兩者並存，見 renderStage2Form 送出邏輯）。陣列裡的欄位
@@ -34,17 +50,14 @@
   var GEAR_ITEMS = [
     { key: '單板鞋組', price: 1200, skiType: '單板', desc: '雪板 + 舒適雪鞋', isCombo: false, isMutual: false,
       sizeFields: [
-        GENDER_FIELD,
         { key: 'height', label: '身高', type: 'number', unit: 'cm' },
         { key: 'weight', label: '體重', type: 'number', unit: 'kg' },
         { key: 'shoeSize', label: '鞋子尺寸', type: 'number', unit: 'cm' },
       ] },
     { key: '雪服帽鏡組', price: 1000, skiType: null, desc: '雪服 + 安全帽 + 雪鏡，一次租齊最划算', isCombo: true, isMutual: false,
-      sizeFields: [ GENDER_FIELD, CLOTHING_SIZE_FIELD, HELMET_SIZE_FIELD ] },
+      sizeFields: [ CLOTHING_SIZE_FIELD, HELMET_SIZE_FIELD ] },
     { key: '雪服', price: 800, skiType: null, desc: '防水透氣保暖材質', isCombo: false, isMutual: true,
-      sizeFields: [ GENDER_FIELD, CLOTHING_SIZE_FIELD ] },
-    /* 安全帽單獨項目不收「性別」：業主確認安全帽尺寸只看頭圍，跟雪服帽鏡組/雪服的
-       「性別決定尺碼選項清單」邏輯無關，這裡刻意不掛 GENDER_FIELD。 */
+      sizeFields: [ CLOTHING_SIZE_FIELD ] },
     { key: '安全帽', price: 300, skiType: null, desc: '輕量舒適', isCombo: false, isMutual: true,
       sizeFields: [ HELMET_SIZE_FIELD ] },
     { key: '雪鏡', price: 300, skiType: null, desc: '防曬抗 UV 鏡片', isCombo: false, isMutual: true },
@@ -161,6 +174,12 @@
       '.cs2-gear-size-warning { color: #C0392B; font-size: 12px; font-weight: 700; margin: 10px 2px 0 2px; }',
       '.cs2-gear-size-warning[hidden] { display: none; }',
 
+      /* 學員層級共用性別欄位：固定顯示在該學員裝備清單最上方，不隨任何裝備勾選狀態
+         展開/收合——同一位學員底下所有需要性別的裝備都讀這一個值，只填一次。 */
+      '.attendee-shared-gender { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #E8F4FA; border-bottom: 1px solid #B8D9ED; }',
+      '.attendee-shared-gender .gear-size-label { flex: 0 0 88px; }',
+      '.attendee-shared-gender select { flex: 1 1 auto; min-width: 0; padding: 6px 8px; border: 1px solid #B8D9ED; border-radius: 6px; font-size: 13px; color: #1A2E4A; background: #fff; }',
+
       /* 指定教練單選清單（整組課程層級，跟裝備加租的每學員分組不同，沒有分組標題列）。
          視覺沿用 gear-item-box 的卡片式選取列樣式，勾選標記從方形打勾改成圓形實心點，
          呼應 radio（單選）跟 checkbox（可複選）語意上的差異。 */
@@ -254,14 +273,20 @@
   }
 
   /** 把 select-dependent 欄位（例如「雪服尺碼」依賴「性別」）接上它依賴的控制欄位：
-   * 控制欄位變動時，重新灌選項、清空目前選擇。範圍限定在同一個 .gear-size-fields
-   * 區塊內查詢，逐學員逐裝備各自獨立，不會互相干擾。 */
-  function wireDependentSizeFields(sizeFieldsRoot, item) {
+   * 控制欄位變動時，重新灌選項、清空目前選擇。dependsOn:'gender' 一律解讀成該學員的
+   * 共用性別欄位（genderSelect 參數），不在裝備自己的 .gear-size-fields 裡找——性別
+   * 已經提升成學員層級欄位，其他 dependsOn 值則維持原本在同一個 sizeFieldsRoot 裡找。 */
+  function wireDependentSizeFields(sizeFieldsRoot, item, genderSelect) {
     (item.sizeFields || []).forEach(function (field) {
       if (field.type !== 'select-dependent') return;
-      var controlWrap = sizeFieldsRoot.querySelector('[data-size-key="' + field.dependsOn + '"]');
+      var controlSelect;
+      if (field.dependsOn === 'gender') {
+        controlSelect = genderSelect;
+      } else {
+        var controlWrap = sizeFieldsRoot.querySelector('[data-size-key="' + field.dependsOn + '"]');
+        controlSelect = controlWrap && controlWrap.querySelector('[data-gear-size-input]');
+      }
       var dependentWrap = sizeFieldsRoot.querySelector('[data-size-key="' + field.key + '"]');
-      var controlSelect = controlWrap && controlWrap.querySelector('[data-gear-size-input]');
       var dependentSelect = dependentWrap && dependentWrap.querySelector('[data-gear-size-input]');
       if (!controlSelect || !dependentSelect) return;
       controlSelect.addEventListener('change', function () {
@@ -275,12 +300,29 @@
     });
   }
 
+  /** 學員層級共用性別欄位的 HTML：固定顯示在該學員分組最上方，不隨裝備勾選狀態展開/收合。 */
+  function renderAttendeeGenderFieldHtml() {
+    var optionsHtml = '<option value="">請選擇</option>' + GENDER_FIELD.options.map(function (v) {
+      return '<option value="' + v + '">' + v + '</option>';
+    }).join('');
+    return '' +
+      '<div class="attendee-shared-gender">' +
+        '<label class="gear-size-label">性別</label>' +
+        '<select data-attendee-gender-input>' + optionsHtml + '</select>' +
+      '</div>';
+  }
+
   /**
    * 渲染裝備加購區塊（學員分組 + gear-item-box 清單，勾選裝備後就地展開結構化尺寸欄位)。
-   * 純函式：只依賴傳入的 container/options。
+   * 每位學員最上方固定顯示一個共用性別欄位（不隨裝備勾選展開/收合），需要性別的裝備
+   * （見 GEAR_KEYS_REQUIRING_GENDER）一律讀這個值，不再各自重複詢問。純函式：只依賴
+   * 傳入的 container/options。
    * @param {HTMLElement} container
    * @param {{ attendeeCount: number, skiTypeByAttendee?: Record<number,string> }} options
-   * @returns {{ getSelectedGear: () => Array<{attendee:number,key:string,price:number,sizeFields:Array|null,sizeValues:Record<string,string>}> }}
+   * @returns {{
+   *   getSelectedGear: () => Array<{attendee:number,key:string,price:number,sizeFields:Array|null,sizeValues:Record<string,string>}>,
+   *   getAttendeeGender: (attendee:number) => string,
+   * }}
    */
   function renderGearRentalSection(container, options) {
     options = options || {};
@@ -289,7 +331,10 @@
 
     var html = '';
     for (var a = 1; a <= attendeeCount; a++) {
-      html += '<div class="attendee-gear-group-box"><p class="attendee-group-title">學員 ' + a + ' 加購選項</p><div class="gear-grid">';
+      html += '<div class="attendee-gear-group-box" data-attendee-group data-attendee="' + a + '">' +
+        '<p class="attendee-group-title">學員 ' + a + ' 加購選項</p>' +
+        renderAttendeeGenderFieldHtml() +
+        '<div class="gear-grid">';
       GEAR_ITEMS.forEach(function (item) {
         var skiType = skiTypeByAttendee[a];
         var locked = item.skiType && skiType && item.skiType !== skiType;
@@ -314,10 +359,13 @@
     }
     container.innerHTML = html;
 
-    container.querySelectorAll('[data-gear-item-wrap]').forEach(function (wrap) {
-      var item = GEAR_ITEMS.filter(function (g) { return g.key === wrap.getAttribute('data-gear-key'); })[0];
-      var sizeFieldsRoot = wrap.querySelector('[data-gear-size-fields]');
-      if (item && sizeFieldsRoot) wireDependentSizeFields(sizeFieldsRoot, item);
+    container.querySelectorAll('[data-attendee-group]').forEach(function (groupBox) {
+      var genderSelect = groupBox.querySelector('[data-attendee-gender-input]');
+      groupBox.querySelectorAll('[data-gear-item-wrap]').forEach(function (wrap) {
+        var item = GEAR_ITEMS.filter(function (g) { return g.key === wrap.getAttribute('data-gear-key'); })[0];
+        var sizeFieldsRoot = wrap.querySelector('[data-gear-size-fields]');
+        if (item && sizeFieldsRoot) wireDependentSizeFields(sizeFieldsRoot, item, genderSelect);
+      });
     });
 
     // 勾選裝備時就地展開/收合它的尺寸欄位（跟卡片層級 wireAccordionToggle 同一套視覺邏輯，
@@ -353,6 +401,11 @@
           });
         });
         return selected;
+      },
+      getAttendeeGender: function (attendee) {
+        var groupBox = container.querySelector('[data-attendee-group][data-attendee="' + attendee + '"]');
+        var genderSelect = groupBox && groupBox.querySelector('[data-attendee-gender-input]');
+        return genderSelect ? genderSelect.value : '';
       },
     };
   }
@@ -551,12 +604,13 @@
 
     gearRoot.addEventListener('change', function (event) {
       if (!event.target || !event.target.matches) return;
-      // 裝備打勾狀態影響金額；裝備打勾 + 尺寸欄位（含 select-dependent 的依賴欄位變動）
-      // 都要重新檢查送出按鈕能不能點——尺寸本身不影響金額，updateTotal 不用因尺寸重跑。
+      // 裝備打勾狀態影響金額；裝備打勾 + 尺寸欄位（含 select-dependent 的依賴欄位變動）+
+      // 學員層級共用性別欄位都要重新檢查送出按鈕能不能點——尺寸/性別都不影響金額，
+      // updateTotal 只需要因裝備打勾重跑。
       if (event.target.matches('[data-gear-checkbox]')) {
         syncSubmitButtonState();
         updateTotal();
-      } else if (event.target.matches('[data-gear-size-input]')) {
+      } else if (event.target.matches('[data-gear-size-input]') || event.target.matches('[data-attendee-gender-input]')) {
         syncSubmitButtonState();
       }
     });
@@ -589,15 +643,26 @@
     var submitBtn = container.querySelector('[data-cs2-submit]');
 
     /* 已勾選裝備裡，只要有一項帶 sizeFields 且任一欄位還空著，該學員就算「尺寸未完成」。
-       回傳有缺漏的學員編號（去重、遞增排序），用來組出「學員2、3 尺寸資訊未完成」這種提示。
-       裝備加租開關關閉時直接視為沒有缺漏（跟金額計算/送出邏輯排除已勾裝備的原則一致）。 */
+       另外，性別是學員層級共用欄位：只要該學員勾了 GEAR_KEYS_REQUIRING_GENDER 裡任一項
+       裝備，性別就列為必填，不管實際勾了幾項——避免同一位學員被要求填好幾次，也避免
+       同一位學員各裝備間出現互相矛盾的性別值。回傳有缺漏的學員編號（去重、遞增排序），
+       用來組出「學員2、3 尺寸資訊未完成」這種提示。裝備加租開關關閉時直接視為沒有缺漏
+       （跟金額計算/送出邏輯排除已勾裝備的原則一致）。 */
     function findAttendeesWithIncompleteGearSizes() {
       if (!gearToggle.checked) return [];
       var incomplete = {};
-      gearControls.getSelectedGear().forEach(function (g) {
+      var selectedGear = gearControls.getSelectedGear();
+      selectedGear.forEach(function (g) {
         if (!g.sizeFields || !g.sizeFields.length) return;
         var missing = g.sizeFields.some(function (field) { return !g.sizeValues[field.key]; });
         if (missing) incomplete[g.attendee] = true;
+      });
+      var attendeesNeedingGender = {};
+      selectedGear.forEach(function (g) {
+        if (GEAR_KEYS_REQUIRING_GENDER.indexOf(g.key) > -1) attendeesNeedingGender[g.attendee] = true;
+      });
+      Object.keys(attendeesNeedingGender).forEach(function (attendee) {
+        if (!gearControls.getAttendeeGender(Number(attendee))) incomplete[attendee] = true;
       });
       return Object.keys(incomplete).map(Number).sort(function (a, b) { return a - b; });
     }
@@ -691,6 +756,16 @@
           });
         }
       });
+      // 性別是學員層級共用欄位，只寫一筆 學員N_性別，不在每個裝備項目底下各自重複寫一份
+      // ——避免資料矛盾，也避免同一位學員的性別散落在好幾個 property 裡。
+      var attendeesNeedingGender = {};
+      selectedGear.forEach(function (g) {
+        if (GEAR_KEYS_REQUIRING_GENDER.indexOf(g.key) > -1) attendeesNeedingGender[g.attendee] = true;
+      });
+      Object.keys(attendeesNeedingGender).forEach(function (attendee) {
+        var genderValue = gearControls.getAttendeeGender(Number(attendee));
+        if (genderValue) properties['學員' + attendee + '_性別'] = genderValue;
+      });
       if (coachToggle.checked) {
         var selectedCoach = coachControls.getSelectedCoach();
         if (selectedCoach) properties['指定教練'] = selectedCoach;
@@ -722,7 +797,16 @@
       })
       .then(function (r) { return r.json(); })
       .then(function (updatedCart) {
-        document.dispatchEvent(new CustomEvent('cart:update', { bubbles: true }));
+        /* 待辦 27 修復：改用 events.js 的 CartUpdateEvent，而不是裸的 CustomEvent。
+           裸 CustomEvent 沒帶 detail（規格上會是 null），主題原生購物車元件（例如
+           component-cart-items.js 的 #handleCartUpdate）讀 event.detail.data.sections
+           時會直接對 null 取屬性丟例外，連它自己準備好的降級路徑
+           （sectionRenderer.renderSection() 整段重新抓、不需要我們提供 sections）都跑不到，
+           導致購物車頁面畫面停留在寫入前的舊內容，要手動整理頁面才會看到新資料——資料本身
+           其實已經正確寫入，純粹是畫面沒收到通知。這裡沒有在 /cart/change.js 請求裡額外要
+           sections（範圍不擴大），detail.data.sections 保持沒有，降級路徑會自動接手重新
+           抓取這個區塊的最新 HTML。 */
+        document.dispatchEvent(new CartUpdateEvent(updatedCart, 'course-stage2-module', { source: 'course-stage2-module' }));
         return updatedCart;
       });
   }

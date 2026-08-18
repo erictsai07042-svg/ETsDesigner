@@ -2,6 +2,74 @@
 
 最後更新：2026-08-18
 
+## ✅ 2026-08-18（第三批）：購物車頁不即時刷新 + 課程分級必填沒攔下，兩項修復完成
+
+### 背景
+
+業主回報兩個獨立的使用者體驗問題：① Stage3 加購送出成功後，購物車頁畫面沒有立即顯示新資料，要手動 F5 才看得到（資料本身有正確寫入，純粹是畫面沒刷新）；② 正式版「課程分級」（BTA Booking Field，Apply tags `halfday`/`fullday`）留空送出，完全沒有觸發我們自己疊加的必填欄位驗證提示。兩個問題都先經過完整調查（過程見上一輪對話紀錄），確認根因後才動手修。
+
+### 問題一修復：`writeCourseFormDataToCart()` 改用 `CartUpdateEvent`（待辦 27 結案）
+
+**根因**：`assets/course-stage2-module.js` 送出後 dispatch 的是裸 `new CustomEvent('cart:update', {bubbles:true})`，`detail` 依規格是 `null`。主題原生購物車元件（`component-cart-items.js` 的 `#handleCartUpdate`）讀 `event.detail.data.sections?.[...]` 時，對 `null` 取 `.data` 直接丟 `TypeError`，連它自己準備好的降級路徑（`sectionRenderer.renderSection()`，會獨立重新抓取並 morph 該區塊最新 HTML）都執行不到。`cart-drawer.js` 的 `event.detail.resource?.item_count` 也是同樣問題。100% 必定發生，不是時序偶發——事件本身是在 `/cart/change.js` 回應完整解析後才送出，順序沒問題，純粹是 `detail` 內容不符合監聽端預期格式。
+
+**修法**：
+- `assets/course-stage2-module.js` 改成 ES module（頂部新增 `import { CartUpdateEvent } from '@theme/events';`），`writeCourseFormDataToCart()` 底部改成 `document.dispatchEvent(new CartUpdateEvent(updatedCart, 'course-stage2-module', { source: 'course-stage2-module' }))`
+- `snippets/cart-stage2-trigger.liquid` 的 `<script src="course-stage2-module.js">` 加上 `type="module"`（`@theme/events` 這個 import map 別名只在 module script 裡能用，定義在 `snippets/scripts.liquid`，已透過 `layout/theme.liquid` 全站載入，順序沒問題）
+- **沒有**在 `/cart/change.js` 請求裡額外加 `sections` 參數（範圍刻意不擴大）——`detail.data.sections` 維持沒有，`component-cart-items.js` 的降級路徑 `sectionRenderer.renderSection()` 會自動接手獨立重新抓取，這是它本來就設計好的行為
+
+**驗證結果**（本機 `shopify theme dev`，桌機 + 手機 375px 都測）：
+- 完整走一次「勾裝備→確認加購」流程，**送出後不用重新整理，畫面立即正確顯示新加購的 property**（例如「學員1_加購_雪鏡: 需要」）
+- Network 確認：`/cart/change.js` 200 之後，新增一個 `GET /cart?section_id=...` 請求（正是 `sectionRenderer.renderSection()` 的降級路徑），比修復前多了這一個關鍵請求
+- Console：`Cannot read properties of null (reading 'resource'/'data')` 這兩個既有錯誤**完全消失**，沒有新增其他錯誤（只剩本機環境既有的 BTA reservation widget 網路錯誤，跟這次改動無關）
+- `window.CourseStage2Module` 正確掛載、所有既有方法都在，ES module 轉換沒有破壞任何既有呼叫端
+
+### 問題二修復：必填欄位驗證額外檢查 radio 型別的 `.error-tooltip`
+
+**根因（BTA 自己 widget 的缺陷，2026-08-18 實機在正式商品 `fullday-class-peak-season` 上直接操作 BTA iframe DOM 確認）**：BTA 的必填欄位驗證對 select／input(text) 型別會在欄位本身加上 `class="error"`，但對 **radio 型別欄位**，包住每個選項的容器只拿到 `class="radio undefined"`（`"undefined"` 是 BTA 自己組 className 字串時沒接上 `"error"` 留下的字面字串，是它自己這個 widget 版本的 bug），完全沒有 `.error` class 可讀，只會插入一個跟欄位本身脫鉤的 `.error-tooltip`（顯示英文 "Required"）。我們原本 `getFirstInvalidField()` 只查 `.error`，完全抓不到這種情況。**這不是「課程分級」的個案**——用同一個正式商品重測「是否有 6~12 歲兒童同行」（另一個 radio 型別必填欄位）留空送出，結果完全一樣；反過來把兩個 radio 都填好、留空「語言」這個 select，`.error` 正確出現在 `<select>` 上，證實只有 radio 型別受影響。BTA 後端仍然會擋下這次送出（Network 確認 `/apps/bookthatapp/api/v1/reservations` 沒有被觸發），不是資料完整性問題，純粹是使用者完全看不到任何回饋。
+
+**修法**：`snippets/course-booking-form.liquid` 的 `getFirstInvalidField(scope)` 擴充：先查 `.error`（既有路徑，行為不變）；沒找到才額外查 `scope.querySelectorAll('.error-tooltip')`，對每個 tooltip 找它 `closest('.field-input-container')`，如果這個容器裡有 radio 但沒有任何一個被勾選，就回傳這個容器。仍然是動態判斷（不寫死任何欄位名稱/key），只是多認 BTA 這個有缺陷的 DOM 模式，屬於在我們這層補一道防護、彌補第三方 widget 的落差。回傳的容器元素會被既有 `react()` 的 `scrollIntoView`／`focus` 邏輯正確處理（`focus` 會自動找到容器內第一個 `<input>`，也就是該 radio group 的第一個選項），完全不需要改動呼叫端。
+
+**驗證方式與結果**：
+- 用真實截取自 BTA 的 DOM 結構（`class="radio undefined"` + `.error-tooltip` 原樣重現）在獨立 iframe 裡逐字跑這次實際寫入的 `getFirstInvalidField()` 程式碼，三個情境全部正確：① select 的 `.error` 優先被抓到（既有路徑沒被破壞）；② select 修正後，正確抓到課程分級的 `.field-input-container`；③ 課程分級也補選後正確回傳 `null`（全部合格）。同時驗證 `scrollTarget`／`focusable` 判斷邏輯正確解析出容器本身跟容器內第一個 radio input。
+- **無法完成的驗證，如實記錄**：原本計畫在正式商品 `fullday-class-peak-season` 上完整走一次真實流程重新驗證（留空課程分級/兒童同行分別送出、確認畫面真的捲動+提示），但過程中意外發現一個更根本的問題（見下方「重大發現」）——正式商品的頁面**根本沒有載入** `course-booking-form.liquid` 這整套客製邏輯，所以這個頁面上不會有 `getFirstInvalidField` 可以測。改嘗試 `test-course-*` 系列（確認有載入這套邏輯），但這次對話中 BTA 測試 Widget（124456）連續 4 次嘗試都無法成功掛載（`Cannot read properties of undefined (reading 'querySelectorAll')`），符合文件其他地方記錄過的「測試 Widget 掛載成功率 80~95%，非 100%」的已知特性，這次剛好卡在失敗的區間，不是新問題。**上面 iframe 逐字重現真實 DOM 的測試是目前能做到的最嚴謹驗證方式**，邏輯正確性有信心，但沒有拿到「真人在瀏覽器裡點過一次」的最終確認，下次有機會（測試 Widget 掛載成功時，或業主自己測）建議補做一次。
+
+### 🔴 重大發現（這次驗證過程中意外發現，不在原本任務範圍內，需要業主決定方向）
+
+**正式課程商品的頁面從未載入 `course-booking-form.liquid` 這整套客製邏輯**——`blocks/buy-buttons.liquid` 第 224 行 `{%- if product.type == 'Course' or product.handle contains 'course' -%}` 這個啟用條件，`product.type` 對所有課程商品（含測試商品）都是空字串，`product.handle contains 'course'` 只有 `test-course-*` 系列符合，8 個正式商品（`fullday-class-peak-season`／`halfday-class-off-season-hoshino` 等）handle 裡都沒有「course」這個字串，兩個條件都不成立。實測用 `fetch()` 核對 8 個正式商品的原始碼，`getFirstInvalidField`／`booking-current-date-picker` 這些只在啟用時才會出現的字串**全部找不到**，同時核對 `test-course-*` 系列則正常找到。**這代表這個專案至今記錄在案「已驗證通過」的所有 Stage 2/3 成果（必填欄位驗證、裝備加租 Modal、指定教練加購……），可能從來沒有真正被正式客人用過**，這次任務範圍內沒有動這裡，已記錄為待辦 34，需要業主確認修法方向（改正式商品 handle 命名 vs. 改用更可靠的辨識方式，例如 tag 或 metafield）。
+
+### 額外查證：正式商品目前的可訂日期狀態
+
+正式商品 Shopify 商品描述文字顯示的季節區間（2025/12～2026/04）都已過期，但這只是**靜態文案沒更新**——實際點開 BTA 日曆往後翻，`fullday-class-peak-season` 在 **2026 年 12 月**開始重新出現可訂日期（後台已經建好下一季）。建議業主更新商品描述文字，避免客人誤以為現在完全訂不到課。
+
+---
+
+## ✅ 2026-08-18（第二批）：裝備尺寸欄位「性別」提升為學員層級共用欄位——修正資料矛盾風險
+
+### 背景
+
+上一批（見下方「裝備租賃結構化尺寸欄位」專章）把「性別」當成個別裝備的 `sizeFields` 之一，掛在單板鞋組／雪服帽鏡組／雪服三項底下。上線前業主發現資料一致性問題：**同一位學員如果勾選多項需要性別的裝備，會被要求重複填好幾次性別，而且系統完全不檢查這幾次填的是否一致**——理論上可以在單板鞋組填「男」、雪服帽鏡組填「女」，沒有任何機制發現矛盾。
+
+### 修法
+
+把「性別」從裝備層級的 `sizeFields` 移除，提升成「學員層級」的共用欄位：
+
+- `GEAR_ITEMS` 的 `sizeFields`：單板鞋組／雪服帽鏡組／雪服三項移除 `GENDER_FIELD`（安全帽本來就沒有，維持不變）。`GENDER_FIELD` 常數保留，改成只用來定義共用欄位本身的型別/選項
+- 新增 `GEAR_KEYS_REQUIRING_GENDER = ['單板鞋組', '雪服帽鏡組', '安全帽', '雪服']`（`course-stage2-module.js:29` 起）：這四項裝備勾選任一項時，該學員的共用性別才列為必填；只勾雪鏡／滑雪護具的學員不需要填
+- `renderGearRentalSection()`：每位學員分組最上方固定渲染一個 `renderAttendeeGenderFieldHtml()` 共用性別下拉選單，不隨任何裝備勾選狀態展開/收合、永遠可見；回傳值新增 `getAttendeeGender(attendee)`
+- `wireDependentSizeFields()`：`dependsOn:'gender'` 改成一律解讀成該學員的共用性別 select（作為參數傳入），不再從裝備自己的 `.gear-size-fields` 裡找——這代表同一位學員底下所有需要「性別→雪服尺碼」連動的裝備（雪服帽鏡組／雪服）都讀同一個 select，改一次、全部同步更新，物理上不可能出現矛盾值
+- `findAttendeesWithIncompleteGearSizes()`／送出時的必填檢查：新增「該學員是否勾了 `GEAR_KEYS_REQUIRING_GENDER` 任一項且共用性別未填」這個條件，跟裝備各自的 `sizeFields` 缺漏檢查用同一份缺漏學員清單，警告文字不變（「學員N 尺寸資訊未完成」）
+- 送出 properties：新增獨立一段「性別是學員層級共用欄位」邏輯，每位需要性別的學員只寫一筆 `學員N_性別`，不在每個裝備項目底下各自重複寫
+
+### 驗證結果（本機 `shopify theme dev`，`test-course-fullday-offpeak`）
+
+- 確認裝備自己的 `sizeFields` 已經不含 `gender`（單板鞋組/雪服帽鏡組/安全帽/雪服四項逐一查證）
+- **實測**同一位學員同時勾選雪服帽鏡組 + 雪服兩項（都需要「性別→雪服尺碼」連動）：共用性別選單只有一個，改「女」時兩個裝備各自的雪服尺碼選項同時變成 `S/M/L/XL`，改「男」時同時變成 `M/L/XL/2XL/3XL`——不可能出現兩個裝備各自對應不同性別值的情況
+- 硬擋驗證：學員只勾單板鞋組（需要性別）、身高/體重/鞋碼都填了但性別空白時 `submitBtn.disabled === true`；補填性別後 `disabled === false`。另一位學員只勾雪鏡（不需要性別）時，即使性別留空，也不會被列入缺漏名單、不擋送出
+- **端對端 `/cart.js` 驗證**：學員1 同時勾雪服帽鏡組 + 安全帽（都需要性別），送出後 `/cart.js` 只出現**一筆** `學員1_性別: "女"`，沒有在雪服帽鏡組／安全帽底下各自重複寫一份；學員2 只勾滑雪護具，`/cart.js` 裡完全沒有 `學員2_性別` 這個 key；原本的 `備註／其他需求`／`實際參加人數` 都完整保留
+- 手機（375px）+ 4 學員：4 個共用性別選單都正確渲染（`data-attendee-gender-input` 共 4 個，對應 4 位學員），展開裝備清單後量測 `.attendee-shared-gender` 的 `scrollWidth`/`clientWidth` 一致，無橫向溢出
+- Console 檢查：出現的錯誤都是既有已知問題（BTA reservation widget 本機 dev 環境網路錯誤、`dispatchEvent('cart:update')` 沒帶 `detail` payload），沒有新增任何 console 錯誤
+- 測試結束已清空購物車，沒有留下測試資料
+
 ## ✅ 2026-08-18：裝備租賃結構化尺寸欄位（Stage 3 GEAR_ITEMS）已完成並驗證通過
 
 ### 背景
@@ -1715,10 +1783,12 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 24. ~~Stage 1 空白長條殘留元件排查與移除~~ ✅ 已於 2026-08-09 完成並驗證通過，細節見文件最上方「Stage 1 空白長條元件排查與移除」段落
 25. ~~Stage 1 版面重新設計：日曆與方案資訊左右並排~~ ✅ 已於 2026-08-09 完成並驗證通過（含決策 6 定位邏輯重寫、手機版 align-items 踩坑修正），細節見文件最上方「Stage 1 版面重新設計」段落
 26. ~~底部「加入購物車」滿版按鈕排查~~ ✅ 已於 2026-08-09 完成排查並實測驗證，發現真正的功能性漏洞（原生按鈕繞過 BTA 流程造成空白訂單），修法方向已規劃完成，**執行本身變成新的待辦 0（🔴 明天最優先）**，細節見文件最上方兩個專章
-27. 🟡 **中等優先，不急但別忘記**：`assets/course-stage2-module.js` 的 `writeCourseFormDataToCart()` 送出後 `dispatchEvent(new CustomEvent('cart:update'))` 沒帶 `detail` payload，導致主題原生購物車元件（`cart-drawer.js`／`cart-icon.js`／`sticky-add-to-cart.js`／`component-cart-items.js`／`header-actions.js` 等，grep `detail\.resource|detail\.data` 共 15 個檔案）在 Console 噴 `Cannot read properties of null (reading 'resource'/'data')`。2026-08-10 驗證 Stage3 checkbox 時意外發現，**是既有問題，不是這次 checkbox 改動造成的**，目前沒觀察到畫面功能異常（Modal 關閉、purchase flow 都正常），但屬於確認存在的錯誤，找時間應該修掉，避免原生元件之後默默壞掉。修法方向：`dispatchEvent` 時要帶正確的 `detail` 結構（需要先讀懂 `cart-drawer.js` 等檔案實際依賴 `event.detail` 的哪些欄位），或改用主題現成的 cart 更新輔助函式。已另開一個背景任務記錄（task_a3177bff）。
+27. ~~`assets/course-stage2-module.js` 的 `writeCourseFormDataToCart()` 送出後 `dispatchEvent(new CustomEvent('cart:update'))` 沒帶 `detail` payload~~ ✅ 已於 2026-08-18 完成並驗證通過，細節見文件最上方「✅ 2026-08-18（第三批）：購物車頁不即時刷新 + 課程分級必填沒攔下」專章。
 28. ~~`layout/theme.liquid` 未預期本機異動（拿掉 `.shopifypreview.com` 白名單）~~ ✅ 已釐清並復原。使用者確認這是自己手動改的，**原意是想解決 BTA 測試 Widget（124456）`proxyBaseUrl` 誤指向 127.0.0.1 的問題**——但這兩者完全不相關：`theme.liquid` 這段是純前端連結改寫腳本（瀏覽器讀完頁面後改寫 `<a>` 標籤），只影響「測試連結會不會被導去正式站」；BTA 的 `proxyBaseUrl` 是 BTA 後端伺服器回應內容裡寫死的值，發生在瀏覽器執行任何主題 JS 之前，兩者無法互相影響。已用 `git checkout -- layout/theme.liquid` 復原成最新 commit 版本（含 `.shopifypreview.com` 白名單），確認 `git diff` 無異動。**BTA 測試 Widget 的問題仍未解決，真正能修的路徑還是只有 bookthatapp.com 獨立後台或聯繫 BTA 客服**，見待辦 0 / 文件中段「✅ 已定位根因」專章。
 29. ~~Stage 3 裝備加購組數對應實際人數~~ ✅ 程式碼側已於 2026-08-10 完成並實測驗證通過（commit `fd39027`），細節見文件最上方對應專章。**唯一還沒完成的是 BTA 後台「實際參加人數」欄位本身**，見待辦 30。
 30. ~~BTA 後台建立「實際參加人數」欄位~~ ✅ 業主已建好（Label「實際參加人數」，Apply = `test-fullday`／`test-halfday`，Options 1人~4人），並用真正欄位重新驗證六個情境全數通過，細節見文件最上方第 3 節「已用真正的 BTA 欄位重新完整驗證通過」。
 31. ~~BTA 後台 Sidekick 建議「更改 BTA proxyBaseUrl 設定」~~ ✅ **已結案（2026-08-13）**：BTA 客服回報已修正，重新用 curl（不帶 cookie）驗證兩次（間隔約 16 分鐘，回應內容逐位元組比對完全一致）+ 完整端對端流程驗證通過，測試 Widget（124456）`proxyBaseUrl` 穩定指向 `https://lifechillsnow.com/apps/bookthatapp`，不再是 `127.0.0.1`。細節見文件最上方「✅ 2026-08-13：`proxyBaseUrl` 問題已確認修復並結案」章節。
 32. 🟡 **中等優先，等有實際需求（例如上雙板品項）再處理**：`GEAR_ITEMS` 裡 `skiType` 互斥鎖定邏輯目前是死代碼——`cart-stage2-trigger.liquid` 從未把 `skiTypeByAttendee` 傳進 `renderStage2Form()`／`renderGearRentalSection()`，而且 BTA「雪板類型」欄位是**整筆訂單層級**單選（`單板SNOWBOARD／雙板SKI`，不是逐學員），跟這個介面原本假設的「逐學員板種」資料格式對不上，導致 `item.skiType !== skiType` 這個鎖定判斷永遠不會生效。2026-08-18 盤點「裝備租賃結構化尺寸欄位」任務時發現並確認業主決定暫緩不修，避免任務範圍擴大，細節見文件最上方「✅ 2026-08-18：裝備租賃結構化尺寸欄位」專章決策依據第 5 點。**未來要新增雙板品項、需要互斥鎖定生效時，這裡要先修**：要嘛把鎖定邏輯改成整筆訂單層級（呼叫端從 BTA 訂單層級「雪板類型」property 帶一個值進來，不分學員），要嘛放棄鎖定機制。
-32. 🔴 **下一個對話串優先任務**：實際參加人數驗證的錯誤提示可見性優化——目前錯誤提示（commit `58b44c5`）只出現在「實際參加人數」欄位旁，使用者捲到送出按鈕位置時看不到，容易誤以為按鈕壞掉。要做：(a) 按鈕即時 disabled/enabled 連動（比照 Stage3 checkbox 的 `syncSubmitButtonState()` 模式）；(b) 按鈕旁新增簡短提示文字。完整規格、技術現況、待確認的風險點見文件最上方「🔴 下一個對話串優先任務」專章。
+32-b. 🔴 **下一個對話串優先任務**：實際參加人數驗證的錯誤提示可見性優化——目前錯誤提示（commit `58b44c5`）只出現在「實際參加人數」欄位旁，使用者捲到送出按鈕位置時看不到，容易誤以為按鈕壞掉。要做：(a) 按鈕即時 disabled/enabled 連動（比照 Stage3 checkbox 的 `syncSubmitButtonState()` 模式）；(b) 按鈕旁新增簡短提示文字。完整規格、技術現況、待確認的風險點見文件最上方「🔴 下一個對話串優先任務」專章。
+33. ~~課程分級必填沒攔下（radio 型別欄位）~~ ✅ 已於 2026-08-18 完成並驗證通過，細節見文件最上方「✅ 2026-08-18（第三批）」專章。順帶發現 BTA widget 自己對 radio 型別必填欄位的 `.error` 標記有缺陷（`class="radio undefined"`），已在我們自己的驗證層額外處理，屬於彌補第三方 widget 缺陷的補丁，不是我們程式碼本身的迴歸。
+34. 🔴 **【新發現，優先度高，建議儘快處理】`course-booking-form.liquid`（含 Stage 2/3 全部客製功能：必填驗證提示、裝備加租 Modal 等）從未真正套用在正式課程商品上**——`blocks/buy-buttons.liquid` 第 224 行的啟用條件是 `product.type == 'Course' or product.handle contains 'course'`，正式商品 handle（`fullday-class-peak-season`／`halfday-class-off-season-hoshino` 等 8 個，見下方清單）全部不含「course」這個字串，`product.type` 也是空字串，兩個條件都不成立。2026-08-18 用 `fetch()` 直接核對 8 個正式商品的頁面原始碼，`getFirstInvalidField`／`booking-current-date-picker` 這些只會在啟用時出現的字串**全部找不到**，同一次核對 `test-course-*` 系列（handle 都帶「course」）則正常找到。**這代表這個專案至今所有跟 Stage 2/3 相關的開發成果（必填欄位驗證、裝備加租 Modal、指定教練加購……）可能從來沒有真正被正式客人用過**，先前所有「已驗證通過」的紀錄，用的都是 `test-course-*` 測試商品，不是真正在賣的商品。需要業主決定修法方向：(a) 把正式商品 handle 改成含「course」（例如 `fullday-course-peak-season`，但改 handle 會動到既有網址/SEO，要評估）、(b) 把 `blocks/buy-buttons.liquid` 的啟用條件改成正確辨識正式課程商品的方式（例如改用一個明確的 tag 或 metafield，不依賴 handle 命名）。**這次任務範圍內沒有動這裡，純粹是驗證 Fix 2 時意外發現，需要業主確認方向後才處理。**
