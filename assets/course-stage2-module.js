@@ -7,13 +7,49 @@
  * 掛在 window.CourseStage2Module，供任何頁面的 <script> 直接呼叫。
  */
 (function () {
+  /* 裝備尺寸共用定義（單一資料來源，安全帽頭圍／雪服尺碼範圍調整只需要改這裡）。
+     HELMET_SIZE_OPTIONS 的 value 是實際寫入 line item property 的值（S/M/L），
+     label 才帶頭圍區間，只用於下拉選單顯示。 */
+  var HELMET_SIZE_OPTIONS = [
+    { value: 'S', label: 'S（頭圍 52-55cm）' },
+    { value: 'M', label: 'M（頭圍 55-59cm）' },
+    { value: 'L', label: 'L（頭圍 59-63cm）' },
+  ];
+  var CLOTHING_SIZE_BY_GENDER = {
+    '女': ['S', 'M', 'L', 'XL'],
+    '男': ['M', 'L', 'XL', '2XL', '3XL'],
+  };
+  var GENDER_FIELD = { key: 'gender', label: '性別', type: 'select', options: ['男', '女'] };
+  /* select-dependent：選項清單依 dependsOn 指定的欄位（同一裝備底下的 gender）當下的值
+     動態產生，尚未選擇依賴欄位前維持 disabled，見 wireDependentSizeFields()。 */
+  var CLOTHING_SIZE_FIELD = { key: 'clothingSize', label: '雪服尺碼', type: 'select-dependent', dependsOn: 'gender', optionsByValue: CLOTHING_SIZE_BY_GENDER };
+  var HELMET_SIZE_FIELD = { key: 'helmetSize', label: '安全帽尺寸', type: 'select', options: HELMET_SIZE_OPTIONS };
+
+  /* sizeFields：裝備勾選後需要客人填寫的結構化尺寸欄位，取代原本只能寫在購物車備註欄
+     的自由格式（備註欄仍保留，兩者並存，見 renderStage2Form 送出邏輯）。陣列裡的欄位
+     一律視為必填（勾選該裝備才需要），沒有 sizeFields 或空陣列代表此裝備不需尺寸資訊
+     （目前只有雪鏡）。「板種」（單板/雙板）刻意維持獨立的 skiType 屬性、不寫進
+     sizeFields——未來新增雙板款式（例如「雙板鞋組」）只需要在這個陣列多加一筆帶
+     skiType:'雙板' 跟自己的 sizeFields，renderGearRentalSection／驗證邏輯不需要改動。 */
   var GEAR_ITEMS = [
-    { key: '單板鞋組', price: 1200, skiType: '單板', desc: '雪板 + 舒適雪鞋', isCombo: false, isMutual: false },
-    { key: '雪服帽鏡組', price: 1000, skiType: null, desc: '雪服 + 安全帽 + 雪鏡，一次租齊最划算', isCombo: true, isMutual: false },
-    { key: '雪服', price: 800, skiType: null, desc: '防水透氣保暖材質', isCombo: false, isMutual: true },
-    { key: '安全帽', price: 300, skiType: null, desc: '輕量舒適', isCombo: false, isMutual: true },
+    { key: '單板鞋組', price: 1200, skiType: '單板', desc: '雪板 + 舒適雪鞋', isCombo: false, isMutual: false,
+      sizeFields: [
+        GENDER_FIELD,
+        { key: 'height', label: '身高', type: 'number', unit: 'cm' },
+        { key: 'weight', label: '體重', type: 'number', unit: 'kg' },
+        { key: 'shoeSize', label: '鞋子尺寸', type: 'number', unit: 'cm' },
+      ] },
+    { key: '雪服帽鏡組', price: 1000, skiType: null, desc: '雪服 + 安全帽 + 雪鏡，一次租齊最划算', isCombo: true, isMutual: false,
+      sizeFields: [ GENDER_FIELD, CLOTHING_SIZE_FIELD, HELMET_SIZE_FIELD ] },
+    { key: '雪服', price: 800, skiType: null, desc: '防水透氣保暖材質', isCombo: false, isMutual: true,
+      sizeFields: [ GENDER_FIELD, CLOTHING_SIZE_FIELD ] },
+    /* 安全帽單獨項目不收「性別」：業主確認安全帽尺寸只看頭圍，跟雪服帽鏡組/雪服的
+       「性別決定尺碼選項清單」邏輯無關，這裡刻意不掛 GENDER_FIELD。 */
+    { key: '安全帽', price: 300, skiType: null, desc: '輕量舒適', isCombo: false, isMutual: true,
+      sizeFields: [ HELMET_SIZE_FIELD ] },
     { key: '雪鏡', price: 300, skiType: null, desc: '防曬抗 UV 鏡片', isCombo: false, isMutual: true },
-    { key: '滑雪護具', price: 200, skiType: null, desc: '加強防護設計', isCombo: false, isMutual: false },
+    { key: '滑雪護具', price: 200, skiType: null, desc: '加強防護設計', isCombo: false, isMutual: false,
+      sizeFields: [ { key: 'padSize', label: '護具尺寸', type: 'select', options: ['S', 'M', 'L', 'XL'] } ] },
   ];
 
   /* 指定教練加購：整組課程層級的單選（不是每學員各自選），固定加價 NT$400，
@@ -110,6 +146,21 @@
       '.gear-name strong { color: #2D5F8A; font-weight: 700; margin-left: 6px; }',
       '.gear-desc { font-size: 12px; color: #5A6A78; margin-top: 2px; line-height: 1.4; }',
 
+      /* 裝備尺寸結構化欄位：勾選裝備後就地展開，沿用跟卡片層級（.accordion-content）
+         同一套 max-height transition 手法，只是巢狀在單一裝備品項底下。.gear-item-wrap
+         把 label（勾選列）跟 .gear-size-fields（展開內容）當成平行的手足元素，刻意不把
+         尺寸欄位塞進 <label> 裡面——避免 select/input 被瀏覽器原生的 label 點擊轉發
+         行為意外干擾到裝備勾選狀態。 */
+      '.gear-item-wrap { display: flex; flex-direction: column; }',
+      '.gear-size-fields { max-height: 0; overflow: hidden; opacity: 0; display: flex; flex-direction: column; gap: 8px; padding: 0 2px; transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.25s ease; }',
+      '.gear-size-fields.is-expanded { max-height: 600px; opacity: 1; padding: 10px 2px 2px 2px; margin-top: 6px; border-top: 1px dashed #B8D9ED; }',
+      '.gear-size-field { display: flex; align-items: center; gap: 8px; }',
+      '.gear-size-label { font-size: 12px; font-weight: 700; color: #1A2E4A; flex: 0 0 88px; }',
+      '.gear-size-field select, .gear-size-field input[type="number"] { flex: 1 1 auto; min-width: 0; padding: 6px 8px; border: 1px solid #B8D9ED; border-radius: 6px; font-size: 13px; color: #1A2E4A; background: #fff; }',
+      '.gear-size-field select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }',
+      '.cs2-gear-size-warning { color: #C0392B; font-size: 12px; font-weight: 700; margin: 10px 2px 0 2px; }',
+      '.cs2-gear-size-warning[hidden] { display: none; }',
+
       /* 指定教練單選清單（整組課程層級，跟裝備加租的每學員分組不同，沒有分組標題列）。
          視覺沿用 gear-item-box 的卡片式選取列樣式，勾選標記從方形打勾改成圓形實心點，
          呼應 radio（單選）跟 checkbox（可複選）語意上的差異。 */
@@ -172,11 +223,64 @@
       '</div>';
   }
 
+  /** 單一尺寸欄位的 HTML。number/select/select-dependent 三種型別，皆是 GEAR_ITEMS 裡
+   * item.sizeFields 的元素。select-dependent 初始 disabled，等 wireDependentSizeFields()
+   * 依當下的依賴欄位值動態灌選項。 */
+  function renderGearSizeFieldHtml(field) {
+    if (field.type === 'number') {
+      return '' +
+        '<div class="gear-size-field" data-gear-size-field data-size-key="' + field.key + '">' +
+          '<label class="gear-size-label">' + field.label + (field.unit ? ' (' + field.unit + ')' : '') + '</label>' +
+          '<input type="number" inputmode="decimal" step="any" min="0" data-gear-size-input placeholder="請輸入">' +
+        '</div>';
+    }
+    if (field.type === 'select-dependent') {
+      return '' +
+        '<div class="gear-size-field" data-gear-size-field data-size-key="' + field.key + '">' +
+          '<label class="gear-size-label">' + field.label + '</label>' +
+          '<select data-gear-size-input disabled><option value="">請先選擇性別</option></select>' +
+        '</div>';
+    }
+    // type === 'select'：選項可以是純字串（value === label）或 {value,label} 物件（例如安全帽頭圍）
+    var optionsHtml = '<option value="">請選擇</option>' + field.options.map(function (o) {
+      var opt = (typeof o === 'string') ? { value: o, label: o } : o;
+      return '<option value="' + opt.value + '">' + opt.label + '</option>';
+    }).join('');
+    return '' +
+      '<div class="gear-size-field" data-gear-size-field data-size-key="' + field.key + '">' +
+        '<label class="gear-size-label">' + field.label + '</label>' +
+        '<select data-gear-size-input>' + optionsHtml + '</select>' +
+      '</div>';
+  }
+
+  /** 把 select-dependent 欄位（例如「雪服尺碼」依賴「性別」）接上它依賴的控制欄位：
+   * 控制欄位變動時，重新灌選項、清空目前選擇。範圍限定在同一個 .gear-size-fields
+   * 區塊內查詢，逐學員逐裝備各自獨立，不會互相干擾。 */
+  function wireDependentSizeFields(sizeFieldsRoot, item) {
+    (item.sizeFields || []).forEach(function (field) {
+      if (field.type !== 'select-dependent') return;
+      var controlWrap = sizeFieldsRoot.querySelector('[data-size-key="' + field.dependsOn + '"]');
+      var dependentWrap = sizeFieldsRoot.querySelector('[data-size-key="' + field.key + '"]');
+      var controlSelect = controlWrap && controlWrap.querySelector('[data-gear-size-input]');
+      var dependentSelect = dependentWrap && dependentWrap.querySelector('[data-gear-size-input]');
+      if (!controlSelect || !dependentSelect) return;
+      controlSelect.addEventListener('change', function () {
+        var options = field.optionsByValue[controlSelect.value] || [];
+        dependentSelect.innerHTML = '<option value="">請選擇</option>' + options.map(function (v) {
+          return '<option value="' + v + '">' + v + '</option>';
+        }).join('');
+        dependentSelect.disabled = options.length === 0;
+        dependentSelect.value = '';
+      });
+    });
+  }
+
   /**
-   * 渲染裝備加購區塊（學員分組 + gear-item-box 清單)。純函式：只依賴傳入的 container/options。
+   * 渲染裝備加購區塊（學員分組 + gear-item-box 清單，勾選裝備後就地展開結構化尺寸欄位)。
+   * 純函式：只依賴傳入的 container/options。
    * @param {HTMLElement} container
    * @param {{ attendeeCount: number, skiTypeByAttendee?: Record<number,string> }} options
-   * @returns {{ getSelectedGear: () => Array<{attendee:number,key:string,price:number}> }}
+   * @returns {{ getSelectedGear: () => Array<{attendee:number,key:string,price:number,sizeFields:Array|null,sizeValues:Record<string,string>}> }}
    */
   function renderGearRentalSection(container, options) {
     options = options || {};
@@ -189,6 +293,8 @@
       GEAR_ITEMS.forEach(function (item) {
         var skiType = skiTypeByAttendee[a];
         var locked = item.skiType && skiType && item.skiType !== skiType;
+        var hasSizeFields = item.sizeFields && item.sizeFields.length > 0;
+        html += '<div class="gear-item-wrap" data-gear-item-wrap data-attendee="' + a + '" data-gear-key="' + item.key + '">';
         html += '' +
           '<label class="gear-item-box' + (locked ? ' is-locked' : '') + '" data-attendee="' + a + '" data-gear-key="' + item.key + '">' +
             '<input type="checkbox" data-gear-checkbox' + (locked ? ' disabled' : '') + '>' +
@@ -197,21 +303,53 @@
               '<div class="gear-desc">' + item.desc + '</div>' +
             '</div>' +
           '</label>';
+        if (hasSizeFields) {
+          html += '<div class="gear-size-fields" data-gear-size-fields>' +
+            item.sizeFields.map(renderGearSizeFieldHtml).join('') +
+          '</div>';
+        }
+        html += '</div>';
       });
       html += '</div></div>';
     }
     container.innerHTML = html;
+
+    container.querySelectorAll('[data-gear-item-wrap]').forEach(function (wrap) {
+      var item = GEAR_ITEMS.filter(function (g) { return g.key === wrap.getAttribute('data-gear-key'); })[0];
+      var sizeFieldsRoot = wrap.querySelector('[data-gear-size-fields]');
+      if (item && sizeFieldsRoot) wireDependentSizeFields(sizeFieldsRoot, item);
+    });
+
+    // 勾選裝備時就地展開/收合它的尺寸欄位（跟卡片層級 wireAccordionToggle 同一套視覺邏輯，
+    // 這裡是巢狀在單一裝備品項底下，範圍限定在該品項自己的 .gear-item-wrap）
+    container.addEventListener('change', function (event) {
+      if (!event.target || !event.target.matches || !event.target.matches('[data-gear-checkbox]')) return;
+      var wrap = event.target.closest('[data-gear-item-wrap]');
+      var sizeFieldsRoot = wrap && wrap.querySelector('[data-gear-size-fields]');
+      if (sizeFieldsRoot) sizeFieldsRoot.classList.toggle('is-expanded', event.target.checked);
+    });
 
     return {
       getSelectedGear: function () {
         var selected = [];
         container.querySelectorAll('[data-gear-checkbox]:checked').forEach(function (cb) {
           var label = cb.closest('[data-gear-key]');
-          var item = GEAR_ITEMS.filter(function (g) { return g.key === label.getAttribute('data-gear-key'); })[0];
+          var key = label.getAttribute('data-gear-key');
+          var item = GEAR_ITEMS.filter(function (g) { return g.key === key; })[0];
+          var wrap = cb.closest('[data-gear-item-wrap]');
+          var sizeValues = {};
+          if (wrap) {
+            wrap.querySelectorAll('[data-gear-size-field]').forEach(function (fieldEl) {
+              var input = fieldEl.querySelector('[data-gear-size-input]');
+              sizeValues[fieldEl.getAttribute('data-size-key')] = input ? input.value : '';
+            });
+          }
           selected.push({
             attendee: Number(label.getAttribute('data-attendee')),
-            key: label.getAttribute('data-gear-key'),
+            key: key,
             price: item ? item.price : 0,
+            sizeFields: item ? (item.sizeFields || null) : null,
+            sizeValues: sizeValues,
           });
         });
         return selected;
@@ -328,6 +466,7 @@
                   '<p class="cs2-legal-consent-warning" data-cs2-legal-warning hidden>請先閱讀並同意租賃聲明</p>' +
                 '</div>' +
                 '<div data-gear-rental-root class="cs2-gear-list-hidden"></div>' +
+                '<p class="cs2-gear-size-warning" data-cs2-gear-size-warning hidden></p>' +
               '</div>' +
             '</div>' +
             '<div class="accordion-card">' +
@@ -411,8 +550,14 @@
     }
 
     gearRoot.addEventListener('change', function (event) {
-      if (event.target && event.target.matches && event.target.matches('[data-gear-checkbox]')) {
+      if (!event.target || !event.target.matches) return;
+      // 裝備打勾狀態影響金額；裝備打勾 + 尺寸欄位（含 select-dependent 的依賴欄位變動）
+      // 都要重新檢查送出按鈕能不能點——尺寸本身不影響金額，updateTotal 不用因尺寸重跑。
+      if (event.target.matches('[data-gear-checkbox]')) {
+        syncSubmitButtonState();
         updateTotal();
+      } else if (event.target.matches('[data-gear-size-input]')) {
+        syncSubmitButtonState();
       }
     });
 
@@ -440,16 +585,39 @@
     var legalCheckbox = container.querySelector('[data-cs2-legal-checkbox]');
     var legalWarning = container.querySelector('[data-cs2-legal-warning]');
     var coachWarning = container.querySelector('[data-cs2-coach-warning]');
+    var gearSizeWarning = container.querySelector('[data-cs2-gear-size-warning]');
     var submitBtn = container.querySelector('[data-cs2-submit]');
 
-    /* 指定教練不需要另外簽同意聲明，只需要「開關打開就必須選一位教練」這個較簡單的檢查，
-       跟裝備加租的必勾同意聲明是兩條互不相關的 disabled 條件，用 || 疊加。 */
+    /* 已勾選裝備裡，只要有一項帶 sizeFields 且任一欄位還空著，該學員就算「尺寸未完成」。
+       回傳有缺漏的學員編號（去重、遞增排序），用來組出「學員2、3 尺寸資訊未完成」這種提示。
+       裝備加租開關關閉時直接視為沒有缺漏（跟金額計算/送出邏輯排除已勾裝備的原則一致）。 */
+    function findAttendeesWithIncompleteGearSizes() {
+      if (!gearToggle.checked) return [];
+      var incomplete = {};
+      gearControls.getSelectedGear().forEach(function (g) {
+        if (!g.sizeFields || !g.sizeFields.length) return;
+        var missing = g.sizeFields.some(function (field) { return !g.sizeValues[field.key]; });
+        if (missing) incomplete[g.attendee] = true;
+      });
+      return Object.keys(incomplete).map(Number).sort(function (a, b) { return a - b; });
+    }
+
+    /* 指定教練不需要另外簽同意聲明，只需要「開關打開就必須選一位教練」這個較簡單的檢查；
+       裝備尺寸未完成是第三條獨立條件。三條互不相關的 disabled 條件用 || 疊加。 */
     function syncSubmitButtonState() {
       var needsConsent = gearToggle.checked;
       var needsCoach = coachToggle.checked && !coachControls.getSelectedCoach();
-      submitBtn.disabled = (needsConsent && !legalCheckbox.checked) || needsCoach;
+      var incompleteAttendees = findAttendeesWithIncompleteGearSizes();
+      var needsGearSizes = incompleteAttendees.length > 0;
+      submitBtn.disabled = (needsConsent && !legalCheckbox.checked) || needsCoach || needsGearSizes;
       if (!needsConsent || legalCheckbox.checked) legalWarning.hidden = true;
       if (!needsCoach) coachWarning.hidden = true;
+      if (needsGearSizes) {
+        gearSizeWarning.textContent = '學員' + incompleteAttendees.join('、') + ' 尺寸資訊未完成';
+        gearSizeWarning.hidden = false;
+      } else {
+        gearSizeWarning.hidden = true;
+      }
     }
 
     function syncGearListVisibility() {
@@ -504,10 +672,24 @@
         coachWarning.hidden = false;
         return;
       }
+      var incompleteAttendees = findAttendeesWithIncompleteGearSizes();
+      if (incompleteAttendees.length > 0) {
+        gearSizeWarning.textContent = '學員' + incompleteAttendees.join('、') + ' 尺寸資訊未完成';
+        gearSizeWarning.hidden = false;
+        return;
+      }
       var selectedGear = gearToggle.checked ? gearControls.getSelectedGear() : [];
       var properties = {};
       selectedGear.forEach(function (g) {
         properties['學員' + g.attendee + '_加購_' + g.key] = '需要';
+        // 結構化尺寸欄位跟既有的備註欄（BTA「備註／其他需求」）並存，這裡不寫入也不清空備註欄，
+        // writeCourseFormDataToCart() 的 merge 邏輯本來就只會疊加這裡列出的 properties。
+        if (g.sizeFields && g.sizeFields.length) {
+          g.sizeFields.forEach(function (field) {
+            var value = g.sizeValues[field.key];
+            if (value) properties['學員' + g.attendee + '_加購_' + g.key + '_' + field.label] = value;
+          });
+        }
       });
       if (coachToggle.checked) {
         var selectedCoach = coachControls.getSelectedCoach();

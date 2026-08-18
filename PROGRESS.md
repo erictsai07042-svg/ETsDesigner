@@ -1,6 +1,37 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-17
+最後更新：2026-08-18
+
+## ✅ 2026-08-18：裝備租賃結構化尺寸欄位（Stage 3 GEAR_ITEMS）已完成並驗證通過
+
+### 背景
+
+Stage 3 裝備加租（購物車頁 Modal，`assets/course-stage2-module.js`）原本 6 種裝備勾選後只寫入 `學員N_加購_XXX: '需要'`，尺寸資訊（身高/體重/鞋碼/雪服尺碼/安全帽頭圍/護具尺寸）完全靠客人自己填在 BTA「備註／其他需求」欄位，容易漏填、格式不一致，教練得事後在 LINE 群組追問。這次任務把尺寸改成結構化欄位，**備註欄不刪除、兩者並存**（備註欄變成補充說明用途）。
+
+### 決策依據
+
+1. **資料結構**：`GEAR_ITEMS` 每項加一個 `sizeFields` 陣列（`assets/course-stage2-module.js:10` 起），欄位型別分三種：`number`（身高/體重/鞋碼）、`select`（護具尺寸、安全帽頭圍）、`select-dependent`（雪服尺碼，選項依同一裝備底下的「性別」欄位動態切換）。陣列裡的欄位一律視為必填，沒有 `sizeFields` 代表不需尺寸（目前只有雪鏡）。「安全帽頭圍」「性別→雪服尺碼」兩組邏輯在多個裝備間重複出現，抽成共用常數 `HELMET_SIZE_OPTIONS`／`CLOTHING_SIZE_BY_GENDER`／`GENDER_FIELD`／`CLOTHING_SIZE_FIELD`／`HELMET_SIZE_FIELD`，各裝備項目引用同一份定義，尺寸範圍調整只需要改一處。
+2. **雙板（Ski）擴充方案：採方案 A（新增同層品項），不是方案 B（同品項內板種分支）**。理由：現有 `renderGearRentalSection()` 是通用迴圈跑過 `GEAR_ITEMS`，沒有任何地方寫死品項名稱，`skiType` 本來就是品項上一個獨立、可選的屬性（不是渲染邏輯的一部分）。業主未來要新增「雙板鞋組」時，只需要在 `GEAR_ITEMS` 加一筆帶 `skiType:'雙板'` 跟自己的 `sizeFields`（例如多帶板長/雪杖長度），**不需要改這次寫的任何程式碼**——這是這次資料結構設計時就刻意驗證過的擴充路徑，不是事後才確認可行。這次**沒有**新增雙板鞋組資料本身，因為業主尚未提供雙板規格。
+3. **必填驗證**：採硬擋，掛在既有 `syncSubmitButtonState()`（`assets/course-stage2-module.js:585` 起）同一個節流點，跟現有「法律同意 checkbox」「教練必選一位」用 `||` 疊加成第三個 disable 條件。錯誤訊息精確到學員編號（例如「學員2、3 尺寸資訊未完成」），不細到哪個欄位——業主確認這個顆粒度已足夠。
+4. **安全帽（單獨項目）不收「性別」欄位**：安全帽尺寸只看頭圍，跟雪服帽鏡組/雪服「性別決定尺碼選項清單」的依賴邏輯無關，業主確認後刻意不掛 `GENDER_FIELD`，避免收一個不影響任何邏輯的欄位造成困惑。
+5. **`skiType` 鎖定邏輯是已知技術債，這次刻意不修**，只記錄成待辦（見文件下方「待辦事項」新增項）：`cart-stage2-trigger.liquid` 從未把 `skiTypeByAttendee` 傳進 `renderStage2Form()`，且 BTA「雪板類型」欄位是**整筆訂單層級**單選（不是逐學員），跟這個介面原本假設的「逐學員板種」對不上，導致裝備品項的 `skiType` 互斥鎖定目前完全不生效。這個缺口在雙板品項還沒加入前沒有實際影響（現在只有「單板鞋組」一項，沒有互斥對象），業主決定留到真的要上雙板品項、需要互斥鎖定生效時再處理，避免這次任務範圍擴大。
+
+### 實作範圍
+
+- `GEAR_ITEMS` 六項裝備各自加上 `sizeFields`（雪鏡維持原樣、無 `sizeFields`）
+- `renderGearRentalSection()`：`.gear-item-box` 勾選後就地展開 `.gear-size-fields` 子區塊（沿用卡片層級 `.accordion-content` 的 max-height transition 手法），新增 `renderGearSizeFieldHtml()`／`wireDependentSizeFields()` 兩個 helper；`getSelectedGear()` 回傳值新增 `sizeFields`／`sizeValues`
+- `renderStage2Form()`：新增 `<p data-cs2-gear-size-warning>` 提示元素、`findAttendeesWithIncompleteGearSizes()`、`syncSubmitButtonState()` 新增第三個 disable 條件、`gearRoot` 的 `change` 委派監聽擴寬到 `[data-gear-size-input]`、送出時把尺寸值寫入 `學員N_加購_KEY_欄位中文名稱` 這個 property naming 慣例（沿用既有 `寫入 writeCourseFormDataToCart()` 的 merge 邏輯，不繞開）
+
+### 驗證結果（本機 `shopify theme dev`，`test-course-fullday-offpeak`）
+
+- 六項裝備欄位渲染正確（`renderGearRentalSection` 直接呼叫測試，2 學員 × 6 裝備 = 12 個 `.gear-item-wrap` 全部對應正確 key）
+- 性別→雪服尺碼動態切換**實測**（不只是看邏輯覺得應該對）：未選性別時 `clothingSize` select 是 disabled、只有空選項；選「女」後選項變 `S/M/L/XL`；改選「男」後選項變 `M/L/XL/2XL/3XL` 且值重置——用 `getComputedStyle`／`classList` 實際查證，過程中一度誤判 `.gear-size-fields.is-expanded` 沒生效（`computedMaxHeight` 讀到 `0px`），後來確認是 CSS transition 在同一個 JS tick 內讀取時的正常現象（transition 剛啟動、尚未經過任何時間），等待 500ms 後重新讀取，`computedMaxHeight` 正確變成 `600px`、`opacity` 變成 `1`、`offsetHeight` 182px，不是真的 bug
+- 安全帽單獨項目確認只有 `helmetSize` 一個欄位，沒有意外掛到性別選項連動邏輯
+- 硬擋驗證：故意讓學員1、2 都勾裝備但不填尺寸，`submitBtn.disabled === true`、警告文字正確顯示「學員1、2 尺寸資訊未完成」；補填完成後 `disabled === false`、警告隱藏；取消勾選裝備後殘留的空值不再計入驗證，按鈕正確恢復可點擊
+- **端對端 `/cart.js` 驗證**：真的用 `/cart/add.js` 加入課程商品、帶入模擬 BTA 寫入的 `備註／其他需求`／`實際參加人數`／`雪板類型` properties，走真正的 `cart-stage2-trigger.liquid` 觸發流程勾選裝備、填尺寸、送出，最終 `/cart.js` 核對：新的結構化尺寸 property（例如 `學員2_加購_雪服_性別`／`學員2_加購_雪服_雪服尺碼`）正確寫入，**原本的 `備註／其他需求` 一字不差保留、沒有被覆蓋或遺失**，`實際參加人數`／`雪板類型` 等 BTA 欄位也都完整保留——並存原則驗證通過
+- 手機（375px）+ 4 學員情境：4 個 `.attendee-gear-group-box` 正確渲染，`.gear-size-fields` 展開後 `scrollWidth`／`clientWidth` 一致（無橫向溢出），`body.scrollWidth` 等於 `window.innerWidth`（375px），沒有撐破版面
+- Console 檢查：出現的錯誤都是既有已知問題（BTA reservation widget 在本機 dev 環境的網路錯誤、`course-stage2-module.js:725` 的 `dispatchEvent('cart:update')` 沒帶 `detail` payload——這兩個都是文件下方「待辦事項」27 記錄過的既有技術債，這次沒有新增任何 console 錯誤）
+- 測試結束已清空購物車（`/cart/clear.js`），沒有留下測試資料
 
 ## ⚠️ 2026-08-17（第十一批）：「快速滑鼠滑入沒有觸發下拉選單」——加上 CSS `:hover` 防禦性補強（**未確認根因，不是「已修復」**）
 
@@ -1689,4 +1720,5 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 29. ~~Stage 3 裝備加購組數對應實際人數~~ ✅ 程式碼側已於 2026-08-10 完成並實測驗證通過（commit `fd39027`），細節見文件最上方對應專章。**唯一還沒完成的是 BTA 後台「實際參加人數」欄位本身**，見待辦 30。
 30. ~~BTA 後台建立「實際參加人數」欄位~~ ✅ 業主已建好（Label「實際參加人數」，Apply = `test-fullday`／`test-halfday`，Options 1人~4人），並用真正欄位重新驗證六個情境全數通過，細節見文件最上方第 3 節「已用真正的 BTA 欄位重新完整驗證通過」。
 31. ~~BTA 後台 Sidekick 建議「更改 BTA proxyBaseUrl 設定」~~ ✅ **已結案（2026-08-13）**：BTA 客服回報已修正，重新用 curl（不帶 cookie）驗證兩次（間隔約 16 分鐘，回應內容逐位元組比對完全一致）+ 完整端對端流程驗證通過，測試 Widget（124456）`proxyBaseUrl` 穩定指向 `https://lifechillsnow.com/apps/bookthatapp`，不再是 `127.0.0.1`。細節見文件最上方「✅ 2026-08-13：`proxyBaseUrl` 問題已確認修復並結案」章節。
+32. 🟡 **中等優先，等有實際需求（例如上雙板品項）再處理**：`GEAR_ITEMS` 裡 `skiType` 互斥鎖定邏輯目前是死代碼——`cart-stage2-trigger.liquid` 從未把 `skiTypeByAttendee` 傳進 `renderStage2Form()`／`renderGearRentalSection()`，而且 BTA「雪板類型」欄位是**整筆訂單層級**單選（`單板SNOWBOARD／雙板SKI`，不是逐學員），跟這個介面原本假設的「逐學員板種」資料格式對不上，導致 `item.skiType !== skiType` 這個鎖定判斷永遠不會生效。2026-08-18 盤點「裝備租賃結構化尺寸欄位」任務時發現並確認業主決定暫緩不修，避免任務範圍擴大，細節見文件最上方「✅ 2026-08-18：裝備租賃結構化尺寸欄位」專章決策依據第 5 點。**未來要新增雙板品項、需要互斥鎖定生效時，這裡要先修**：要嘛把鎖定邏輯改成整筆訂單層級（呼叫端從 BTA 訂單層級「雪板類型」property 帶一個值進來，不分學員），要嘛放棄鎖定機制。
 32. 🔴 **下一個對話串優先任務**：實際參加人數驗證的錯誤提示可見性優化——目前錯誤提示（commit `58b44c5`）只出現在「實際參加人數」欄位旁，使用者捲到送出按鈕位置時看不到，容易誤以為按鈕壞掉。要做：(a) 按鈕即時 disabled/enabled 連動（比照 Stage3 checkbox 的 `syncSubmitButtonState()` 模式）；(b) 按鈕旁新增簡短提示文字。完整規格、技術現況、待確認的風險點見文件最上方「🔴 下一個對話串優先任務」專章。
