@@ -1,6 +1,210 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-08-18
+最後更新：2026-08-19
+
+## 📌 2026-08-19 今日工作收尾（第三輪＋第四輪，尚未 commit）
+
+今天課程介紹頁 UI/UX 優化跑完第三輪、第四輪，**全數在本機驗證通過，但都還沒 commit**，等 Eric 下次確認整體視覺效果（尤其左欄收斂寬度後的排版觀感）後再進行。細節分別記錄在下方對應章節，這裡只做整理索引：
+
+**第三輪（四項全數驗證通過，細節見下方「✅ 2026-08-19（第三輪）」專章）**：
+1. 「兒童教學政策」拆回獨立 tag，不再跟「費用資訊」共用同一個標籤
+2. 「延長課程費用」文案還原成業主原文單行格式，**這是最終版本，之後不再因版面考量調整這段文字**
+3. 實測「加寬左欄」無效（BTA 日曆固定 450px，不會隨容器加寬撐大），改採「外框方案」（新增 `.course-calendar-column-wrapper`），確認 `.course-calendar-column` 本身 padding/border 完全沒被動到（前後都是 0px）
+4. 稽核字級層級時意外發現 `assets/base.css` 全域 `!important` 規則讓多處 `<p>` 標籤的字級設定從來沒有真正生效過（既有 bug，非本次新增），已用局部 `!important` 覆蓋修正（`.box-main`/`.box-sub`、`.row-label`/`.row-val`、`.legal-info-title`/`.legal-info-body`）
+5. 額外撿到的 bug：手機 375px 下「極致優惠價...起」的「起」字被斷字成「...價」單獨換行，已修正為不斷字
+
+**第四輪（三步驟，細節見下方「✅ 2026-08-19（第四輪）」專章）**：
+- **第一步（查證，已執行並記錄）**：查證 BTA 後台/官方文件是否有日曆 widget 尺寸設定。Shopify 內嵌後台這次同樣重現 2026-08-11 記錄過的「跨網域 iframe 完全點不動」既有環境限制（測過單擊/雙擊/超連結/鍵盤 Tab，確認不是座標算錯），改讀 BTA 官方技術文件取得結論：兩篇官方文件（Design & Branding、Rental Widget Settings 完整設定清單）逐項核對後**確認查無此功能**——widget 尺寸由「Shopify product form」（我們自己這層容器）決定，不是 BTA 後台可調整的項目。
+- **第二步（已完成並驗證）**：左欄寬度從 3fr/2fr（692px/461px）收斂至 540px，右欄相應加寬到約 614px。`getComputedStyle` 確認日曆 widget 在新寬度下完整顯示、無裁切、無內部橫向捲動；widget 定位跟容器誤差 0px；桌機、手機 375px 皆驗證正常；Console 無新增錯誤。
+- **第三步（查證，已完成，結論：既有問題，非本次改動造成）**：A/B 測試（本機，同一測試商品，各 8 次重新整理，`performance.now()` 實測）——新寬度(540px) 8/8 掛載成功、平均約 11.0 秒；改動前寬度(3fr/2fr) 8/8 掛載成功、平均約 12.0 秒（扣除疑似 CSS 重編譯離群值後約 10.75 秒），兩組差異在此樣本數下無統計意義。草稿預覽網域交叉驗證：連續 4 次重新整理，2 成功 2 卡死，失敗時 Console 錯誤逐字為 `bta-widgets-bootstrap.min.js` 的 `Cannot read properties of undefined (reading 'querySelectorAll')`，跟既有記錄的 BTA widget 隨機失敗（成功率 80~95%）一致，屬第三方腳本自身問題，跟這次 CSS 改動無關。方法論限制已誠實記錄：短時間自動化連續重新整理可能比真實使用者間隔造訪更容易觸發既有隨機失敗，草稿網域測到的 50% 失敗率僅供交叉驗證參考，不代表真實客人遇到的實際比例。
+
+**新增追蹤事項（已寫入下方「待辦事項」清單第 35、36 項）**：
+1. BTA 日曆平均掛載時間偏長（約 10~11 秒），第四輪第三步查證意外測出的既有現象，不在本次任務範圍，未來優化預約體驗的明確切入點
+2. 評估為日曆掛載加上 loading 提示——已確認風險低、可行，這次沒有實作，等業主決定是否開新任務處理
+
+**今日整體狀態**：課程介紹頁第三、四輪修正皆已在本機驗證通過，**尚未 commit**。下次接手前，請先讓 Eric 確認整體視覺效果，確認無誤後再進行 commit。
+
+---
+
+## ✅ 2026-08-19（第四輪）：BTA 後台查證 widget 尺寸設定（查無此功能）+ 左欄寬度收斂
+
+### 背景
+
+第三輪已實測證實「加寬左欄」無效——BTA 日曆本體固定 450px，容器加寬不會讓日曆跟著放大。這輪先查證 BTA 後台/官方文件有沒有更根本的日曆尺寸設定，查無再走版面調整（左欄收斂寬度、空間讓給右欄）。
+
+### 第一步：查證 BTA 後台/官方文件是否有 widget 尺寸設定
+
+**Shopify 內嵌 BTA 後台（`admin.shopify.com/store/qgfchv-py/apps/bookthatapp`）操作記錄**：成功登入（沿用已認證的 Shopify admin session）、成功瀏覽到 Dashboard／Widgets 列表頁（確認店內只有 2 個 widget：「Snow class booking」「Snow class booking（測試）」，皆為 Rentals 類型、Product page 位置）、成功用直接 URL 導航進 Settings 頁（列出 Staff and resource management／Store management／Customer interaction／Advanced configuration 四大分類，其中「Customer interaction」底下有「Branding」項目，是唯一看起來可能跟外觀相關的入口）。
+
+**⚠️ 卡住的問題（重現 2026-08-11 已記錄過的既有環境限制）**：BTA 後台這個跨網域嵌入 iframe（`bookthatapp.com`）點擊完全沒有反應——測過單擊、雙擊、點擊明顯的超連結文字（「Click here」）、鍵盤 Tab 切焦點，同一個分頁裡其他非 iframe 頁面點擊完全正常（排除工具本身故障或座標算錯）。這次沒能點進「Branding」頁面實際查看內容，也沒能點開「Open BookThatApp.com」外部連結（同一個按鈕，點擊同樣沒反應）。**這是重現既有問題，不是新問題，這次也沒能解決。**
+
+**改用 BTA 官方技術文件取得結論（比手動點過後台介面更完整、更權威）**：
+
+- [🎨 Customizing Your Widget's Design & Branding](https://support.bookthatapp.com/hc/en-us/articles/5944568550415)：明確寫「**The Widget Design tool lets you adjust styles (like font and color), not placement on the page**」「**Widgets do not support CSS customization directly**」「**The widget sits within the Shopify product form, so you can resize images or adjust the product form element to change how large the widget appears**」——官方直接證實 Branding 只能調顏色/字型，widget 尺寸由「Shopify product form」（也就是我們自己這層容器）決定，不是 BTA 後台的設定項目。
+- [⚙️ Rental Widget Settings in BookThatApp](https://support.bookthatapp.com/hc/en-us/articles/5974258635663)：我們的 widget 正是 Rental 類型，這篇是官方針對 Rental Widget **完整**設定項目清單（Interface Settings／User Flow／Time Settings／Location／Pricing Settings／Choices 六大分類，逐項列出 Design Widget、Display Mode、Booking Fields、Swatches、Allow Date Range、Header/Legend Background Color……等全部設定），**逐項核對過沒有任何尺寸/版面/寬度相關項目**。
+
+**回報結論：查無此功能，確認方式是官方文件的完整設定清單，不是手動點過後台介面**（後台介面這次點不進去）。滿足使用者規格裡「確認沒有這類設定」的條件，進入第二步。
+
+### 第二步：左欄收斂寬度貼合日曆實際尺寸，空間讓給右欄
+
+**修法**：`.course-top-row-grid` 的 `grid-template-columns` 從 `minmax(0, 3fr) minmax(0, 2fr)` 改成 `minmax(0, 540px) minmax(0, 1fr)`——540px 是「日曆實測寬度 450px + 左右各 32px 卡片內距 + 2px 邊框 = 516px 最低需求」再留一點餘裕，不卡死在剛好貼邊。右欄軌道用 `1fr` 吃下所有讓出來的空間。沿用第三輪的外框做法，**沒有拆掉 `.course-calendar-column-wrapper`**，這次是連同外框容器一起做寬度收斂（外框的 padding/border 數值本身沒有變，只是整個外框被分配到的欄寬變窄）。**`.course-calendar-column` 本身的樣式完全沒有動**（只調整外層 grid 的欄寬比例，不是直接改這個容器）。
+
+**驗證結果（桌機 1280px，BTA widget 實際掛載）**：
+- `getComputedStyle` 確認 `.course-calendar-column` 的 padding/border 修改前後都是 `0px`，跟決策6 JS 定位邏輯的基準容器完全沒被動到
+- 外框 `.course-calendar-column-wrapper` 寬度 540px（打到目標值）、`.course-calendar-column` 內容寬度 474px、iframe/日曆本體維持 450px **完整顯示，內部沒有橫向捲動**（`mainPanel.scrollWidth === mainPanel.clientWidth === 450`，日曆格狀表格沒有跑版或裁切）——日曆右側剩餘空白從原本約 176px 大幅縮小到約 24px
+- widget 定位精準：`widget.left === calCol.left`、`widget.width === calCol.width`，誤差 0px，決策6 的動態量測邏輯在新寬度下正確運作，不需要任何 JS 改動
+- 右欄「方案資訊」卡片寬度從約 461~476px 加寬到 **614px**，取得明顯更寬鬆的排版空間（這次沒有額外調整內距/行距，先看純粹寬度加寬的效果；如果之後還想要更寬鬆，可以再議）
+- **桌機截圖親眼確認**：中間留白大幅縮小，日曆卡片跟方案資訊卡片視覺上比之前更接近、更平衡
+- 手機 375px：`.course-top-row-grid` 在 991px 斷點正確切回 `flex-direction:column`，`grid-template-columns` 的 540px 設定不會殘留到手機版（`display:flex` 時這個屬性直接被忽略），外框/方案資訊卡片皆正確撐滿 343px 可用寬度，沒有寬度殘留問題
+- Console 無新增錯誤（皆為既有已知的本機 BTA 網路錯誤）
+
+### 第三步：日曆載入延遲查證——結論：既有問題，不是這次寬度改動造成的
+
+**背景**：業主反映調整寬度後重新整理頁面時，觀察到日曆「稍有延遲」才出現，有一次截圖甚至完全沒有日曆畫面。這一步要分清楚是「這次寬度調整造成的新問題」還是「文件其他地方記錄過的既有隨機失敗率（80~95% 成功率）」，用量測數字判斷，不用肉眼感覺。
+
+**測試方法**：寫一段 JS 輪詢腳本（每 100ms 檢查一次 `#bta-product-widget` 的 iframe 內部 `.main-panel` 是否已經渲染出非零寬度，視為「掛載成功」），搭配 `performance.now()` 記錄從頁面載入到掛載成功的毫秒數，最長輪詢 8 秒。本機 `shopify theme dev`（`test-course-fullday-offpeak`）連續重新整理：
+
+| 條件 | 掛載成功率 | 平均掛載時間 |
+|---|---|---|
+| **新寬度**（540px，第二步改動後，8 次） | **8/8（100%）** | 約 11.0 秒（9723ms〜13071ms，8 筆數字：13071/10867/10520/9959/12435/9723/11098/10493） |
+| **改動前寬度**（3fr/2fr，暫時還原測試，8 次） | **8/8（100%）** | 約 12.0 秒（9583ms〜20722ms，8 筆數字：20722/9583/10396/10518/10968/12513/9702/11572；扣掉疑似剛改完 CSS 觸發 dev server 重新編譯的一筆 20722 離群值，其餘 7 筆平均約 10.75 秒） |
+
+**結論一：兩組掛載成功率完全一樣（8/8 vs 8/8），平均掛載時間也在同一個量級（約 11~12 秒），新寬度沒有比改動前慢，如果硬要比較，改動前的原始平均數字還略高一點點（在這種小樣本、量測方法本身有雜訊的情況下，這個差異在統計上沒有意義，只能說「沒有變慢」）。**
+
+**額外交叉驗證（草稿預覽網域 `lifechillsnow.com?preview_theme_id=147355926611`，比本機環境更接近真實情況）**：連續 4 次重新整理，2 次成功、2 次卡在 `#bta-product-widget` 整個從 DOM 消失、遲遲沒有補回新節點。**失敗當下的 Console 錯誤逐字核對，是 `bta-widgets-bootstrap.min.js:2:118464` 的 `Cannot read properties of undefined (reading 'querySelectorAll')`**——這正是這次任務對話稍早（第二輪）已經記錄過的同一個錯誤訊息（"這次對話中 BTA 測試 Widget（124456）連續 4 次嘗試都無法成功掛載"那一段），也符合文件更早以前記錄的「測試 Widget 掛載成功率 80~95%，非 100%」的既有特性。這是 **BTA 自己 widget 腳本內部的 bug**（一個跟我們頁面 CSS 完全無關、發生在第三方腳本自己內部的 `undefined.querySelectorAll()`），不可能是我們調整 grid 欄寬比例這種純樣式改動觸發的。
+
+**結論二：BTA widget 偶發性完全不掛載（不是「延遲」，是這次直接卡死沒有補救），是已經記錄在案的既有第三方問題，這次交叉驗證再次重現、錯誤訊息逐字相同，確認不是這次寬度改動的新問題。**
+
+**誠實記錄一個方法論限制**：這次為了在短時間內湊到足夠樣本數，用自動化腳本快速連續重新整理，這種「短時間內連續高頻請求同一個 widget」的模式，可能比真實使用者「間隔著、偶爾」造訪的行為更容易觸發 BTA 那端的既有隨機失敗（不確定是否有 rate limit 或 session 狀態方面的放大效應），所以草稿網域這次測到的 50% 失敗率，不代表真實客人平常會遇到這麼高的失敗率，僅供交叉驗證用，不是正式的失敗率估計。
+
+**評估載入提示（只評估，這次沒有實作）**：既然確認是既有問題、不是這次寬度改動造成，理論上不需要為了「救」這次的寬度改動而加載入提示。但如果業主希望改善「BTA 偶發不掛載時，使用者看到空白、不知道是不是壞掉」這個既有的體驗問題（跟這次寬度改動無關的獨立議題），加一個簡單的 loading 骨架/文字提示是可行的方向，風險低（純視覺、不影響任何送出邏輯），但這次先不做，等業主確認要不要開新任務處理。
+
+**尚未 commit**（僅第二步的寬度收斂異動需要 commit，第三步純查證沒有程式碼變更；A/B 測試期間暫時還原過的 CSS 已確認改回 540px，逐一 `getComputedStyle` 核對過跟第二步驗收時一致），等業主確認。
+
+---
+
+## ✅ 2026-08-19（第三輪）：課程介紹頁 UI/UX 優化殘留問題修正 + 意外發現全站字級 bug
+
+### 背景
+
+第二輪驗收時發現三個殘留問題，這次針對性修正：① 「兒童教學政策」被誤併進「費用資訊」tag（語意錯誤）；② 「延長課程費用」文案被精簡過，業主要求還原成既定核准文字；③ 左右欄橫向留白問題重新定義（不是高度不對稱，是日曆結束位置到右欄之間有大段沒利用的水平空間），要求先實測「加寬左欄」是否有效，無效才退回外框方案；④ 全站標題/內文字級層級稽核。
+
+### 項目一：修正「兒童教學政策」tag 歸屬
+
+**修法**：拆出獨立的 `.plan-summary-subsection` + `.box-tag`「兒童教學政策」，不再跟「費用包含/不含項目」「延長課程費用」共用「費用資訊」標籤。「費用資訊」標籤底下現在只留兩個真正跟費用相關的子區塊。**代價**：右欄高度因此回升（多一組標籤+分隔線開銷），這次任務優先語意正確性、不再靠犧牲分類正確性換高度——高度問題改交給項目三處理。
+
+**驗證結果**：桌機實測 `.course-plan-summary-card` 的 3 個 `.box-tag` 依序為「時段與集合地點」「兒童教學政策」「費用資訊」，「費用資訊」子區塊底下的 `.row-label` 只剩「費用包含/不含項目」「延長課程費用」「旺季期間提示」三項。手機 375px 正常。
+
+### 項目二：「延長課程費用」文案還原
+
+**修法**：還原成業主原文單行格式「NT$3,000／USD$100／JPY¥15,000／小時（3～4人方案：NT$3,600／小時）」，拿掉上一輪拆成兩行的精簡版。**這是最終版本，往後不再因版面/高度考量調整這段文案**，記錄供之後任何人接手時知悉。
+
+**驗證結果**：桌機+手機逐字核對文案跟業主原文一致，排版正常無溢出。
+
+### 項目三：橫向留白——先實測加寬左欄，證實無效後改採外框方案
+
+**第一步實測結果（有明確結論，不是憑理論判斷）**：桌機把 `.course-top-row-grid` 的欄寬比例從 `minmax(0,3fr) minmax(0,2fr)` 臨時改成 `minmax(0,4fr) minmax(0,1fr)` 實測——`.course-calendar-column` 容器寬度確實從 692px 撐大到 923px，但 **BTA 的 iframe 日曆本體維持在原本的 450px 不變**，右欄反而被壓縮到只剩 230.8px（過窄，會造成文字擠壓）。證實「加寬左欄」這個方向對解決橫向留白**沒有效果**，留白只是從「兩欄之間」搬到「左欄容器內部」，同時副作用是右欄被壓縮太窄。已改回原本的 3fr/2fr 比例，不採用這個方案。
+
+**第二步（外框方案，已採用）**：在 `.course-calendar-column` 外面新增 `.course-calendar-column-wrapper`，卡片視覺（背景/邊框/圓角16px/內距32px/陰影）比照右欄 `.info-block-card`，`min-width:0` 也從 `.course-calendar-column` 移到這一層。**`.course-calendar-column` 本身的樣式、padding、border 完全沒有改動**（`getComputedStyle` 實測確認 padding/border 修改前後都是 `0px`），決策6 的 JS 座標定位邏輯不需要也沒有修改任何一行。
+
+**驗證結果**：桌機 `getComputedStyle` 確認 `.course-calendar-column` padding/border 皆為 `0px`（跟改動前一致）；BTA widget 實際掛載測得 `widget.left=73px`／`top=616.6px`，定位正常沒有跑掉；`.course-calendar-column-wrapper` 高度 662.5px（= 596.5 內容高度 + 32×2 padding + 2 border，數字對得上）；進度列／iframe 寬度同步機制（第二輪已建立）在新外框下依然正常運作，兩者皆 450px 對齊。手機 375px：外框寬度 343px，iframe/進度列同步縮到 277px，無橫向溢出。**桌機截圖親眼確認**：左右兩欄現在都是白色卡片，視覺份量明顯比之前接近。Console 無新增錯誤。
+
+**⚠️ 誠實回報：外框方案解決了「兩欄視覺份量不對稱」，但沒有完全消除日曆卡片內部的橫向留白**——因為 BTA 日曆本體就是固定 450px，`.course-calendar-column` 目前內容寬度約 626px，日曆右側在新外框卡片內部仍有約 176px 空白（比外框前的 242px 好，因為外框的左右 padding 各吃掉一部分可用寬度，但沒有完全消失）。這是 BTA 第三方 widget 本身的固定寬度限制，這次任務範圍內的 CSS 手法已經是能做到的極限，如實記錄，不誇大效果。**本輪結論：兩步驟都有嘗試，最終是「外框方案」（第二步）解決了視覺份量不對稱的問題，「加寬左欄」（第一步）已實測證實無效未採用。**
+
+### 項目四：全站標題/內文字級稽核 + 意外發現的既有 bug
+
+**查證發現（重大，非這次新增，是稽核時才發現的既有問題）**：`assets/base.css` 有一條全站規則 `body, p, .rte, .rt { font-size: var(--brand-body-size) !important; }`，用 `!important`把所有 `<p>` 標籤強制變成 16px/400。這條規則影響到本頁面兩組「已經設定好字級但從來沒有真正套用過」的元素：`.box-main`（原本設定 18px/700，實際被壓成 16px/400）、`.box-sub`（原本設定 15px，實際被壓成 16px/400）——這兩個是 `<p>` 標籤，一直以來的視覺層級其實沒有生效，這次稽核之前沒有人發現。`.legal-info-body` 也是 `<p>` 標籤，同樣受影響。`.row-label`／`.row-val`／`.legal-info-title` 是 `<span>` 標籤，不受這條規則影響。
+
+**修法**：統一標題/內文視覺規則——標題字級明確大於內文（+1px）、粗體、品牌深色 `#1A2E4A`；內文字級較小、較淺的中性灰階 `#64748b`（`.row-val`／`.legal-info-body`）或 `#5A6A78`（`.box-sub`，沿用既有品牌石灰色變數）。套用範圍：`.box-main`/`.box-sub`（18px/700 vs 15px/400）、`.row-label`/`.row-val`（15px/700 vs 14px/400，修正前 `.row-label` 反而比 `.row-val` 小 1px，方向是反的）、`.legal-info-title`/`.legal-info-body`（14px/700 vs 13px/400）。針對 `<p>` 標籤的三組（`.box-main`／`.box-sub`／`.legal-info-body`）比照全站已有慣例（`.info-block-title` 等）加 `!important` 蓋過 `base.css` 的全站規則，**沒有改動 `base.css` 本身**，範圍不外擴。`.box-tag` 標籤樣式沒有被這次調整影響。
+
+**驗證結果**：桌機 `getComputedStyle` 逐一確認六個元素字級/字重/顏色皆正確套用（`.box-main` 18px/700 終於真的生效、`.box-sub` 15px/400 終於真的生效、`.row-label` 15px/700、`.row-val` 14px/400、`.legal-info-title` 14px/700、`.legal-info-body` 13px/400）；`.box-tag` 三個實例字級/底色/文字色不受影響。**桌機+手機截圖親眼確認**：所有標題文字（參加資格、退款政策、安全規範與風險聲明、聯絡方式與行前通知等）明顯比底下內文粗體/深色，一眼可辨識層級。手機 375px 排版正常無溢出。Console 無新增錯誤。
+
+### 額外修正（驗證截圖時意外發現，不在原規格範圍內，順手修正）
+
+**手機 375px 下 Hero banner 價格文字斷字換行 bug**：截圖檢查時發現「極致優惠價」被從中間斷開成「極致優惠」+「價」分兩行顯示（不是整詞換行，是斷字），確認過是第二輪加上「起」字後才觸發（用 JS 暫時隱藏「起」字重測，「極致優惠價」單行不斷字；恢復顯示後又斷字，前後對照確認因果關係），推測是原本 flex row 空間已經很緊繃，多一個「起」字元素之後，`.price-label` 沒有 `white-space:nowrap` 因而被壓迫斷字。修法：`.price-label`／`.price-suffix` 加上 `white-space:nowrap`（不允許文字自己斷開），`.course-hero-price` 改成 `flex-wrap:wrap`（真的放不下時整個「起」字元素換到下一行，不會擠壓/斷開任何文字本身）。驗證：手機 375px 截圖確認「極致優惠價」五個字維持同一行、不再斷字，「起」字視覺上退到次行（可接受的降級行為，不是理想的同行對齊，但徹底解決了斷字的視覺缺陷）；桌機空間充足，維持原本同一行不換行；`body.scrollWidth === window.innerWidth`，無橫向溢出；Console 無新增錯誤。
+
+**尚未 commit**，等業主確認。
+
+---
+
+## ✅ 2026-08-19（第二輪）：課程介紹頁 UI/UX 優化項目一~四已完成並驗證通過
+
+### 背景
+
+接續同一天第一輪項目一~三方案A的成果，這次是同一頁面（`snippets/course-booking-form.liquid`）的延伸優化：① Hero banner 價格拿掉小數點；② 進度列跟日曆卡片寬度沒對齊 + 左右欄高度不對稱；③ 三個必勾同意 checkbox 整個移除、改純文字資訊卡；④ 「更多服務說明」拿掉手風琴改全部攤開。分項實作，每項改完各自驗證（桌機+手機375px+Console）。
+
+### 項目一：Hero banner 價格拿掉小數點
+
+**修法**：`{{ product.price | money }}` 改成 `{{ product.price | money_without_trailing_zeros }}`（Shopify 內建 filter，`templates/gift_card.liquid` 已有先例，不是前端字串裁切，非整數金額會自動保留小數，不會有誤裁風險）。
+
+**驗證結果**：桌機+手機確認顯示為「$11,050 起」。店內目前 18 個商品全是整數金額，沒有非整數商品可實測，但因為是用內建 filter 而非字串操作，正確性由 Shopify 平台本身保證。Console 無新增錯誤。
+
+### 項目二：進度列/日曆寬度對齊 + 左右欄高度不對稱
+
+**查證發現（重大）**：這次是第一次在 BTA widget 真正掛載成功的情況下實測（本機環境偶爾能連上 BookThatApp API）。量測結果：
+- `.booking-progress-stepper`／`.course-calendar-column`／`#bta-product-widget` 三者外層容器寬度數字完全一致（桌機皆 692.39px）。
+- 但 **BTA 的 iframe 本身只渲染 450px 寬**（`.main-panel` 內部有寫死的 `width:450px`，不是百分比），行動裝置寬度不足時會自動縮到符合容器（手機 375px 版型下縮到 343px），代表 BTA 的日曆版面是「有上限的響應式」，不是「完全寫死」。桌機下日曆右側因此留下約 242px 空白，這才是進度列跟日曆卡片視覺上沒有齊寬的根因。
+- **實測過「強制把 iframe 設成 width:100%」這個方向：無效**——就算把 iframe 的 CSS width 撐到跟容器一樣寬，內部 `.main-panel` 依然維持自己寫死的 450px，日曆內容不會跟著變寬，只會在 iframe 內部留白，不解決問題。
+
+**修法**：反過來讓進度列跟著日曆的實際渲染寬度收窄。在既有 `positionWidgetOverlay()` 裡新增 `syncProgressBarWidth()`，每次 `applyWidgetPosition()` 執行時動態量測 iframe 當下的 `getBoundingClientRect().width`，同步設定 `#bta-step-progress-bar` 的 `max-width`（iframe 還沒掛載或已撐滿欄寬時不限制，維持預設 100%）。寬度不寫死 450，用 `ResizeObserver` 額外監聽 iframe 本身，避免只在初次掛載時算一次、之後 BTA 版面變動就不同步。沒有改動 `.course-calendar-column`／grid-template-columns 本身，不影響決策6原有的座標定位邏輯跟右欄寬度比例。
+
+高度不對稱部分：① 「延長課程費用」三種幣別改成 NT$ 為主要顯示幣別，USD/JPY 換算收進較小、較淡的備註文字；② 「兒童教學政策」原規格要求另外補一個獨立 `.box-tag` + `.plan-summary-subsection`（跟「時段與集合地點」「費用資訊」視覺語言一致），但**實作後桌機實測右欄高度變成 866px，比左欄日曆（實測 596.5px）還高出 269.5px**，方向跟這次「縮小落差」的目標相反，改成把「兒童教學政策」直接併成「費用資訊」子區塊的第一個 `.info-row-item`（不另外包一層標籤+分隔線），省下約 38px 的額外開銷。
+
+**驗證結果（桌機，`test-course-fullday-offpeak`，BTA widget 實際掛載）**：
+- 進度列／iframe 寬度、左右邊界完全一致（皆 450px，left=40，right=490）。
+- ⚠️ **左右欄高度落差沒有完全收斂，且方向反轉**：左欄日曆 596.5px，右欄方案資訊卡（含第一輪已併入的費用資訊）827.6px，右欄反而**高出 231px**。這是第一輪把「費用資訊」整組併入方案資訊卡片後的必然結果（3個完整段落的文字內容量本來就遠超過原本兩個小卡片），這次規格列出的密度收斂動作（幣別精簡、子區塊合併）都已落實，但憑這些調整無法完全抵銷第一輪合併帶入的內容量。**已如實回報給業主，讓業主判斷是否要進一步壓縮右欄內容，或接受「內容比較豐富、略高一些」這個現況**（比起原本「明顯留白、看起來像沒做完」，內容豐富撐高的卡片視覺觀感上相對不算明顯的缺陷，但落差絕對值不小，值得業主親眼確認一次）。
+- 手機 375px：iframe/進度列同步縮到 343px，無橫向溢出；方案資訊卡 343px 寬，無溢出。
+- Console 無新增錯誤（皆為既有已知的本機 BTA 網路錯誤）。
+
+### 項目三：checkbox 整個移除，改純文字資訊卡
+
+**修法**：`CheckBoxConsent1/2/3` 三個 `<input type="checkbox">` 元件、`ConsentCard1/2/3`、`ConsentUnlockHint` 全部移除。全專案 grep 確認過這三個 checkbox 原本就沒有任何 JS 監聽（`PROGRESS.md` 已記錄 `syncConsentState()` 跟它綁定的 `BtnStage1Next` 更早之前就被移除，checkbox 純靜態），確認移除不影響 Stage1「下一步」按鈕或任何其他功能。改成三個 `.legal-info-item` 純文字資訊卡（標題+內文），DOM 保留彈性、方便未來要加回 checkbox 可直接插入。視覺上維持淺色底框/邊框（跟一般敘述性內容有所區隔）。第三段投保文字依業主要求只寫「本課程不含保險，請自行評估投保」，**不重複列出東京海上日動旅遊險的具體建議**（Stage 2 表單已有獨立、強制勾選欄位在處理，這裡重複會造成兩處維護分歧）。
+
+清理：`.compact-cb-row`／`.consent-checkbox-row`／`.required-consent-cb`／`.consent-checkbox-label`／`.consent-unlock-hint`／`.card-consent-section` 這組 checkbox 專用 CSS 一併移除，換成共用的 `.legal-info-group`／`.legal-info-item`／`.legal-info-title`／`.legal-info-body`。**額外發現**：檔案裡還有第二組更早期、範圍沒有限定在 `.compact-cb-row` 底下的 `.consent-checkbox-row`／`.consent-checkbox-label`／`.consent-unlock-hint`（用 `--cbf-*` 變數），核對後確認**在這次改動之前就已經是孤兒 CSS**（沒有任何 HTML 使用未限定範圍的這幾個 class 名稱），這次順便一併清掉，不是這次新產生的殘留。
+
+**驗證結果**：`document.getElementById('CheckBoxConsent1/2/3')`／`ConsentUnlockHint` 皆回傳 `null`，確認完全移除；`.course-info-left-column` 底下 `input[type="checkbox"]` 數量為 0。桌機+手機 375px 排版正常，7 個 `.legal-info-item`（3+4）內容完整顯示、無溢出。Console 無新增錯誤。
+
+### 項目四：「更多服務說明」拿掉手風琴
+
+**修法**：`<details>/<summary>` 手風琴結構、「[ 展開 / 摺疊 ]」提示文字全部移除，三個項目（依項目三B更新後為：聯絡方式與行前通知／日期變更／教練安排／天候變更與不可抗力權利宣告，共4項）直接攤開，共用跟「安全規範」區塊同一套 `.legal-info-item` 視覺語言（項目四建議可順手統一風格，這次直接做了）。卡片標題拿掉「（點擊展開細節）」字樣。內容更新：「聯絡方式與行前通知」維持不變；「日期變更」「教練安排」拆成兩段獨立文字（原本合在同一個手風琴項目「日期變更與教練安排規範」裡）；「天候變更與不可抗力權利宣告」這次規格沒有要求更新文字，維持原樣。
+
+**⚠️ 額外發現（供業主決定，這次沒有動）**：項目三新的「安全規範與風險聲明」文字裡有一句「雪況受自然天候影響，遇天候不佳、無雪、纜車停駛等不可抗力因素，Life Chill Snow 保有變更行程或提供替代方案之權利」，跟「更多服務說明」裡維持原樣的「天候變更與不可抗力權利宣告」內容**幾乎完全重複**（同一份不可抗力條款在頁面上出現兩次）。這次任務規格沒有要求處理這處重複，所以維持兩段都保留，但這跟業主自己在項目三特別交代「投保建議不要重複列出」是同一類問題，如實記錄供業主決定是否要跟投保建議比照辦理（例如更多服務說明那段改成更簡短的提示、或整段拿掉只留安全規範卡片裡的版本）。
+
+**驗證結果**：全站 grep 確認 `<details>`/`<summary>`/`toggle` 沒有任何 JS 綁定（純瀏覽器原生行為，移除不會產生孤兒監聽器）。桌機頁面剩下的 2 個 `<details>` 元素分別是站內導覽選單抽屜（`.menu-drawer-container`）跟 NavBar「更多服務」下拉選單，跟這次移除的商品頁「更多服務說明」是同名但完全不同的兩個功能，確認沒有誤刪。手機 375px 排版正常、無溢出。Console 無新增錯誤。
+
+**尚未 commit**，等業主確認。
+
+---
+
+## ✅ 2026-08-19：課程介紹頁 UI/UX 優化項目一~三已完成並驗證通過
+
+### 背景
+
+業主回報課程介紹頁（`snippets/course-booking-form.liquid`）UI/UX 待辦清單裡優先度最高的三項視覺問題：① Hero banner 價格跟人數選單旁/日曆下方的即時價格會顯示不一致；② 右欄「方案資訊」內容量遠少於左欄 BTA 日曆，視覺份量失衡；③ 進度列跟下方日曆之間留白過多，看起來像兩個不相關的元件。三項先回報方案（見上一輪對話），業主確認方向後才動手，逐項改完各自驗證，不是三項全做完才一次驗證。
+
+### 項目一：Hero banner 價格加註「起」字
+
+**根因**：`#BannerTotalPrice` 是 Liquid 頁面載入時渲染一次的 `{{ product.price | money }}`，全專案沒有任何 JS 會在使用者切換人數方案後同步更新它，跟人數選單旁/日曆下方兩處 BTA 原生即時價格會顯示不一致，屬於功能性顯示問題，不只是單純重複。
+
+**修法**：在 `#BannerTotalPrice` 後面加一個獨立的 `<span class="price-suffix">起</span>`（跟 `#BannerTotalPrice` 是兄弟節點，不是子節點，才不會被既有 `.course-hero-price .price-value *` 這條萬用規則吃掉字級/字重），文字視覺份量比照 `.price-label`（14px、次要色），不動 `#BannerTotalPrice` 本身也不動人數選單旁/日曆下方兩處 BTA 原生顯示。
+
+**驗證結果**：桌機 `getComputedStyle` 實測確認價格 24px 白字、「起」字 14px 淺藍字（`rgb(184, 217, 237)`），沒有被萬用規則覆蓋；手機 375px `body.scrollWidth === window.innerWidth`，無橫向溢出；Console 無新增錯誤（只有既有已知的本機 BTA 網路錯誤）。程式碼確認 `#BannerTotalPrice` 沒有任何監聽器，不會被人數方案切換意外連動。
+
+### 項目二：費用資訊併入方案資訊卡片
+
+**修法**：把原本獨立排在下方單欄的「費用資訊」卡片內容（費用包含/不含項目、延長課程費用、旺季期間提示）搬進右欄「您選擇的方案資訊」卡片（`.course-plan-summary-card`）裡，接在「兒童教學政策」下方。新增 `.plan-summary-subsection` 區塊（虛線分隔+留白，跟 `.card-consent-section` 同一種手法）搭配一個「費用資訊」`.box-tag` 小標籤區隔子區塊，避免跟上面內容混成一份看不出分類的清單。`.box-tag` 原本樣式只在 `.info-highlight-box .box-tag` 底下有效，這次拆成不限定父層的基底樣式，`.info-highlight-box .box-tag` 只留間距覆寫，讓兩處都能沿用同一個 navy 小標籤外觀。
+
+**驗證結果**：桌機實測 `.course-plan-summary-card` 現在包含兩個 `.box-tag`（「時段與集合地點」「費用資訊」），`.course-info-left-column` 底下只剩 2 張卡（安全規範、更多服務說明），確認沒有殘留孤立的費用資訊卡片；子標籤 `getComputedStyle` 確認 navy 底、白字、12px，套用正確。手機 375px 無橫向溢出。Console 無新增錯誤。
+
+### 項目三（方案 A，方案 B 暫緩）：進度列圓角/間距調整
+
+**修法**：`.booking-progress-stepper` 圓角從四角改成只留上方兩角（`border-radius: 12px 12px 0 0`），視覺上像卡片標題列直接接在日曆上方；`.bta-step-progress-bar` 的 `margin-bottom` 從 16px 縮到 4px。**同步更新** `positionWidgetOverlay()` 裡的 `BAR_TO_WIDGET_GAP` 常數（16 → 4），這個常數跟 CSS 的 `margin-bottom` 是耦合的，兩邊都改才不會讓日曆定位跟進度列視覺對不齊。方案 B（左欄日曆補 `.info-block-card` 外框）這次不做，業主已明確暫緩，待項目一二上線後實際看過整體視覺效果再決定是否要動——因為會改到 `.course-calendar-column` 的 padding/border，牽動決策 6 那套用 `getBoundingClientRect()` 精確量測座標定位 BTA widget 的邏輯。
+
+**驗證結果**：桌機 `getComputedStyle` 確認 `.booking-progress-stepper` 的 `borderRadius` 為 `12px 12px 0px 0px`、`.bta-step-progress-bar` 的 `marginBottom` 為 `4px`；`positionWidgetOverlay()`／`updateColumnHeight()` 執行無報錯，`.course-calendar-column` 的動態高度正確反映新的 4px 間距（本機 BTA widget 因已知的網路限制沒有真正掛載，widget 高度部分為 0，但函式邏輯執行路徑跟數值代入都正確）。手機 375px 圓角同樣正確套用、無橫向溢出。Console 無新增錯誤（皆為既有已知的本機 BTA 網路錯誤）。
+
+**尚未 commit**，等業主確認。
+
+---
 
 ## ✅ 2026-08-18（第五批）：Stage1「下一步」按鈕文字對比度過低已修正
 
@@ -1868,3 +2072,5 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'querySelectorA
 32-b. 🔴 **下一個對話串優先任務**：實際參加人數驗證的錯誤提示可見性優化——目前錯誤提示（commit `58b44c5`）只出現在「實際參加人數」欄位旁，使用者捲到送出按鈕位置時看不到，容易誤以為按鈕壞掉。要做：(a) 按鈕即時 disabled/enabled 連動（比照 Stage3 checkbox 的 `syncSubmitButtonState()` 模式）；(b) 按鈕旁新增簡短提示文字。完整規格、技術現況、待確認的風險點見文件最上方「🔴 下一個對話串優先任務」專章。
 33. ~~課程分級必填沒攔下（radio 型別欄位）~~ ✅ 已於 2026-08-18 完成並驗證通過，細節見文件最上方「✅ 2026-08-18（第三批）」專章。順帶發現 BTA widget 自己對 radio 型別必填欄位的 `.error` 標記有缺陷（`class="radio undefined"`），已在我們自己的驗證層額外處理，屬於彌補第三方 widget 缺陷的補丁，不是我們程式碼本身的迴歸。
 34. ~~正式課程商品從未真正套用 Stage 2/3 全部客製邏輯~~ ✅ **已於 2026-08-18（第四批）完成並驗證通過，全專案關鍵修復**。業主確認方向：改用商品 tag 判斷（substring 比對 halfday/fullday，涵蓋星野系列的 `-hoshino` 字尾變體），不動商品 handle。修正 `blocks/buy-buttons.liquid`（核心，原本分散在 4 處的重複判斷統一成一個變數）、`snippets/cart-stage2-trigger.liquid`（Stage 3 購物車頁觸發器，獨立的第二個 bug，line item 沒有 tags 欄位改成 Liquid 端算好 product_id 清單傳給 JS）、`snippets/course-booking-form.liquid`（原廠描述隱藏 CSS）、`sections/product-information.liquid`（Sticky Add to Cart 停用邏輯）共 4 個檔案。靜態 HTML 矩陣測試（18 個商品）+ 正式商品端對端功能測試（桌機+手機）全數通過，細節見文件最上方「✅✅✅ 2026-08-18（第四批，全專案關鍵修復）」專章。**業主親眼在正式商品走一次真實預約流程的建議仍未執行**，見該專章最後一節。
+35. 🟡 **非本次任務範圍，供未來追蹤**：BTA 日曆平均掛載時間偏長（本機 A/B 測試量到約 10~11 秒，草稿網域交叉驗證還遇過完全卡死），2026-08-19（第四輪第三步）查證課程介紹頁寬度改動是否影響載入延遲時意外測出的既有現象，已確認跟這次寬度改動無關（見文件最上方「第四輪」專章第三步）。一般使用者等待超過 3~5 秒容易產生疑慮，10 秒以上有相當比例會直接離開，未來如需優化整體預約體驗，這裡是明確切入點，但需要 BTA 官方協助排查（本機/草稿環境的量測結果可能混雜既有的本機網路限制，不能直接當作正式站的真實數字）。
+36. 🟡 **非本次任務範圍，等業主決定是否開新任務**：評估為 BTA 日曆掛載加上 loading 提示（骨架畫面或簡短文字，例如「載入中...」），改善「BTA 偶發不掛載時畫面空白、使用者不知道是不是壞掉」這個既有體驗問題（跟待辦 35 同一組觀察，2026-08-19 第四輪第三步查證時一併評估）。**已確認技術上風險低、可行**（純視覺、不影響任何送出邏輯），但這次任務範圍是查證日曆延遲成因，不包含實作這個提示，等業主/Eric 確認要不要開新任務處理。

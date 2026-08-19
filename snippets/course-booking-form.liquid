@@ -209,13 +209,23 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   border-radius: 8px;
   border-left: 4px solid var(--brand-ice-blue, #7AB3D4);
   width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+  row-gap: 2px;
 }
 
+/* 第三輪項目四驗證時實機截圖發現的既有 bug（跟這次任務範圍無關，但既然改到這一區
+   順手修正）：加了「起」字後，手機 375px 寬度下 .course-hero-price 這個 flex row
+   空間不夠，沒有 white-space:nowrap 的中文字「極致優惠價」會被硬生生從中間斷字
+   換行（「極致優惠」+「價」分兩行），比原本沒有「起」字時更容易觸發。改成
+   nowrap，真的放不下時改讓整個 .course-hero-price 用 flex-wrap:wrap 換行到下一行
+   （label 跟 價格整組一起換行，不會斷字），不擠壓/斷開文字本身。 */
 .course-hero-price .price-label {
   font-size: 14px;
   font-weight: 600;
   color: #B8D9ED;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .course-hero-price .price-value,
@@ -225,6 +235,16 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   color: #ffffff !important;
   margin: 0 !important;
   line-height: 1 !important;
+}
+
+/* 價格加註「起」字（2026-08-19）：獨立於 #BannerTotalPrice 之外的兄弟元素，不是
+   .price-value 的子節點，才不會被上面 `.price-value *` 這條萬用規則吃掉字級/字重，
+   維持跟 .price-label 一致的次要文字視覺份量，避免「起」字看起來跟價格數字一樣重。 */
+.course-hero-price .price-suffix {
+  font-size: 14px;
+  font-weight: 600;
+  color: #B8D9ED;
+  white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -282,7 +302,10 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   padding: 20px 24px;
   margin-bottom: 20px;
 }
-.info-highlight-box .box-tag {
+/* 拆成不限定父層的基底樣式（項目二新增 .plan-summary-subsection 也要沿用同一個
+   navy 小標籤外觀，原本只在 .info-highlight-box 底下有效），.info-highlight-box .box-tag
+   只保留跟 box-main 的間距覆寫。 */
+.box-tag {
   display: inline-block;
   background: var(--brand-deep-navy, #1A2E4A);
   color: #fff;
@@ -290,17 +313,27 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   font-weight: 700;
   padding: 2px 10px;
   border-radius: 4px;
+}
+.info-highlight-box .box-tag {
   margin-bottom: 8px;
 }
+/* 第三輪項目四（2026-08-19）：字級稽核時發現 assets/base.css 有一條全站規則
+   `body, p, .rte, .rt { font-size: var(--brand-body-size) !important; }`，用
+   !important 強制所有 <p> 標籤變成 16px/400——這兩個規則的選擇器都掛在 <p> 標籤上
+   （見下方 HTML），原本設定的 18px/15px 字級、700 字重從來沒有真正套用過，一直
+   被這條全站規則蓋掉，是這次稽核才發現的既有問題，不是這次新增的。這裡只在自己的
+   選擇器加 !important 蓋過去（比照全站已經在用的 .info-block-title 同一招），
+   不去動 base.css 這個全站規則，範圍不外擴。 */
 .info-highlight-box .box-main {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--brand-deep-navy, #1A2E4A);
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--brand-deep-navy, #1A2E4A) !important;
   margin: 0 0 6px 0;
 }
 .info-highlight-box .box-sub {
-  font-size: 15px;
-  color: var(--brand-stone-gray, #5A6A78);
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  color: var(--brand-stone-gray, #5A6A78) !important;
   margin: 0;
 }
 
@@ -318,14 +351,19 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   border-radius: 8px;
   border-left: 3px solid #cbd5e1;
 }
+/* 第三輪項目四（2026-08-19）：字級/顏色層級稽核——修正前 .row-label（14px）比
+   .row-val（15px）還小，粗體+深色也蓋不過「標題字級反而比內文小」這個問題，讀者
+   很難一眼分辨標題/內文。改成標題字級明確大於內文，跟下方 .legal-info-title／
+   .legal-info-body 用同一套字級差 (+1px) 跟同一組顏色（深色標題／淺灰內文），
+   全站標題+內文配對統一視覺規則。 */
 .info-row-item .row-label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--brand-deep-navy, #1A2E4A);
 }
 .info-row-item .row-val {
-  font-size: 15px;
-  color: #334155;
+  font-size: 14px;
+  color: #64748b;
   line-height: 1.6;
 }
 
@@ -397,9 +435,27 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
    ========================================================================== */
 /* 桌機兩欄、手機單欄堆疊（日曆在上，方案資訊在下）。跟 .course-main-layout-grid
    用同一個 991px 斷點、同樣的 flex-column 手機處理手法，維持全站一致。 */
+/* 第四輪項目（2026-08-19）：查證 BTA 官方文件（Customizing Your Widget's Design &
+   Branding／Rental Widget Settings 兩篇）確認 widget 尺寸沒有任何後台設定可調——
+   官方文件明講「The Widget Design tool lets you adjust styles..., not placement on
+   the page」「Widgets do not support CSS customization directly」「you can resize
+   images or adjust the product form element to change how large the widget
+   appears」，Rental Widget 完整設定清單（Interface/Time/Location/Pricing/Choices
+   五大類）逐項核對過也沒有任何尺寸/版面相關項目。BTA 後台本身這次也重現了先前
+   （2026-08-11）記錄過的「嵌入 iframe 完全點不動」問題（多種點擊/雙擊/鍵盤方式
+   都測過，確認不是座標算錯——同一分頁裡非 iframe 的一般網頁點擊完全正常），這次
+   靠改直接讀 BTA 官方技術文件取得結論，不是靠點過後台介面本身。
+   結論：官方証實 widget 尺寸完全由「Shopify product form」（也就是我們自己這層
+   容器）決定，只能從我們這邊的版面著手——改左欄寬度貼合日曆實際渲染尺寸（實測
+   450px），520~560px 之間留一點呼吸空間、不要卡死在剛好 450px 貼邊。右欄用 1fr
+   吃下讓出來的空間。⚠️ 這裡只改 grid 的欄寬比例（分配給 .course-calendar-column-wrapper
+   這個 grid 子項目的軌道寬度），完全沒有動 .course-calendar-column-wrapper 自己
+   的 padding/border，更沒有動最內層 .course-calendar-column 的任何樣式——決策6的
+   JS 全部動態量測 .course-calendar-column 的 getBoundingClientRect()，欄寬改變後
+   它自然會量到新的、比較窄的實際寬度，不需要也沒有修改任何 JS。 */
 .course-top-row-grid {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-columns: minmax(0, 540px) minmax(0, 1fr);
   gap: 36px;
   align-items: start;
   margin-bottom: 36px;
@@ -427,8 +483,27 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
    （費用資訊）接在正確的位置，不需要再另外算 margin-top 補償。
    刻意不設 position，維持預設 static——這個容器絕對不能變成「已定位元素」，
    否則會變成疊加內容 absolute 定位時的 containing block，算出錯誤座標
-   （decision 6 已經踩過這個坑，見下方 JS 註解）。 */
+   （decision 6 已經踩過這個坑，見下方 JS 註解）。
+
+   ⚠️ 第三輪項目三第二步（2026-08-19）：這個規則本身完全沒有動、沒有新增
+   padding/border——這是刻意的。決策6的 JS 全部用這個容器自己的
+   getBoundingClientRect() 當座標基準，改動它的 box model 會讓日曆定位跟著跑掉。
+   卡片外框視覺改包在新增的外層 .course-calendar-column-wrapper 上（見下方），
+   這個容器維持純粹的「留空間用」錨點角色不變。 */
 .course-calendar-column {
+  min-width: 0;
+}
+
+/* 第三輪項目三第二步：日曆外框卡片，視覺比照右欄 .info-block-card（背景/邊框/圓角/
+   內距/陰影一致），讓左右兩欄視覺上都是「白色卡片」，縮小視覺份量落差。這一層才是
+   現在的 grid 直接子元素（min-width:0 從 .course-calendar-column 移來這裡，理由跟
+   .course-plan-summary-card 一樣：grid 子項目要有這個才不會被內容撐爆欄寬）。 */
+.course-calendar-column-wrapper {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
   min-width: 0;
 }
 
@@ -438,70 +513,52 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   min-width: 0;
 }
 
-.card-consent-section {
-  margin-top: 24px;
+/* 項目二（2026-08-19）：費用資訊併入方案資訊卡片後的子區塊分隔，跟下方
+   .legal-info-item 用同一種「淺色底框」手法區隔子區塊，讓使用者一眼看出這是卡片裡
+   的下一個資訊分類，不是跟上面「兒童教學政策」同一組內容。 */
+.plan-summary-subsection {
+  margin-top: 20px;
   border-top: 1px dashed #e2e8f0;
-  padding-top: 18px;
+  padding-top: 20px;
+}
+.plan-summary-subsection .box-tag {
+  margin-bottom: 12px;
+}
+
+/* 第二輪項目三/四（2026-08-19）：checkbox 拿掉、手風琴拿掉後共用的純文字資訊卡樣式。
+   維持跟原本 .compact-cb-row 一致的淺色底框/邊框（涉及法律責任聲明的內容仍需要
+   跟一般敘述文字有所區隔），但不再有任何 checkbox/hover/is-agreed 這些互動狀態樣式
+   ——原本的 .compact-cb-row／.consent-checkbox-row／.consent-unlock-hint 整組已隨
+   checkbox／手風琴一起移除，避免留下「預留了 checkbox 空間但沒有東西」的視覺空隙。
+   DOM 用 .legal-info-item 包一層，之後如果要加回 checkbox，直接在容器內插入即可。 */
+.legal-info-group {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-
-.compact-cb-row {
+.legal-info-item {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 10px 12px;
-  transition: all 0.2s ease;
+  padding: 14px 16px;
 }
-.compact-cb-row:hover {
-  border-color: var(--brand-ice-blue, #7AB3D4);
-  background: var(--brand-snow, #E8F4FA);
-}
-.compact-cb-row.is-agreed {
-  background: #ecfdf5;
-  border-color: #6ee7b7;
-}
-
-.compact-cb-row .consent-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  margin: 0;
-}
-.compact-cb-row .required-consent-cb {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  accent-color: var(--brand-deep-navy, #1A2E4A);
-  cursor: pointer;
-}
-.compact-cb-row .consent-checkbox-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--brand-deep-navy, #1A2E4A);
-  line-height: 1.4;
-}
-.compact-cb-row .consent-checkbox-label a {
-  color: var(--brand-sky-blue, #3A7AB5);
-  text-decoration: underline;
-  margin-left: 4px;
-}
-
-.consent-unlock-hint {
-  font-size: 13px;
-  color: #dc2626;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-weight: 600;
-  line-height: 1.5;
-  display: none;
-}
-.consent-unlock-hint.is-visible {
+/* 第三輪項目四：標題／內文字級稽核，跟 .row-label／.row-val 用同一套規則
+   （標題字級明確大於內文 +1px、粗體、深色；內文較小、較淺的中性灰階），全站
+   標題+內文配對統一視覺規則，不再各區塊各自為政。.legal-info-body 是 <p> 標籤，
+   套用 !important 的理由跟上面 .box-main／.box-sub 一樣，見上方註解。 */
+.legal-info-title {
   display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand-deep-navy, #1A2E4A);
+  margin-bottom: 4px;
+}
+.legal-info-body {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: #64748b !important;
+  line-height: 1.6;
+  margin: 0;
 }
 
 /* ==========================================================================
@@ -524,51 +581,11 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   }
 {% endif %}
 
-.consent-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: var(--cbf-snow);
-  border-top: 1px solid var(--cbf-frost);
-  cursor: pointer;
-}
-.consent-checkbox-row input[type="checkbox"] {
-  appearance: none; -webkit-appearance: none;
-  width: 18px; height: 18px; flex-shrink: 0;
-  border: 2px solid var(--cbf-frost); border-radius: 4px;
-  background: #fff; cursor: pointer;
-  transition: all 0.15s ease; position: relative;
-}
-.consent-checkbox-row input[type="checkbox"]:checked {
-  background-color: #16a34a; border-color: #16a34a;
-}
-.consent-checkbox-row input[type="checkbox"]:checked::after {
-  content: '✓'; position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%); color: #fff;
-  font-size: 11px; font-weight: 700;
-}
-.consent-checkbox-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--cbf-navy);
-  line-height: 1.4;
-  cursor: pointer;
-}
-
-/* 解鎖提示區（未完成勾選時顯示） */
-.consent-unlock-hint {
-  font-size: 12px;
-  color: #dc2626;
-  text-align: center;
-  padding: 8px 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  display: none;
-}
-.consent-unlock-hint.is-visible { display: block; }
+/* 註：這裡原本還有一組更早期、範圍沒有限定在 .compact-cb-row 底下的
+   .consent-checkbox-row／.consent-checkbox-label／.consent-unlock-hint 規則（用
+   --cbf-* 變數），核對後發現在這次改動之前就已經是孤兒 CSS（沒有任何 HTML 使用未
+   限定範圍的這幾個 class 名稱），這次 checkbox 移除順便一併清掉，不是這次新產生的
+   殘留。 */
 
 /* ==========================================================================
    🆕 視覺 QA 修正 A：Step1/Step2 進度指示疊加條（疊在 BTA widget 上方，不進入其 DOM）
@@ -580,8 +597,10 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   /* 進度條跟日曆之間的間距。這裡改成正常文件流排版後，進度條下緣到日曆頂部的距離
      由這個 margin-bottom 決定——JS（positionWidgetOverlay 裡的 BAR_TO_WIDGET_GAP）
      算 widget 的 top 座標時要用同一個數字，兩邊改動要一起改，不然日曆會跟進度條
-     黏在一起或留下不一致的空隙。 */
-  margin-bottom: 16px;
+     黏在一起或留下不一致的空隙。
+     項目三方案 A（2026-08-19）：從 16px 縮到 4px，讓進度條視覺上緊貼日曆，讀起來
+     像同一個流程的延續，不是兩個分開的元件。 */
+  margin-bottom: 4px;
 }
 .booking-progress-stepper {
   display: flex;
@@ -590,7 +609,9 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   padding: 12px 16px;
   background-color: #E8F4FA;
   border: 1px solid #B8D9ED;
-  border-radius: 12px;
+  /* 項目三方案 A（2026-08-19）：只留上方兩角圓角，視覺上像「卡片標題列」直接接在
+     下方日曆上方，不是四角獨立的浮動卡片。 */
+  border-radius: 12px 12px 0 0;
   font-size: 14px;
   font-weight: 700;
   color: #1A2E4A;
@@ -640,7 +661,8 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       <h1 class="course-hero-title">{{ product.title }}</h1>
       <div class="course-hero-price">
         <span class="price-label">極致優惠價</span>
-        <span class="price-value" id="BannerTotalPrice">{{ product.price | money }}</span>
+        <span class="price-value" id="BannerTotalPrice">{{ product.price | money_without_trailing_zeros }}</span>
+        <span class="price-suffix">起</span>
       </div>
     </div>
   </div>
@@ -650,29 +672,39 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
        由 .course-top-row-grid 的 991px 斷點處理，不需要另外寫手機專屬 HTML。 -->
   <div class="course-top-row-grid">
 
-    <!-- 左欄：BTA 錨點容器。真正的日曆視覺內容用 position:absolute 疊加在這裡上方，
-         DOM 相對位置本身沒有搬動 BTA 節點，只是把「我們自己這個錨點容器」放進新的
-         兩欄版面裡（見上方 CSS `.course-calendar-column` 註解，跟下方 JS 註解）。 -->
-    <div class="course-calendar-column">
-      <div id="bta-booking-form-{{ product.id }}" data-product-id="{{ product.id }}">
-        <!-- BTA「Snow class booking」Inline widget 真正偵測的錨點 id（從 bta-widgets-bootstrap.min.js 原始碼確認）。
-             原本的 Stage1/2/3 精靈（人數下拉選單、假日曆容器、下一步按鈕、Stage2 雪板類型/場地/聯絡方式等自訂欄位、Stage3 裝備租借）
-             已整組移除：BTA widget 自己的流程已原生涵蓋日期/人數/雪板類型/場地/聯絡方式/兒童同行，裝備加購改在購物車頁由
-             assets/course-stage2-module.js 處理，不需要在商品頁重複刻一套。 -->
-        <div id="booking-current-date-picker">
-          <div id="bta-step-progress-bar" class="bta-step-progress-bar">
-            <div class="booking-progress-stepper">
-              <div class="step-item is-active" data-step="1"><span class="step-dot">1</span><span>日期</span></div>
-              <div class="step-line"></div>
-              <div class="step-item" data-step="2"><span class="step-dot">2</span><span>資訊</span></div>
-              <div class="step-line"></div>
-              <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
+    <!-- 第三輪項目三第二步（2026-08-19）：實測過加寬左欄（項目三第一步）無效——BTA 的
+         iframe 日曆本身有 450px 的內在寬度上限，容器加寬只會把留白從「兩欄之間」搬到
+         「左欄容器內部」，沒有真正解決橫向留白問題（見下方驗證記錄／PROGRESS.md）。
+         改採外框方案：在 .course-calendar-column 外面新增這層 .course-calendar-column-wrapper
+         包卡片視覺（邊框/背景/圓角/內距，比照右欄 .info-block-card）。
+         ⚠️ .course-calendar-column 本身的既有樣式、padding、border 完全沒有動，決策6
+         的 JS 全部是量測 .course-calendar-column 自己的 getBoundingClientRect()，不是
+         量測這個新外層，座標基準容器沒有被改變，不需要同步修改任何 JS。 -->
+    <div class="course-calendar-column-wrapper">
+      <!-- 左欄：BTA 錨點容器。真正的日曆視覺內容用 position:absolute 疊加在這裡上方，
+           DOM 相對位置本身沒有搬動 BTA 節點，只是把「我們自己這個錨點容器」放進新的
+           兩欄版面裡（見上方 CSS `.course-calendar-column` 註解，跟下方 JS 註解）。 -->
+      <div class="course-calendar-column">
+        <div id="bta-booking-form-{{ product.id }}" data-product-id="{{ product.id }}">
+          <!-- BTA「Snow class booking」Inline widget 真正偵測的錨點 id（從 bta-widgets-bootstrap.min.js 原始碼確認）。
+               原本的 Stage1/2/3 精靈（人數下拉選單、假日曆容器、下一步按鈕、Stage2 雪板類型/場地/聯絡方式等自訂欄位、Stage3 裝備租借）
+               已整組移除：BTA widget 自己的流程已原生涵蓋日期/人數/雪板類型/場地/聯絡方式/兒童同行，裝備加購改在購物車頁由
+               assets/course-stage2-module.js 處理，不需要在商品頁重複刻一套。 -->
+          <div id="booking-current-date-picker">
+            <div id="bta-step-progress-bar" class="bta-step-progress-bar">
+              <div class="booking-progress-stepper">
+                <div class="step-item is-active" data-step="1"><span class="step-dot">1</span><span>日期</span></div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="2"><span class="step-dot">2</span><span>資訊</span></div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
+              </div>
             </div>
+            <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
           </div>
-          <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
         </div>
-      </div>
-    </div> <!-- /course-calendar-column 結束 -->
+      </div> <!-- /course-calendar-column 結束 -->
+    </div> <!-- /course-calendar-column-wrapper 結束 -->
 
     <!-- 右欄：您選擇的方案資訊（原本跟「費用資訊」同一張卡片，這次拆開：方案資訊搬來
          這裡跟日曆並排，費用資訊維持在下方全版寬單欄區塊，保留原本卡片視覺樣式）。 -->
@@ -697,9 +729,38 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
         <p class="box-sub">集合地點：訂單完成後與教練確認</p>
       </div>
 
-      <div class="info-row-item" style="border-left-color: var(--brand-ice-blue);">
-        <span class="row-label">兒童教學政策</span>
-        <span class="row-val">親子班兒童最低年齡為 6 歲，需有至少 1 位成人陪同，每組最多接受 1 位兒童同行。</span>
+      <!-- 第三輪項目一（2026-08-19）：第二輪把「兒童教學政策」併進了「費用資訊」這個
+           tag 的涵蓋範圍內，語意上是錯的——兒童教學政策是招生規則，不是費用相關資訊。
+           拆回獨立的 .plan-summary-subsection + .box-tag，「費用資訊」底下只留真正
+           跟費用相關的兩個子區塊。這會讓右欄高度略為回升（多一組標籤+分隔線的開銷），
+           但語意正確性優先於高度考量——高度落差這次改成走項目三「加寬左欄／補外框」
+           處理，不再靠犧牲分類正確性來換高度。 -->
+      <div class="plan-summary-subsection">
+        <span class="box-tag">兒童教學政策</span>
+        <div class="info-row-item" style="border-left-color: var(--brand-ice-blue);">
+          <span class="row-val">親子班兒童最低年齡為 6 歲，需有至少 1 位成人陪同，每組最多接受 1 位兒童同行。</span>
+        </div>
+      </div>
+
+      <div class="plan-summary-subsection">
+        <span class="box-tag">費用資訊</span>
+        <div class="info-list-group">
+          <div class="info-row-item">
+            <span class="row-label">費用包含/不含項目</span>
+            <span class="row-val">費用僅含教學服務，不含裝備租借、纜車票及餐費。如需教練協助裝備租借，時間計入課程時數內。</span>
+          </div>
+          <!-- 第三輪項目二：上一輪把這段拆成「NT$ 主行 + 約合美金日圓小字備註」兩行，
+               業主確認這段文案是既定核准文字，不應該為了版面高度去改動內容本身，
+               還原成業主原文的單行格式，之後不再因版面/高度考量調整這段文字。 -->
+          <div class="info-row-item">
+            <span class="row-label">延長課程費用</span>
+            <span class="row-val">NT$3,000／USD$100／JPY¥15,000／小時（3～4人方案：NT$3,600／小時）</span>
+          </div>
+          <div class="info-row-item" style="background-color: #fffbeb; border-left-color: #f59e0b;">
+            <span class="row-label" style="color: #b45309;">旺季期間提示</span>
+            <span class="row-val" style="color: #78350f;">2026年12月16日～2027年2月28日（此期間報價將依旺季費率計算）。</span>
+          </div>
+        </div>
       </div>
     </div> <!-- /course-plan-summary-card 結束 -->
 
@@ -712,86 +773,62 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 
     <div class="course-info-left-column">
 
-      <!-- 區塊 A：費用資訊（原本跟「您選擇的方案資訊」同一張卡片，方案資訊已搬到上方跟日曆並排） -->
-      <div class="info-block-card">
-        <h3 class="info-block-title">費用資訊</h3>
-        <div class="info-list-group">
-          <div class="info-row-item">
-            <span class="row-label">費用包含/不含項目</span>
-            <span class="row-val">費用僅含教學服務，不含裝備租借、纜車票及餐費。如需教練協助裝備租借，時間計入課程時數內。</span>
-          </div>
-          <div class="info-row-item">
-            <span class="row-label">延長課程費用</span>
-            <span class="row-val">NT$3,000／USD$100／JPY¥15,000／小時（3～4人方案：NT$3,600／小時）。</span>
-          </div>
-          <div class="info-row-item" style="background-color: #fffbeb; border-left-color: #f59e0b;">
-            <span class="row-label" style="color: #b45309;">旺季期間提示</span>
-            <span class="row-val" style="color: #78350f;">2026年12月16日～2027年2月28日（此期間報價將依旺季費率計算）。</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 區塊 B：法律免責與下單硬性條件 -->
+      <!-- 區塊 B：法律免責與下單硬性條件（第二輪項目三，2026-08-19）：checkbox 功能整個
+           移除（CheckBoxConsent1/2/3 三個 input 元件本身，以及 ConsentCard1/2/3、
+           ConsentUnlockHint 這些跟勾選互動綁定的容器一併拿掉——全專案檢查過，
+           這三個 checkbox 原本就沒有任何 JS 監聽（PROGRESS.md 已記錄 syncConsentState()
+           跟它綁定的 BtnStage1Next 更早之前就被移除，checkbox 純靜態、拿掉不影響任何
+           其他功能，含 Stage1「下一步」按鈕的邏輯）。改成純文字資訊卡，DOM 結構包成
+           獨立的 .legal-info-item 容器，之後如果要加回 checkbox，可以直接在容器內插入
+           input 元件，不需要整段重寫。 -->
       <div class="info-block-card">
         <h3 class="info-block-title">安全規範、資格確認與退款政策</h3>
-        <div class="card-consent-section" style="margin-top: 0; padding-top: 0; border: none;">
-          <div class="compact-cb-row" id="ConsentCard1" style="margin-bottom: 12px;">
-            <label class="consent-checkbox-row">
-              <input type="checkbox" class="required-consent-cb" id="CheckBoxConsent1">
-              <span class="consent-checkbox-label">
-                <strong>我已確認符合參加資格</strong>：已評估自身健康狀況（無懷孕、心臟病、高血壓、癲癇等不適宜滑雪之疾病）。未成年（18歲以下）已獲得監護人陪同同意。
-              </span>
-            </label>
+        <div class="legal-info-group">
+          <div class="legal-info-item">
+            <span class="legal-info-title">參加資格</span>
+            <p class="legal-info-body">已評估自身健康狀況（無懷孕、心臟病、高血壓、癲癇、精神狀態不穩定等不適宜滑雪之疾病）。未成年（18歲以下）須由監護人或其同意之成年者陪同。</p>
           </div>
-          <div class="compact-cb-row" id="ConsentCard2" style="margin-bottom: 12px;">
-            <label class="consent-checkbox-row">
-              <input type="checkbox" class="required-consent-cb" id="CheckBoxConsent2">
-              <span class="consent-checkbox-label">
-                <strong>我已詳閱並同意退款政策</strong>：活動前14天取消退100%；7-13天退70%；1-6天退50%；當天取消恕不退款。天候不佳或纜車停駛可全額退款或免費改期。所有退款扣5%手續費。
-              </span>
-            </label>
+          <div class="legal-info-item">
+            <span class="legal-info-title">退款政策</span>
+            <p class="legal-info-body">活動前14天（含）以上取消退款100%；7-13天退70%；1-6天退50%；當天取消恕不退款。因天候不佳、雪場纜車停駛或其他不可抗力因素取消，可全額退款或免費改期。所有退款均須扣除金流手續費5%。</p>
           </div>
-          <div class="compact-cb-row" id="ConsentCard3">
-            <label class="consent-checkbox-row">
-              <input type="checkbox" class="required-consent-cb" id="CheckBoxConsent3">
-              <span class="consent-checkbox-label">
-                <strong>我已同意安全規範與風險聲明</strong>：聽從教練指示，不擅自離開教學區。本課程不含保險，我已知悉並承諾於活動前自行投保（建議東京海上日動旅遊險）。
-              </span>
-            </label>
+          <!-- ⚠️ 去重複處理：投保建議只寫「本課程不含保險，請自行評估投保」，不重複列出
+               具體保險公司建議（例如東京海上日動旅遊險）——Stage 2 表單已有一個獨立、強制
+               勾選的欄位在處理具體投保建議，內容更完整，這裡重複列出會造成兩處內容日後
+               各自維護、容易走鐘不一致。 -->
+          <div class="legal-info-item">
+            <span class="legal-info-title">安全規範與風險聲明</span>
+            <p class="legal-info-body">活動期間如感身體不適，請立即停止並告知教練。請使用符合個人尺寸且正常運作之滑雪設備，損壞請立即更換。請依教練及雪場人員指示行動，未經同意請勿擅自離開教學區域，相關責任由個人承擔。教練及工作人員基於安全考量，有權要求中止活動。雪況受自然天候影響，遇天候不佳、無雪、纜車停駛等不可抗力因素，Life Chill Snow 保有變更行程或提供替代方案之權利。本課程不含保險，請自行評估投保。</p>
           </div>
-        </div>
-        <div class="consent-unlock-hint" id="ConsentUnlockHint" style="margin-top: 16px;">
-          請勾選上方三項安全聲明與政策同意書，以解鎖右側預訂結帳按鈕。
         </div>
       </div>
 
-      <!-- 區塊 C：售後服務與次要資訊 -->
+      <!-- 區塊 C：售後服務與次要資訊（第二輪項目三B/項目四，2026-08-19）：手風琴
+           （<details>/<summary>）整個移除，改全部攤開顯示，跟上方「安全規範」區塊
+           共用同一套 .legal-info-item 視覺語言，兩張卡片風格一致。內容依業主提供的
+           正式文字更新：「聯絡方式與行前通知」維持不變；「日期變更」跟「教練安排」
+           拆成兩段（原本合在同一個手風琴項目「日期變更與教練安排規範」裡）；
+           「天候變更與不可抗力權利宣告」這次規格沒有要求更新文字，維持原樣不動。 -->
       <div class="info-block-card">
-        <h3 class="info-block-title">更多服務說明（點擊展開細節）</h3>
-        <details class="modern-details-accordion" style="cursor: pointer; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
-          <summary style="font-weight: 700; color: var(--brand-deep-navy); list-style: none; display: flex; justify-content: space-between; align-items: center;">
-            <span>聯絡方式與行前通知</span> <span class="arrow-icon" style="font-size: 13px; font-weight: normal;">[ 展開 / 摺疊 ]</span>
-          </summary>
-          <div style="padding: 12px 8px; color: #5A6A78; font-size: 14px; line-height: 1.6;">
-            訂單完成後可透過 Email、LINE、WhatsApp 聯繫教練。課程開始前 1 週教練將建立群組進行詳細的行前通知與裝備清單確認。
+        <h3 class="info-block-title">更多服務說明</h3>
+        <div class="legal-info-group">
+          <div class="legal-info-item">
+            <span class="legal-info-title">聯絡方式與行前通知</span>
+            <p class="legal-info-body">訂單完成後可透過 Email、LINE、WhatsApp 聯繫教練。課程開始前 1 週教練將建立群組進行詳細的行前通知與裝備清單確認。</p>
           </div>
-        </details>
-        <details class="modern-details-accordion" style="cursor: pointer; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
-          <summary style="font-weight: 700; color: var(--brand-deep-navy); list-style: none; display: flex; justify-content: space-between; align-items: center;">
-            <span>日期變更與教練安排規範</span> <span class="arrow-icon" style="font-size: 13px; font-weight: normal;">[ 展開 / 摺疊 ]</span>
-          </summary>
-          <div style="padding: 12px 8px; color: #5A6A78; font-size: 14px; line-height: 1.6;">
-            如需更改預訂日期，請提前聯繫客服，視教練空檔協助排程。訂課時若未指定教練，由 Life Chill Snow 依學員程度代為挑選最佳教練。
+          <div class="legal-info-item">
+            <span class="legal-info-title">日期變更</span>
+            <p class="legal-info-body">如需更改預訂日期，請提前聯繫客服，視情況協助安排。</p>
           </div>
-        </details>
-        <details class="modern-details-accordion" style="cursor: pointer; padding: 10px 0;">
-          <summary style="font-weight: 700; color: var(--brand-deep-navy); list-style: none; display: flex; justify-content: space-between; align-items: center;">
-            <span>天候變更與不可抗力權利宣告</span> <span class="arrow-icon" style="font-size: 13px; font-weight: normal;">[ 展開 / 摺疊 ]</span>
-          </summary>
-          <div style="padding: 12px 8px; color: #5A6A78; font-size: 14px; line-height: 1.6;">
-            雪況受自然天候影響甚大，遇暴風雪、無雪、雪場因安全因素關閉纜車等不可抗力因素，Life Chill Snow 保有變更當日行程或提供等值替代方案之最終權利。
+          <div class="legal-info-item">
+            <span class="legal-info-title">教練安排</span>
+            <p class="legal-info-body">訂課時如未指定教練，由 Life Chill Snow 代為安排最佳教練；如欲取消，依上述退款規則處理。</p>
           </div>
-        </details>
+          <div class="legal-info-item">
+            <span class="legal-info-title">天候變更與不可抗力權利宣告</span>
+            <p class="legal-info-body">雪況受自然天候影響甚大，遇暴風雪、無雪、雪場因安全因素關閉纜車等不可抗力因素，Life Chill Snow 保有變更當日行程或提供等值替代方案之最終權利。</p>
+          </div>
+        </div>
       </div>
 
     </div> <!-- /左欄結束 -->
@@ -837,7 +874,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
          + widget 高度」，Grid/Flex 版面會自動根據這個高度正確保留空間，不需要再手動算
          margin-top、也不用再管「下面內容現在是誰」（跟目標元素解耦，更不容易再壞掉）。
      所有數字都不寫死，用 ResizeObserver 持續監聽，數字改變就即時重算。 */
-  const BAR_TO_WIDGET_GAP = 16; // 必須跟 CSS 裡 .bta-step-progress-bar 的 margin-bottom 一致
+  const BAR_TO_WIDGET_GAP = 4; // 必須跟 CSS 裡 .bta-step-progress-bar 的 margin-bottom 一致（項目三方案A，2026-08-19 由 16 改成 4）
   const positionWidgetOverlay = () => {
     const form = document.querySelector('form.shopify-product-form');
     const calendarColumn = document.querySelector('.course-calendar-column');
@@ -846,6 +883,32 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     if (!form || !calendarColumn || !widget || !window.ResizeObserver) return;
 
     form.style.setProperty('position', 'relative', 'important');
+
+    /* 項目二（2026-08-19）：實測發現 BTA 的 iframe 內部日曆版面是固定寬度（目前實測
+       450px），不會跟著外層 .course-calendar-column／#bta-product-widget 的寬度縮放
+       （試過強制把 iframe 本身設成 width:100%，內部 .main-panel 依然維持自己寫死的
+       450px，證實撐寬 iframe 本身無法讓日曆內容跟著變寬）。這代表日曆右側天生會留下
+       一段空白，而上面永遠撐滿欄寬的進度列跟這段空白對不齊，就是「進度列跟日曆卡片
+       沒有齊寬」的根因。修法不是去改 BTA 的 iframe（改了也沒用，且風險高），而是
+       反過來讓進度列跟著日曆的實際渲染寬度收窄，兩者右邊界對齊。寬度不寫死 450，
+       每次都動態量測 iframe 當下的 getBoundingClientRect().width，避免 BTA 之後
+       改版把數字改掉就沒同步。iframe 還沒掛載或撐滿欄寬時（寬度量到 0 或 >= 欄寬）
+       維持進度列預設 100% 寬度，不做任何限制。 */
+    let observedIframe = null;
+    const syncProgressBarWidth = (colWidth) => {
+      if (!progressBar) return;
+      const iframe = widget.querySelector('iframe');
+      if (iframe && iframe !== observedIframe) {
+        observedIframe = iframe;
+        new ResizeObserver(applyWidgetPosition).observe(iframe);
+      }
+      const iframeWidth = iframe ? iframe.getBoundingClientRect().width : 0;
+      if (iframeWidth > 0 && iframeWidth < colWidth) {
+        progressBar.style.setProperty('max-width', iframeWidth + 'px', 'important');
+      } else {
+        progressBar.style.removeProperty('max-width');
+      }
+    };
 
     const applyWidgetPosition = () => {
       const colRect = calendarColumn.getBoundingClientRect();
@@ -859,6 +922,8 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       widget.style.setProperty('width', colRect.width + 'px', 'important');
       widget.style.setProperty('z-index', '5', 'important');
       widget.style.setProperty('top', top + 'px', 'important');
+
+      syncProgressBarWidth(colRect.width);
     };
     applyWidgetPosition();
 
