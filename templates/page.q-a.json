@@ -486,7 +486,7 @@
                   "type": "text",
                   "name": "t:names.text",
                   "settings": {
-                    "text": "<p>我們主要服務北海道富良野、星野（Tomamu）滑雪場，另外旭川神居、聖誕禮物公園滑雪場也可以安排課程，歡迎事先與我們確認。<br/></p><p>前往富良野的交通方式：<br/>**HOKKAIDO RESORT LINER 巴士**：雪季期間可從新千歲機場直接搭乘，前往富良野飯店及車站，車程約 2～3 小時，需事先預約。詳情請參考官方網站：https://www.access-n.jp/winter2025/en/skibus/detail/chitose_furano.html<br/><br/>**JR 鐵路**：路線為新千歲機場／札幌 → 瀧川 → 富良野，車程約 3～4 小時，班次較彈性，適合行程不固定的旅客。</p><p>- **民宿接駁**：預訂我們的<br/>CHILL STAY 民宿(籌備中)，可免費提供富良野車站到民宿的接駁服務（需事先預約）。</p><p> 完成報名後，我們也會提供詳細的行前交通資訊。</p>",
+                    "text": "<p>課程費用包含教學服務及責任保險。滑雪裝備需自行準備或另行租借。</p><p>我們提供優惠的單板裝備租賃服務（僅限成人），建議先與我們諮詢確認需求後，再至官方網站完成租賃預訂，方便我們提前為你準備。若你希望自行租借，我們也可以提供推薦店鋪清單與租賃優惠資訊。</p>",
                     "width": "100%",
                     "max_width": "none",
                     "alignment": "left",
@@ -639,6 +639,7 @@
             "accordion_row_6RjBhi": {
               "type": "_accordion-row",
               "name": "t:names.accordion_row",
+              "disabled": true,
               "settings": {
                 "heading": "Q10　有團體課程可以參加嗎？",
                 "open_by_default": false,
@@ -681,7 +682,7 @@
               "type": "_accordion-row",
               "name": "t:names.accordion_row",
               "settings": {
-                "heading": "Q11　課程費用有包含保險嗎？",
+                "heading": "Q10　課程費用有包含保險嗎？",
                 "open_by_default": false,
                 "icon": "none",
                 "width": 20
@@ -691,7 +692,7 @@
                   "type": "text",
                   "name": "t:names.text",
                   "settings": {
-                    "text": "<p>有的！課程費用已包含第三人責任商業保險。</p><p>不過考量滑雪屬於高風險運動，我們仍建議入境日本後<br/>5 天內，透過 VISIT JAPAN WEB 投保東京海上日動旅遊保險（https://tokiomarinenichido.jp/zh-hant/china2/），在日停留期間若突然受傷或生病可獲得理賠，並提供多國語言支援服務，讓你玩得更安心。</p><p>還有其他問題嗎？歡迎透過<br/>Facebook/IG 私訊或 Email 聯繫我們，我們通常在 24 小時內回覆。</p>",
+                    "text": "<p>有的！課程費用已包含商業賠償責任保險。</p><p>不過考量滑雪屬於高風險運動，我們仍建議入境日本後<br/>5 天內，透過 VISIT JAPAN WEB 投保東京海上日動旅遊保險（https://tokiomarinenichido.jp/zh-hant/china2/），在日停留期間若突然受傷或生病可獲得理賠，並提供多國語言支援服務，讓你玩得更安心。</p><p>還有其他問題嗎？歡迎透過<br/>Facebook/IG 私訊或 Email 聯繫我們，我們通常在 24 小時內回覆。</p>",
                     "width": "100%",
                     "max_width": "none",
                     "alignment": "left",

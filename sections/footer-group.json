@@ -425,7 +425,7 @@
                       "type": "text",
                       "name": "t:names.text",
                       "settings": {
-                        "text": "<ul><li><a href=\"#\" target=\"_blank\" title=\"#\">裝備租賃</a></li><li><a href=\"#\" target=\"_blank\" title=\"#\">民宿介紹</a></li><li><a href=\"#\" target=\"_blank\" title=\"#\">聯絡我們</a></li></ul>",
+                        "text": "<ul><li><a href=\"/pages/equipment-rental\" title=\"裝備租賃\">裝備租賃</a></li><li><a href=\"/pages/民宿介紹-b-b-introduction\" title=\"民宿介紹\">民宿介紹</a></li><li><a href=\"/pages/contact-us\" title=\"聯絡我們\">聯絡我們</a></li></ul>",
                         "width": "100%",
                         "max_width": "narrow",
                         "alignment": "left",

@@ -1245,6 +1245,38 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
         if (hintEl) hintEl.style.display = 'none';
       };
 
+      /* 開發指令規格順序4（2026-08-25）：「實際參加人數」選單依 Stage 1 已選定的人數
+         方案動態過濾選項。BTA 官方 Booking Field 本身不支援依 variant 限制選項範圍
+         （已查證，見上面「實際參加人數」前端驗證方案 A 的既有結論），這裡改用純前端
+         DOM 操作在我們自己這層過濾：不是新增/刪除 <option>（會動到 BTA 自己的表單
+         結構），而是用 hidden + disabled 把範圍外的選項藏起來/不能選，範圍改變時
+         （人數方案切換、或 BTA 把 <select> 重繪成新節點）都要重新套用一次，不能假設
+         套用一次就永久有效——所以掛在 validateAttendeeCount() 裡，跟它共用同一組
+         既有的觸發點（change / cbf:variantChanged / MutationObserver / 700ms 保底輪詢），
+         不用另外寫一套監聽。
+         如果使用者先前選的值因為換方案而變成範圍外，主動清空選取值（改選回「請選擇...」
+         這個既有的空值 option），讓下面 checkAttendeeCount() 判斷成「空值=無效」，直接
+         沿用既有的錯誤提示／送出鈕 disabled 防呆邏輯，不需要另外寫一套判斷。
+         ⚠️ 選單過濾之後，下面既有的 checkAttendeeCount／validateAttendeeCount 這層防呆
+         完全沒有拿掉——理論上選單過濾後不會再選錯，但這是規格明確要求保留的保險機制，
+         避免有其他方式繞過選單直接送出的例外情況。 */
+      const filterAttendeeCountOptions = (select) => {
+        const range = parseAttendeeRange(window.__cbfSelectedVariantTitle);
+        if (!range) return; // 抓不到方案範圍時不過濾，維持全部選項可見，跟驗證邏輯同一個「加分防呆不擋正常流程」原則
+        let currentValueStillVisible = false;
+        Array.from(select.options).forEach((opt) => {
+          const num = parseInt(opt.value, 10);
+          if (!opt.value || isNaN(num)) return; // 空值／「請選擇...」預設選項一律保留
+          const inRange = num >= range.min && num <= range.max;
+          opt.hidden = !inRange;
+          opt.disabled = !inRange;
+          if (inRange && opt.value === select.value) currentValueStillVisible = true;
+        });
+        if (select.value && !currentValueStillVisible) {
+          select.value = '';
+        }
+      };
+
       /* 錯誤提示可見性優化（2026-08-12）：比照 Stage3 checkbox 已驗證過的「即時反應」模式，
          不再只在送出時才攔截。「實際參加人數」select 的 change、Stage1「人數方案」variant
          切換（cbf:variantChanged 自訂事件，見檔案最上方早期 <script>）任一觸發，都重新
@@ -1282,6 +1314,8 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
           return;
         }
 
+        filterAttendeeCountOptions(select);
+
         const container = select.closest('.field-input-container') || select.parentElement;
         if (!errorEl) {
           errorEl = doc.createElement('p');
@@ -1315,12 +1349,39 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
         }
 
         if (!result.valid) {
-          errorEl.textContent = result.message;
-          errorEl.style.display = 'block';
-          hintEl.textContent = result.message;
-          hintEl.style.display = 'block';
-          btn.disabled = true;
-          btn.dataset.cbfAttendeeInvalid = '1';
+          if (select.value === '') {
+            /* 2026-08-27 修正（任務一）：完全沒選時，不要原生 disabled 按鈕，也不要提早
+               顯示我們自己的提示文字。已實測確認：瀏覽器對原生 disabled 的按鈕完全不會
+               派發 click 事件（連 capture phase 監聽器都收不到），會連帶讓 BTA 自己的
+               必填驗證、還有下面「錨點捲動＋必填提示」（getFirstInvalidField／
+               showRequiredFieldsHint）那層完全跑不到——這正是「其他必填欄位送出時都會
+               自動捲動提示，唯獨『實際參加人數』沒有反應」這個問題的根因，不是順序4新增
+               的選單過濾（hidden+disabled options）造成的：已實測確認 BTA 自己的必填
+               驗證機制不受選單過濾影響，選單過濾只是決定「選項能不能選」，不影響「目前
+               沒選=空值」這個狀態的判定。
+               修法：讓「完全沒選」這個情況維持跟其他必填欄位一致的行為——送出前保持
+               安靜（不主動 disable、不主動顯示錯誤，這也是原本 capture-phase 攔截那段
+               程式碼註解已經寫明、但這裡的 disabled 邏輯先前沒有同步做到的既有設計意圖），
+               送出後交給 BTA 自己標記 .error、我們的 getFirstInvalidField 自然接手捲動
+               ＋提示，不需要另外寫一套。 */
+            errorEl.style.display = 'none';
+            hintEl.style.display = 'none';
+            if (btn.dataset.cbfAttendeeInvalid) {
+              btn.disabled = false;
+              delete btn.dataset.cbfAttendeeInvalid;
+            }
+          } else {
+            /* 已選了值，但跟目前「人數方案」不符：這是 BTA 完全不知道的業務規則（BTA
+               自己的必填驗證只檢查「有沒有選」，不會檢查「選的值合不合理」），維持原本
+               「立即 disabled ＋ 欄位旁與按鈕上方提示」的既有防呆行為不變，不受這次任務一
+               的修正影響。 */
+            errorEl.textContent = result.message;
+            errorEl.style.display = 'block';
+            hintEl.textContent = result.message;
+            hintEl.style.display = 'block';
+            btn.disabled = true;
+            btn.dataset.cbfAttendeeInvalid = '1';
+          }
         } else {
           errorEl.style.display = 'none';
           hintEl.style.display = 'none';

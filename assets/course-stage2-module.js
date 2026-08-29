@@ -61,9 +61,90 @@ import { CartUpdateEvent } from '@theme/events';
     { key: '安全帽', price: 300, skiType: null, desc: '輕量舒適', isCombo: false, isMutual: true,
       sizeFields: [ HELMET_SIZE_FIELD ] },
     { key: '雪鏡', price: 300, skiType: null, desc: '防曬抗 UV 鏡片', isCombo: false, isMutual: true },
-    { key: '滑雪護具', price: 200, skiType: null, desc: '加強防護設計', isCombo: false, isMutual: false,
+    { key: '滑雪護具', price: 200, skiType: null, desc: '加強防護設計（護臀、護膝）', isCombo: false, isMutual: false,
       sizeFields: [ { key: 'padSize', label: '護具尺寸', type: 'select', options: ['S', 'M', 'L', 'XL'] } ] },
   ];
+
+  /* 2026-08-29（緊急修復，範圍限定安全帽／雪鏡兩項）：Stage3 加購原本只把選擇內容寫進
+     line item properties（純文字說明），從未真正讓 Shopify 收這筆錢——已在 PROGRESS.md
+     記錄根因跟盤點結果。這兩項是盤點六項裝備裡唯二「Stage3 收集的資料維度」跟「Shopify
+     後台真實商品的 variant 結構」剛好一對一對得起來的（安全帽：S/M/L 對應真實商品的
+     頭圍尺寸三個 variant；雪鏡：無尺寸選項，真實商品也只有一個預設 variant），
+     所以先只做這兩項的真實串接。
+     variant id 直接來自 qgfchv-py.myshopify.com 商店（即時查 /products.json 確認，
+     不是用表單/商品頁面上顯示的文字反推），是全店共用的常數，不分測試/正式主題環境。 */
+  var HELMET_VARIANT_ID_BY_SIZE = {
+    'S': 45841778606163, // 裝備租賃 - 安全帽 / S (52-55 cm)
+    'M': 45841778638931, // 裝備租賃 - 安全帽 / M (55-59 cm)
+    'L': 45841778671699, // 裝備租賃 - 安全帽 / L (59-63 cm)
+  };
+  var GOGGLES_VARIANT_ID = 43406544863315; // 裝備租賃 - 雪鏡 / Default Title
+
+  /* 2026-08-29（第二批，滑雪護具）：真實商品「裝備租賃 - 滑雪護臀 護膝」
+     （gear-rent-protect）是**一個商品、兩個 option 維度（護臀尺寸×護膝尺寸）合併成
+     一個 variant**，不是兩個獨立商品——即時查 /products.json 確認共 8 個 variant。
+     Stage3 只收一筆「護具尺寸」（S/M/L/XL），要換算成「護臀尺寸＋護膝尺寸」這組合併
+     variant：護膝只有兩種尺寸，S 號護臀搭配「適用於S號護臀的護膝」，M/L/XL 號護臀
+     都搭配同一種「適用於 M/L/XL 號護臀的護膝」——這是業主確認的對應規則（護膝尺寸
+     由護臀尺寸決定，不是客人自己選），不是這裡自己發明的假設。每個 padSize 值剛好
+     對應唯一一個 variant，所以做法跟安全帽的「尺寸→variant」對照表完全一樣，
+     不需要另外設計「一對多」的特殊處理邏輯。 */
+  var PAD_VARIANT_ID_BY_SIZE = {
+    'S': 45840784490579,  // 護臀 S (參考腰圍 56-66 cm) / 護膝 適用於S號
+    'M': 45840784588883,  // 護臀 M (參考腰圍 60-74 cm) / 護膝 適用於 M/L/XL 號
+    'L': 45840784654419,  // 護臀 L (參考腰圍 70-80 cm) / 護膝 適用於 M/L/XL 號
+    'XL': 45840784719955, // 護臀 XL (參考腰圍 74-88 cm) / 護膝 適用於 M/L/XL 號
+  };
+
+  /* 2026-08-29（第三批，固定 variant 退而求其次方案）：單板鞋組／雪服帽鏡組／雪服
+     這三項真實商品的 variant 結構跟 Stage3 收集的尺寸資料維度對不起來（單板鞋組完全
+     沒有尺寸變體；雪服帽鏡組／雪服是「男女尺寸並列」兩個獨立 option，跟 Stage3「依
+     性別切換單一尺寸池」的收集方式不同），沒辦法比照安全帽／雪鏡／滑雪護具做「一對一
+     查表」。改用退而求其次的做法：不管客人在 Stage3 填什麼尺寸，一律固定送出該商品
+     底下的同一顆 variant，讓 Shopify 收到正確金額；客人實際填的尺寸維持寫入
+     line item properties 文字說明，供教練/後勤核對，不影響這裡的計費邏輯。
+     這個做法成立的前提（即時查 /products.json 逐一驗證過，不是假設）：
+     (1) 同一商品底下所有 variant 價格完全一致——選哪個尺寸/性別組合都不影響金額；
+     (2) 三個商品都沒有追蹤庫存（inventory_management 全部是 null）——固定送出某個
+     variant 不會有「該 variant 缺貨/售完」導致 /cart/add.js 失敗的風險。
+     固定送出的 variant id 只是任取商品底下第一個組合，選哪一個不影響金額。 */
+  var SBOARD_BOOTS_VARIANT_ID = 43406544830547;   // 裝備租賃 - 單板鞋組 / Default Title（唯一 variant）
+  var FULL_SET_BUNDLE_VARIANT_ID = 45841855021139; // 裝備租賃 - 雪服帽鏡組 / S (52-55 cm) / S / S（60 變體任取一顆，價格皆為 $1,000）
+  var JACKET_PANT_VARIANT_ID = 45841848664147;      // 裝備租賃 - 雪服 / S / S（24 變體任取一顆，價格皆為 $800）
+
+  /* 把已勾選的裝備（selectedGear，來自 getSelectedGear()）轉成 /cart/add.js 需要的
+     { id, quantity } 清單。GEAR_ITEMS 六項裝備現在全部有對應：安全帽／滑雪護具用
+     「尺寸→variant」查表，雪鏡固定一顆 variant，單板鞋組／雪服帽鏡組／雪服三項用
+     固定 variant 退而求其次方案（見上方 SBOARD_BOOTS_VARIANT_ID 等常數旁的說明）。
+     同一個 variant（例如兩位學員都選 M 號安全帽，或都勾了雪服帽鏡組）合併成一筆、
+     quantity 疊加，不會拆成兩筆重複的 line item——這是 Shopify 購物車本來就有的
+     「同 variant 用 quantity 疊加」慣例，不是這裡額外發明的邏輯。 */
+  function buildRealGearCartItems(selectedGear) {
+    var quantityByVariantId = {};
+    (selectedGear || []).forEach(function (g) {
+      var variantId = null;
+      if (g.key === '安全帽') {
+        var helmetSize = g.sizeValues && g.sizeValues.helmetSize;
+        variantId = HELMET_VARIANT_ID_BY_SIZE[helmetSize] || null;
+      } else if (g.key === '雪鏡') {
+        variantId = GOGGLES_VARIANT_ID;
+      } else if (g.key === '滑雪護具') {
+        var padSize = g.sizeValues && g.sizeValues.padSize;
+        variantId = PAD_VARIANT_ID_BY_SIZE[padSize] || null;
+      } else if (g.key === '單板鞋組') {
+        variantId = SBOARD_BOOTS_VARIANT_ID;
+      } else if (g.key === '雪服帽鏡組') {
+        variantId = FULL_SET_BUNDLE_VARIANT_ID;
+      } else if (g.key === '雪服') {
+        variantId = JACKET_PANT_VARIANT_ID;
+      }
+      if (!variantId) return;
+      quantityByVariantId[variantId] = (quantityByVariantId[variantId] || 0) + 1;
+    });
+    return Object.keys(quantityByVariantId).map(function (variantId) {
+      return { id: Number(variantId), quantity: quantityByVariantId[variantId] };
+    });
+  }
 
   /* 指定教練加購：整組課程層級的單選（不是每學員各自選），固定加價 NT$400，
      跟哪一位教練無關（三選一，價格一致）。跟裝備加租不同，資料寫入時只會有
@@ -125,6 +206,10 @@ import { CartUpdateEvent } from '@theme/events';
       '.dual-track-container { display: flex; flex-direction: column; gap: 14px; margin-bottom: 4px; }',
       '@media (min-width: 640px) { .dual-track-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; } .dual-track-container .accordion-card.is-expanded { grid-column: 1 / -1; order: -1; } }',
       '.accordion-card { background: #fff; border: 1px solid #e4ecf3; border-radius: 12px; overflow: hidden; }',
+      /* 開發指令規格順序6（2026-08-27 方向性修正）：Stage 2「滑雪場」欄位答案不是
+         「富良野」時隱藏裝備租賃／住宿加購卡片（不再看商品標籤）。只用 CSS 隱藏，
+         HTML 結構跟既有的 JS 監聽器完全不動，見 renderStage2Form() 頂部註解。 */
+      '.cs2-resort-hidden { display: none !important; }',
       '.accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: #E8F4FA; gap: 14px; }',
       '.card-info h4 { font-size: 15px; font-weight: 700; color: #1A2E4A; margin: 0 0 3px 0; }',
       '.card-info p { font-size: 13px; color: #5A6A78; margin: 0; line-height: 1.4; }',
@@ -214,6 +299,16 @@ import { CartUpdateEvent } from '@theme/events';
       '.cs2-legal-consent-text { font-size: 13px; color: #1A2E4A; line-height: 1.5; }',
       '.cs2-legal-consent-warning { color: #C0392B; font-size: 12px; font-weight: 700; margin: 6px 0 0 28px; }',
       '.cs2-legal-consent-warning[hidden] { display: none; }',
+
+      /* 2026-08-29 修正（任務二）：順序5原本在 Stage 3 另外做了一個可勾選的「同行人員中
+         有兒童」checkbox（純資料收集，跟 Stage 2 的「是否有 6~12 歲兒童同行」各自獨立）。
+         業主確認這是重複詢問，Stage 3 不該再讓客人重新勾選一次——改成唯讀顯示：直接讀
+         Stage 2 這個 BTA Booking Field 的答案（呼叫端 cart-stage2-trigger.liquid 已經
+         判斷好傳進來），答案是「有」才顯示這一行醒目文字，「沒有」則整個不渲染。
+         `.cs2-companion-info-row`（原本的可勾選淺灰底框行）已跟著拿掉，換成這個唯讀版
+         `.cs2-child-notice`，用跟三張加購卡片不同的「提示語氣」（左側色條＋粗體），
+         不是可互動的表單元素。 */
+      '.cs2-child-notice { display: flex; align-items: center; gap: 8px; background: #E8F4FA; border: 1px solid #B8D9ED; border-left: 3px solid #3A7AB5; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; color: #1A2E4A; font-size: 13px; font-weight: 700; }',
 
       /* 金額總計（課程原價 + 已勾選加購項目），放在送出按鈕正上方，比照「實際參加人數」
          驗證那則按鈕旁提示文字的位置邏輯，讓客人捲到按鈕位置就能直接看到，不用往上找 */
@@ -454,6 +549,24 @@ import { CartUpdateEvent } from '@theme/events';
   function renderStage2Form(container, options) {
     options = options || {};
     var attendeeCount = options.attendeeCount || 1;
+    /* 開發指令規格順序6（2026-08-27 方向性修正）：裝備租賃／住宿加購只在 Stage 2
+       「滑雪場」欄位答案為「富良野」時顯示（不是商品標籤），呼叫端
+       （cart-stage2-trigger.liquid）已經讀好 line item properties 判斷結果傳進來。
+       只用嚴格 === false 判斷「明確不顯示」，
+       undefined／true 一律當作顯示——沒有傳這個 option 的未來呼叫端（如果有）維持
+       跟改動前一致的行為，不會因為忘記傳這個新 option 就意外把區塊藏起來。
+       ⚠️ 刻意只用 CSS 隱藏這兩張卡片，不是不渲染 HTML／不掛 JS 監聽器——兩個 toggle
+       預設就是未勾選，隱藏之後使用者不可能點到它們，`gearToggle.checked`／
+       `hotelToggle` 自然維持 false，下面 syncSubmitButtonState()／submit handler
+       既有的「toggle 沒開＝不列入送出」邏輯完全不用改，風險比另外寫一套「不渲染就要
+       同步 guard 每一處讀取」的分支小很多。 */
+    var hideGearAndHotel = options.showGearAndHotel === false;
+    /* 任務二（2026-08-29）：Stage 2「是否有 6~12 歲兒童同行」答案是「有」時，才顯示這行
+       唯讀提示——呼叫端（cart-stage2-trigger.liquid）已經讀好 line item properties
+       判斷結果傳進來（測試/正式環境的 property key 不一樣，已個別實測查證，呼叫端統一
+       轉成這個布林值，這裡不需要知道底層 key 細節）。嚴格 === true 才顯示，
+       undefined／false 都不顯示——沒有兒童同行是常態，預設不顯示比預設顯示更安全。 */
+    var hasChildCompanion = options.hasChildCompanion === true;
     injectStylesOnce();
 
     container.innerHTML =
@@ -467,8 +580,9 @@ import { CartUpdateEvent } from '@theme/events';
               '<div class="cs2-sticky-total"><span class="cs2-total-label">總額</span><span class="cs2-total-amount" data-cs2-total-amount-sticky>$0.00</span></div>' +
             '</div>' +
           '</div>' +
+          (hasChildCompanion ? '<div class="cs2-child-notice">同行人員中有兒童</div>' : '') +
           '<div class="dual-track-container">' +
-            '<div class="accordion-card">' +
+            '<div class="accordion-card' + (hideGearAndHotel ? ' cs2-resort-hidden' : '') + '">' +
               '<div class="accordion-header">' +
                 '<div class="card-info">' +
                   '<h4>官方專屬裝備加租</h4>' +
@@ -538,7 +652,7 @@ import { CartUpdateEvent } from '@theme/events';
                 '<p class="cs2-coach-warning" data-cs2-coach-warning hidden>請先選擇一位教練</p>' +
               '</div>' +
             '</div>' +
-            '<div class="accordion-card">' +
+            '<div class="accordion-card' + (hideGearAndHotel ? ' cs2-resort-hidden' : '') + '">' +
               '<div class="accordion-header">' +
                 '<div class="card-info">' +
                   '<h4>專屬特約民宿加購</h4>' +
@@ -770,8 +884,14 @@ import { CartUpdateEvent } from '@theme/events';
         var selectedCoach = coachControls.getSelectedCoach();
         if (selectedCoach) properties['指定教練'] = selectedCoach;
       }
+      // 2026-08-29：GEAR_ITEMS 六項裝備額外算出真實 variant 清單，跟
+      // properties 一起交給呼叫端（cart-stage2-trigger.liquid）——properties 繼續走
+      // 原本的 writeCourseFormDataToCart()，這份清單另外呼叫 /cart/add.js，兩件事
+      // 並行、互不影響，不是二選一。尺寸資訊不論商品有沒有對應 variant，一律照舊
+      // 寫入 properties 文字說明（見 buildRealGearCartItems 旁的說明）。
+      var realGearCartItems = buildRealGearCartItems(selectedGear);
       close();
-      if (options.onSubmit) options.onSubmit(properties);
+      if (options.onSubmit) options.onSubmit(properties, realGearCartItems);
     });
   }
 
@@ -811,8 +931,38 @@ import { CartUpdateEvent } from '@theme/events';
       });
   }
 
+  /**
+   * 2026-08-29：把安全帽／雪鏡／滑雪護具的真實 variant 加入購物車，成為各自獨立、有
+   * 實際價格的 line item——這是這次緊急修復的核心：之前加購項目只寫 properties，
+   * Shopify 從未真正收過這筆錢。呼叫 /cart/add.js（不是 /cart/change.js），因為這是
+   * 「新增」而不是「修改既有項目」。items 為空陣列（例如這次沒勾這三項任何一項）時
+   * 直接跳過，不打空的 /cart/add.js（Shopify 對空 items 陣列會回錯誤，不是靜默成功）。
+   * @param {Array<{id:number,quantity:number}>} items - buildRealGearCartItems() 的結果
+   * @returns {Promise<object|null>} 更新後的 cart 物件，items 為空時回傳 null
+   */
+  function addRealGearLineItems(items) {
+    if (!items || !items.length) return Promise.resolve(null);
+    return fetch('/cart/add.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items }),
+    })
+      .then(function (r) { return r.json(); })
+      // /cart/add.js 只回傳「這次新加的項目」（{items:[...]}），不是完整購物車物件，
+      // 跟 CartUpdateEvent 預期收到「完整購物車」的規格對不上——沿用
+      // writeCourseFormDataToCart() 同一招，另外打一次 /cart.js 拿完整、正確的購物車
+      // 狀態再派發事件，不要直接把 /cart/add.js 的回應塞進去。
+      .then(function () { return fetch('/cart.js'); })
+      .then(function (r) { return r.json(); })
+      .then(function (updatedCart) {
+        document.dispatchEvent(new CartUpdateEvent(updatedCart, 'course-stage2-module', { source: 'course-stage2-module' }));
+        return updatedCart;
+      });
+  }
+
   window.CourseStage2Module = {
     renderStage2Form: renderStage2Form,
+    addRealGearLineItems: addRealGearLineItems,
     renderGearRentalSection: renderGearRentalSection,
     renderCoachSelectSection: renderCoachSelectSection,
     writeCourseFormDataToCart: writeCourseFormDataToCart,

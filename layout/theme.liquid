@@ -219,15 +219,42 @@
 
 
 
-<!-- 浮動按鈕：LINE + Go Top -->
+<!-- 浮動按鈕：社群聯絡（LINE/FB/IG 展開選單）+ Go Top -->
+<!-- 開發指令規格順序3（2026-08-25）：原本 LINE 是一個直接連到 LINE 的 <a> 連結，
+     這次改成「主按鈕＋展開選單」：平時只顯示一個主按鈕，點擊後才展開 LINE／FB／IG
+     三個圖示。主按鈕改用 <button> 而不是 <a>，因為點擊行為變成「切換選單開關」而
+     不是「直接導去 LINE」，LINE 本身變成展開後三個選項之一，跟 FB／IG 平行。
+     2026-08-26 修正：主按鈕原本沿用 LINE 圖示視覺，收合時容易讓人誤以為只能透過
+     LINE 聯繫（看不出其實展開後還有 FB/IG）——改用中性的聯絡/對話泡泡圖示
+     （`icon.liquid` 的 `chat_bubble`），不代表任何特定平台，LINE 圖示只保留在展開後
+     的子選單裡。FB/IG 網址沿用全站其他地方（footer-group.json、page.contact-us.json、
+     index.json 首頁區塊）已經在用的同一組官方連結，不是憑空填的。 -->
 <div class="floating-buttons">
 
-  <!-- LINE Icon -->
-<!-- LINE Icon -->
-<a href="https://line.me/R/ti/p/@455lfqzf" target="_blank" class="float-btn line-btn" aria-label="LINE">
-<img src="https://cdn.shopify.com/s/files/1/0651/9413/1539/files/LINE-New-App-Icon.png?v=1767237533" 
-     alt="LINE" width="60" height="60">
-</a>
+  <div class="fab-group" data-fab-group>
+    <div class="fab-submenu" data-fab-submenu>
+      <a href="https://line.me/R/ti/p/@455lfqzf" target="_blank" rel="noopener noreferrer" class="float-btn fab-sub-btn fab-line-btn" aria-label="LINE">
+        <img src="https://cdn.shopify.com/s/files/1/0651/9413/1539/files/LINE-New-App-Icon.png?v=1767237533"
+             alt="LINE" width="44" height="44">
+      </a>
+      <a href="https://www.facebook.com/people/Lifechillsnow%E4%BE%86%E8%B6%A3%E6%BB%91%E9%9B%AA%E5%AF%8C%E8%89%AF%E9%87%8E%E4%B8%AD%E6%96%87%E6%BB%91%E9%9B%AA%E6%95%99%E5%AE%A4/61582960648743/" target="_blank" rel="noopener noreferrer" class="float-btn fab-sub-btn fab-fb-btn" aria-label="Facebook">
+        <svg viewBox="0 0 20 20" width="22" height="22" fill="currentColor" aria-hidden="true">
+          {%- render 'icon', icon: 'facebook' -%}
+        </svg>
+      </a>
+      <a href="https://www.instagram.com/lifechillsnow/" target="_blank" rel="noopener noreferrer" class="float-btn fab-sub-btn fab-ig-btn" aria-label="Instagram">
+        <svg viewBox="0 0 20 20" width="22" height="22" fill="currentColor" aria-hidden="true">
+          {%- render 'icon', icon: 'instagram' -%}
+        </svg>
+      </a>
+    </div>
+
+    <button type="button" class="float-btn fab-main-btn" id="fabMainBtn" aria-label="展開聯絡方式選單" aria-expanded="false" aria-haspopup="true">
+      <svg viewBox="0 0 20 20" width="26" height="26" fill="#fff" aria-hidden="true">
+        {%- render 'icon', icon: 'chat_bubble' -%}
+      </svg>
+    </button>
+  </div>
 
   <!-- Go Top 按鈕 -->
   <button class="float-btn top-btn" id="goTopBtn" aria-label="回到頂部" onclick="window.scrollTo({top:0,behavior:'smooth'})">
@@ -269,22 +296,59 @@
   box-shadow: 0 4px 14px rgba(0,0,0,0.3);
 }
 
-/* LINE 綠色背景 */
-/* 修改後 */
-.line-btn {
-  background-color: transparent;
-  box-shadow: none;
-  width: 60px;
-  height: 60px;
-  padding: 0;
+/* 順序3（2026-08-25）：LINE 主按鈕＋展開選單（FAB speed-dial）。
+   .fab-group 是 position:relative 的定位基準，.fab-submenu 用 position:absolute
+   疊在主按鈕正上方（bottom:100%），預設 opacity:0 + pointer-events:none + 輕微
+   向下位移，展開時（.fab-group.is-open）淡入＋歸位，並用 pointer-events:none
+   確保收合狀態下這幾個連結不會被點到、也不會被 Tab 鍵誤聚焦（額外用 JS 同步
+   tabindex，見下方 script）。 */
+.fab-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.line-btn img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 50%;
-  display: block;
+.fab-submenu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fab-group.is-open .fab-submenu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.fab-sub-btn {
+  width: 44px;
+  height: 44px;
+  background-color: #fff;
+}
+
+.fab-line-btn {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.fab-main-btn {
+  /* <button> 預設有 padding/font 相關樣式，先蓋掉。2026-08-26：主按鈕從沿用 LINE
+     圖示的透明底圖片，改成統一背景色 + 白色對話泡泡圖示的中性樣式，不再套用
+     .line-btn（那組樣式是為透明底圖片設計的），改在這裡直接定義完整外觀。 */
+  padding: 0;
+  font: inherit;
+  width: 60px;
+  height: 60px;
+  background-color: #1A2E4A;
 }
 
 /* Go Top */
@@ -300,13 +364,6 @@
   visibility: visible;
 }
 
-/* 手機版同步縮小 */
-@media (max-width: 768px) {
-  .line-btn {
-    width: 60px;
-    height: 60px;
-  }
-}
 </style>
 
 <script>
@@ -331,6 +388,47 @@ if (topBtn) {
         topBtn.classList.add('visible');
       } else {
         topBtn.classList.remove('visible');
+      }
+    });
+  }
+
+  // ⑤ 順序3（2026-08-25）：LINE 主按鈕＋展開選單（LINE/FB/IG）
+  var fabGroup = document.querySelector('[data-fab-group]');
+  var fabMainBtn = document.getElementById('fabMainBtn');
+  var fabSubmenu = document.querySelector('[data-fab-submenu]');
+  if (fabGroup && fabMainBtn && fabSubmenu) {
+    var fabSubLinks = fabSubmenu.querySelectorAll('a');
+
+    var setFabOpen = function (open) {
+      fabGroup.classList.toggle('is-open', open);
+      fabMainBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      /* 收合時把子選單連結的 tabindex 設成 -1，避免鍵盤 Tab 操作時聚焦到視覺上
+         看不見（opacity:0）的連結；展開時移除，恢復正常 Tab 順序。 */
+      fabSubLinks.forEach(function (link) {
+        if (open) {
+          link.removeAttribute('tabindex');
+        } else {
+          link.setAttribute('tabindex', '-1');
+        }
+      });
+    };
+    setFabOpen(false);
+
+    fabMainBtn.addEventListener('click', function (event) {
+      event.stopPropagation();
+      setFabOpen(!fabGroup.classList.contains('is-open'));
+    });
+
+    // 點擊選單以外的地方、或按 Escape，收合選單
+    document.addEventListener('click', function (event) {
+      if (fabGroup.classList.contains('is-open') && !fabGroup.contains(event.target)) {
+        setFabOpen(false);
+      }
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && fabGroup.classList.contains('is-open')) {
+        setFabOpen(false);
+        fabMainBtn.focus();
       }
     });
   }

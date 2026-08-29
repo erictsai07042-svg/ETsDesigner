@@ -30,9 +30,49 @@
   var STAGE2_DONE_KEY = '_stage2_completed';
   var ATTENDEE_COUNT_KEY = '實際參加人數';
   var COURSE_PRODUCT_IDS = '{{ course_product_ids }}'.split(',').filter(Boolean).map(Number);
+  // 開發指令規格順序6 方向性修正（2026-08-27）：原本用商品 resort-furano 標籤判斷
+  // 是誤判資料模型——實際上客人是在 Stage 2「(測試) 滑雪場」／「滑雪場」這個 BTA
+  // Booking Field 下拉選單裡選雪場，不是商品本身帶什麼標籤。已實測兩邊環境的真實
+  // BTA 表單走一次完整流程、查 /cart.js 確認：這個欄位寫進購物車的 property key
+  // 不是表單原始 HTML 的 name 屬性（測試版 name="測試_滑雪場"、正式版
+  // name="滑雪場_"，兩邊底線位置還不對稱），而是 BTA Booking Field 設定的顯示
+  // Label 文字本身——測試版 key 是「(測試) 滑雪場」，正式版 key 是「滑雪場」，
+  // value 兩邊都是乾淨字串「富良野」（無空格無字尾）。單一 line item 不會同時
+  // 有這兩個 key，用 || 讀取剛好互斥安全；兩個 key 都讀不到時自然是
+  // undefined === '富良野' → false，跟改動前「未知情況不顯示」的 fail-safe
+  // 方向一致，不需要額外判斷正式/測試身份。resort-furano 商品標籤已確認不再使用，
+  // 不需要業主花時間確認補標籤是否成功。
+  var RESORT_KEY_PROD = '滑雪場';
+  var RESORT_KEY_TEST = '(測試) 滑雪場';
+  var TARGET_RESORT = '富良野';
+
+  /* 任務二（2026-08-29）：Stage 3 原本另外做了一個可勾選的「同行人員中有兒童」checkbox，
+     業主確認這跟 Stage 2 既有的「是否有 6~12 歲兒童同行」BTA Booking Field 是重複詢問，
+     改成 Stage 3 直接讀 Stage 2 這個欄位的答案，答案是「有」才唯讀顯示一行提示，不用
+     再讓客人操作一次。跟「滑雪場」欄位同一個教訓：**不能假設測試/正式環境的 property
+     key 一致**，已分別實測兩邊真實 BTA 表單送出後查 /cart.js 確認，兩邊的 key 連
+     全形/半形符號都不一樣（正式版波浪號、括號都是全形；測試版波浪號是半形、右括號
+     也是半形——這個不對稱是 BTA 後台原始資料本身就有的，不是這次改動造成的），照抄
+     原始 key 逐字元比對過（用 charCodeAt 交叉驗證，不是肉眼讀），不要自己改寫這兩個
+     常數字串。 */
+  var CHILD_COMPANION_KEY_PROD = '是否有 6～12 歲兒童？（每組最多接受 1 位兒童同行）';
+  var CHILD_COMPANION_KEY_TEST = '(測試) 是否有 6~12 歲兒童？（每組最多接受 1 位兒童同行)';
 
   function isCourseItem(item) {
     return item.product_type === 'Course' || COURSE_PRODUCT_IDS.indexOf(item.product_id) > -1;
+  }
+
+  // 開發指令規格順序6（方向性修正）：裝備租賃／住宿加購是否顯示，改看 Stage 2
+  // 「滑雪場」欄位的答案是否為「富良野」，不再看商品標籤。
+  function isFuranoItem(item) {
+    var resort = item.properties[RESORT_KEY_PROD] || item.properties[RESORT_KEY_TEST];
+    return resort === TARGET_RESORT;
+  }
+
+  // 任務二：Stage 3 兒童同行提示是否顯示，改看 Stage 2「是否有 6~12 歲兒童同行」答案。
+  function hasChildCompanion(item) {
+    var answer = item.properties[CHILD_COMPANION_KEY_PROD] || item.properties[CHILD_COMPANION_KEY_TEST];
+    return answer === '有';
   }
 
   function findItemNeedingStage2(cart) {
@@ -70,14 +110,24 @@
         window.CourseStage2Module.renderStage2Form(mount, {
           attendeeCount: getAttendeeCount(targetItem),
           productTitle: targetItem.product_title,
+          showGearAndHotel: isFuranoItem(targetItem),
+          hasChildCompanion: hasChildCompanion(targetItem),
           /* 課程原價直接讀購物車該筆 line item 現有金額（分為單位，Shopify /cart.js 慣例），
              優先用 final_line_price（含 cart 層折扣分攤），沒有才退回 line_price / price——
              不寫死任何金額，價格調整時這裡不需要跟著改。 */
           coursePriceCents: targetItem.final_line_price != null ? targetItem.final_line_price :
             (targetItem.line_price != null ? targetItem.line_price : targetItem.price),
-          onSubmit: function (properties) {
+          onSubmit: function (properties, realGearCartItems) {
             properties[STAGE2_DONE_KEY] = 'true';
-            window.CourseStage2Module.writeCourseFormDataToCart(targetItem.key, properties).then(function () {
+            /* 2026-08-29 緊急修復：properties 繼續寫課程這個 line item（文字說明，
+               給教練/後勤看），realGearCartItems（GEAR_ITEMS 六項裝備皆已對應真實
+               variant）另外呼叫 /cart/add.js 變成獨立、有真實價格的 line item，讓
+               Shopify 真的收到這筆錢——這兩件事並行，不是二選一，所以用 Promise.all
+               一起等，不用先後順序（各自獨立的 API 呼叫，互不依賴對方結果）。 */
+            Promise.all([
+              window.CourseStage2Module.writeCourseFormDataToCart(targetItem.key, properties),
+              window.CourseStage2Module.addRealGearLineItems(realGearCartItems),
+            ]).then(function () {
               checkAndTrigger();
             });
           },

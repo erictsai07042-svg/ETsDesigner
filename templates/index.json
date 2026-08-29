@@ -650,7 +650,7 @@
                     "text_PPU4Md": {
                       "type": "text",
                       "settings": {
-                        "text": "<h4>富良野3大雪場</h4>",
+                        "text": "<h4>北海道4大雪場</h4>",
                         "width": "100%",
                         "max_width": "normal",
                         "alignment": "left",
@@ -675,7 +675,7 @@
                     "text_ce3GDw": {
                       "type": "text",
                       "settings": {
-                        "text": "<p>富良野・神居・星野滑雪場<br/>在地熟悉 最佳滑雪體驗</p>",
+                        "text": "<p>札幌手稻・旭川神居・富良野・佐幌<br/>在地熟悉 最佳滑雪體驗</p>",
                         "width": "100%",
                         "max_width": "normal",
                         "alignment": "left",
@@ -1378,7 +1378,7 @@
                     "text_czD9hp": {
                       "type": "text",
                       "settings": {
-                        "text": "<h4>富良野3大雪場</h4>",
+                        "text": "<h4>北海道4大雪場</h4>",
                         "width": "100%",
                         "max_width": "normal",
                         "alignment": "left",
@@ -1403,7 +1403,7 @@
                     "text_LKQ3jr": {
                       "type": "text",
                       "settings": {
-                        "text": "<p>富良野・神居・星野滑雪場<br/>在地熟悉 最佳滑雪體驗</p>",
+                        "text": "<p>札幌手稻・旭川神居・富良野・佐幌<br/>在地熟悉 最佳滑雪體驗</p>",
                         "width": "100%",
                         "max_width": "normal",
                         "alignment": "left",
