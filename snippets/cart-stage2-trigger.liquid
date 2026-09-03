@@ -24,6 +24,7 @@
   endfor
 -%}
 <script type="module" src="{{ 'course-stage2-module.js' | asset_url }}"></script>
+<div id="cart-season-mismatch-warning"></div>
 <div id="cart-stage2-trigger-mount"></div>
 <script>
 (function () {
@@ -81,6 +82,179 @@
     })[0];
   }
 
+  /* 2026-09-01（緊急修復）：淡季商品能選到旺季日期、價格沒有跟著變的漏洞。
+     根因已查證：BTA 後台每個課程商品（無論淡季/旺季）的可預訂日期範圍（mindate/
+     maxdate）都是「距今幾天」的通用區間，完全沒有依商品淡旺季排除對方的日期；
+     BTA 的「Seasonal Rates」原生功能只支援 Tour/Activity 這個 booking type，我們
+     用的是 Rentals（product profile），用不了；「Blackout」功能雖然原生支援
+     依商品＋日期區間封鎖，但要進 BTA 後台手動設定（已回報 Eric，尚未設定），
+     且就算設定了也只擋日曆 UI，不會回頭修正「BTA 完成流程當下已經把錯誤商品/
+     價格寫進購物車」這件事——所以無論 BTA 後台設不設，購物車這一層的驗證都需要。
+     這裡在購物車頁對每個課程 line item 的 Start 日期跟商品淡旺季比對，不符合就
+     擋結帳＋顯示明確提示，不静默放行也不自動改價（改價需要換 variant，屬於
+     另一個風險更高的操作，這次先用「擋結帳＋引導聯繫」止血）。
+     季節區間直接沿用 snippets/course-booking-form.liquid 靜態提示文字、
+     templates/page.course-introduction.json 費用說明已經公告給客人的同一組
+     2026-2027 雪季日期，不是另外定義的新資料——之後雪季日期更新時，這裡要跟
+     那两處一起同步修改。 */
+  var SEASON_RANGES = {
+    peak: [[new Date(2026, 11, 16), new Date(2027, 1, 28)]],
+    offpeak: [
+      [new Date(2026, 11, 5), new Date(2026, 11, 15)],
+      [new Date(2027, 2, 1), new Date(2027, 3, 30)],
+    ],
+  };
+  /* 2026-09-01（第三層防護）：淡季∪旺季這兩組區間剛好首尾相接（12/5~12/15、
+     12/16~2/28、3/1~4/30 三段連續無縫隙），聯集起來就是單一連續區間
+     2026/12/5～2027/4/30。這裡額外做「完全不在整個雪季營業期間內」的檢查
+     （例如 9 月、10 月、11 月，或 5 月以後），不管商品是淡季版還是旺季版，
+     只要選到這個區間以外的日期一律擋——這是比對「商品淡旺季 vs. 選的日期」
+     更根本的一層驗證，不依賴 BTA 後台的日期限制設定有沒有正確配置（BTA 後台
+     124456 這個 widget 目前完全沒設定日期限制，客人能選到 9 月這種完全不在
+     營業期間的日期，就是靠這層擋下來，不等 BTA 後台設定完成才生效）。 */
+  var WHOLE_SEASON_RANGE = [new Date(2026, 11, 5), new Date(2027, 3, 30)];
+
+  // 商品淡旺季無法用 tags 判斷（實測確認：同一組 halfday/fullday tag 底下，淡季版
+  // 跟旺季版的 tags 完全相同，差異只在 handle），改用 handle substring 比對，
+  // 涵蓋測試/正式兩種命名慣例（test-course-fullday-offpeak／fullday-class-off-season
+  // 皆含 off-season 或 offpeak；旺季版 handle 皆含 peak，但要先排除掉「offpeak」
+  // 字串本身也含 peak 這個陷阱，所以離峰判斷要放在旺季判斷之前）。
+  function getProductSeason(item) {
+    var handle = (item.handle || '').toLowerCase();
+    if (handle.indexOf('off-season') > -1 || handle.indexOf('offpeak') > -1) return 'offpeak';
+    if (handle.indexOf('peak') > -1) return 'peak';
+    return null;
+  }
+
+  // BTA 寫入 Start property 的格式固定是 MM/DD/YYYY（英文格式，跟後台語系無關，
+  // 已用 PROGRESS.md 記錄過的真實端對端流程結果核對過）。
+  function parseBtaStartDate(value) {
+    if (!value) return null;
+    var parts = String(value).split('/');
+    if (parts.length !== 3) return null;
+    var month = parseInt(parts[0], 10);
+    var day = parseInt(parts[1], 10);
+    var year = parseInt(parts[2], 10);
+    if (!month || !day || !year) return null;
+    return new Date(year, month - 1, day);
+  }
+
+  function isDateInRanges(date, ranges) {
+    return ranges.some(function (range) {
+      return date >= range[0] && date <= range[1];
+    });
+  }
+
+  function findSeasonMismatches(cart) {
+    return cart.items
+      .filter(isCourseItem)
+      .map(function (item) {
+        var season = getProductSeason(item);
+        var startDate = parseBtaStartDate(item.properties.Start);
+        if (!season || !startDate) return null;
+        // 第三層防護先判斷：完全不在整個雪季營業期間內（例如 9 月），不管商品淡旺季，
+        // 一律擋下，不用再往下比對是不是「選錯季節」（反正也不是任何一種季節）。
+        if (!isDateInRanges(startDate, [WHOLE_SEASON_RANGE])) {
+          return { item: item, season: season, startDate: startDate, reason: 'out-of-season' };
+        }
+        var wrongRanges = season === 'offpeak' ? SEASON_RANGES.peak : SEASON_RANGES.offpeak;
+        if (isDateInRanges(startDate, wrongRanges)) {
+          return { item: item, season: season, startDate: startDate, reason: 'wrong-season' };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  function formatDate(date) {
+    return date.getFullYear() + '/' + (date.getMonth() + 1) + '/' + date.getDate();
+  }
+
+  /* 實測發現：Horizon 主題的購物車元件會在 cart:update 前後自己重新同步/覆寫
+     #checkout 按鈕的 disabled 屬性（推測是它自己根據購物車數量/驗證狀態管理的
+     邏輯），單靠設定 disabled 不可靠，會被之後某個時間點悄悄改回 false。
+     改用三層防護：(1) disabled 屬性照設，能生效算賺到；(2) 整個 .cart__ctas
+     容器蓋 pointer-events:none，擋住真人點擊；(3) 下面 capture-phase 的 submit
+     監聽（跟 course-booking-form.liquid「實際參加人數」驗證同一套已驗證有效的
+     攔截模式），擋住任何形式的表單送出（含鍵盤 Enter 或其他程式觸發的 submit），
+     三者互為備援，不依賴單一機制。 */
+  var checkoutBlockedByMismatch = false;
+
+  function setCheckoutBlocked(blocked) {
+    checkoutBlockedByMismatch = blocked;
+    var checkoutBtn = document.getElementById('checkout');
+    if (checkoutBtn) checkoutBtn.disabled = blocked;
+    var ctas = document.querySelector('.cart__ctas');
+    if (ctas) {
+      if (blocked) {
+        ctas.style.setProperty('opacity', '0.4', 'important');
+        ctas.style.setProperty('pointer-events', 'none', 'important');
+      } else {
+        ctas.style.removeProperty('opacity');
+        ctas.style.removeProperty('pointer-events');
+      }
+    }
+  }
+
+  document.addEventListener('submit', function (event) {
+    if (checkoutBlockedByMismatch && event.target && event.target.id === 'cart-form') {
+      event.preventDefault();
+      event.stopPropagation();
+      var mount = document.getElementById('cart-season-mismatch-warning');
+      if (mount) mount.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, true);
+
+  function renderSeasonMismatchWarning(mismatches) {
+    var mount = document.getElementById('cart-season-mismatch-warning');
+    if (!mount) return;
+    setCheckoutBlocked(mismatches.length > 0);
+    if (mismatches.length === 0) {
+      mount.innerHTML = '';
+      return;
+    }
+    mount.innerHTML = '';
+    var box = document.createElement('div');
+    box.className = 'season-mismatch-warning';
+
+    var title = document.createElement('p');
+    title.className = 'season-mismatch-warning__title';
+    title.textContent = '訂單日期與商品季節不符，暫時無法結帳';
+    box.appendChild(title);
+
+    mismatches.forEach(function (mismatch) {
+      var line = document.createElement('p');
+      line.className = 'season-mismatch-warning__item';
+      if (mismatch.reason === 'out-of-season') {
+        line.textContent =
+          '「' + mismatch.item.product_title + '」選擇的日期是 ' + formatDate(mismatch.startDate) +
+          '，這個日期不在雪季營業期間內（營業期間：2026/12/5～2027/4/30），無法預訂。';
+      } else {
+        var seasonLabel = mismatch.season === 'offpeak' ? '淡季優惠商品' : '旺季商品';
+        var wrongSeasonLabel = mismatch.season === 'offpeak' ? '旺季' : '淡季';
+        line.textContent =
+          '「' + mismatch.item.product_title + '」（' + seasonLabel + '）選擇的日期是 ' +
+          formatDate(mismatch.startDate) + '，這個日期屬於' + wrongSeasonLabel + '期間，價格可能不正確。';
+      }
+      box.appendChild(line);
+    });
+
+    var desc = document.createElement('p');
+    desc.className = 'season-mismatch-warning__desc';
+    desc.textContent = '請點擊下方按鈕聯繫我們協助確認訂單與正確價格，或重新選擇符合日期的課程商品。';
+    box.appendChild(desc);
+
+    var btn = document.createElement('a');
+    btn.href = 'https://line.me/R/ti/p/@455lfqzf';
+    btn.target = '_blank';
+    btn.rel = 'noopener noreferrer';
+    btn.className = 'season-mismatch-warning__btn';
+    btn.textContent = '加 LINE 聯繫我們';
+    box.appendChild(btn);
+
+    mount.appendChild(box);
+  }
+
   /* 實際參加人數要從 BTA Booking Field「實際參加人數」寫入的 line item property 讀，
      不能用 Shopify 的 quantity——課程商品是綁定人數級距的套裝價（例如「1~2人」「3~4人」
      同級距內價格固定），quantity 恆為 1，沒辦法用來推算實際到場人數。
@@ -119,17 +293,39 @@
             (targetItem.line_price != null ? targetItem.line_price : targetItem.price),
           onSubmit: function (properties, realGearCartItems) {
             properties[STAGE2_DONE_KEY] = 'true';
-            /* 2026-08-29 緊急修復：properties 繼續寫課程這個 line item（文字說明，
-               給教練/後勤看），realGearCartItems（GEAR_ITEMS 六項裝備皆已對應真實
-               variant）另外呼叫 /cart/add.js 變成獨立、有真實價格的 line item，讓
-               Shopify 真的收到這筆錢——這兩件事並行，不是二選一，所以用 Promise.all
-               一起等，不用先後順序（各自獨立的 API 呼叫，互不依賴對方結果）。 */
-            Promise.all([
-              window.CourseStage2Module.writeCourseFormDataToCart(targetItem.key, properties),
-              window.CourseStage2Module.addRealGearLineItems(realGearCartItems),
-            ]).then(function () {
-              checkAndTrigger();
-            });
+            /* 2026-09-01（緊急修復）：原本這裡用 Promise.all 讓「寫課程 line item
+               properties」跟「呼叫 /cart/add.js 加裝備/教練 line item」兩個購物車
+               寫入動作同時平行送出。實測直接重現過這樣做的問題：對同一個購物車
+               session 平行送出兩個會修改購物車的請求，Shopify 後端偶爾會讓其中一個
+               寫入被悄悄蓋掉/遺失（10 次乾淨測試裡發生 2 次），而且原本兩段程式碼
+               都沒檢查 response.ok 就直接 .json()，任何一邊失敗（含這種平行寫入
+               衝突、或單純網路/暫時性錯誤）都會變成無聲失敗：客人畫面上 Modal
+               關閉、看起來完成了，購物車卻可能少了教練/裝備的真實計費 line item，
+               或者少了 properties（連帶少了 _stage2_completed 標記）——兩種情況
+               哪個會發生，取決於哪邊剛好在那次衝突中輸掉，不是固定always同一邊，
+               這正好解釋了「有時候有、有時候沒有」的間歇性表現，教練與六項裝備都
+               共用這同一段程式碼，不是教練專屬的問題。
+
+               修法：兩件事改成**依序**執行，不再平行——先呼叫 addRealGearLineItems()
+               確認裝備/教練真的加入購物車，成功後才呼叫 writeCourseFormDataToCart()
+               把 _stage2_completed 標記寫上去。這個順序刻意設計成「後面才標記完成」：
+               如果裝備/教練加入失敗，properties（含完成標記）就不會被寫入，下次
+               checkAndTrigger() 讀到這筆訂單還沒完成 Stage2，會自動重新彈出 Modal
+               讓客人重試，不會卡在「看起來完成、實際上遺失資料」的無聲失敗狀態。
+               另外兩段函式現在都會在收到非 200 回應時 throw，這裡用 .catch() 接住，
+               明確告知客人並記錄到 console，不再讓例外悄悄消失。 */
+            window.CourseStage2Module.addRealGearLineItems(realGearCartItems)
+              .then(function () {
+                return window.CourseStage2Module.writeCourseFormDataToCart(targetItem.key, properties);
+              })
+              .then(function () {
+                checkAndTrigger();
+              })
+              .catch(function (err) {
+                console.error('[CourseStage2] 加購送出失敗，_stage2_completed 未標記，下次會重新顯示 Modal 讓客人重試：', err);
+                alert('加購項目送出失敗，請重新嘗試一次。若持續發生，請透過 LINE 聯繫我們協助確認訂單。');
+                checkAndTrigger();
+              });
           },
           onSkip: function () {
             var skipProps = {};
@@ -142,8 +338,70 @@
       });
   }
 
+  /* 跟 checkAndTrigger() 分開、獨立的 fetch + 觸發條件：季節比對不依賴
+     window.CourseStage2Module（純日期比對，不需要那個模組），也不該因為
+     Stage2 Modal 還沒載入完成就被連帶擋住——結帳按鈕該不該擋，優先權比
+     裝備加購 Modal 高，早一步能判斷就該早一步擋。 */
+  function checkSeasonMismatch() {
+    var mount = document.getElementById('cart-season-mismatch-warning');
+    if (!mount) return;
+    fetch('/cart.js')
+      .then(function (r) { return r.json(); })
+      .then(function (cart) {
+        renderSeasonMismatchWarning(findSeasonMismatches(cart));
+      });
+  }
+
   document.addEventListener('DOMContentLoaded', checkAndTrigger);
   document.addEventListener('cart:update', checkAndTrigger);
-  if (document.readyState !== 'loading') checkAndTrigger();
+  document.addEventListener('DOMContentLoaded', checkSeasonMismatch);
+  document.addEventListener('cart:update', checkSeasonMismatch);
+  if (document.readyState !== 'loading') {
+    checkAndTrigger();
+    checkSeasonMismatch();
+  }
 })();
 </script>
+
+{% stylesheet %}
+  .season-mismatch-warning {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 20px;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 12px;
+  }
+  .season-mismatch-warning__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #991b1b;
+  }
+  .season-mismatch-warning__item {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #7f1d1d;
+  }
+  .season-mismatch-warning__desc {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #7f1d1d;
+  }
+  .season-mismatch-warning__btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 4px;
+    padding: 10px 24px;
+    background: #06C755;
+    color: #fff;
+    font-weight: 700;
+    border-radius: 999px;
+    text-decoration: none;
+  }
+{% endstylesheet %}

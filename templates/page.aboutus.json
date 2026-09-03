@@ -49,7 +49,6 @@
         "page-content"
       ],
       "settings": {
-        "content_direction": "column",
         "gap": 32,
         "color_scheme": "",
         "padding-block-start": 40,

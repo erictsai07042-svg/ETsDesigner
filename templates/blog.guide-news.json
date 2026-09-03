@@ -42,7 +42,7 @@
               "type": "text",
               "name": "t:names.heading",
               "settings": {
-                "text": "<h2>北海道滑雪攻略全收錄！</h2>",
+                "text": "<h2>北海道滑雪&美食攻略</h2>",
                 "width": "fit-content",
                 "max_width": "normal",
                 "alignment": "left",
@@ -67,7 +67,7 @@
             "text_tex4dp": {
               "type": "text",
               "settings": {
-                "text": "<p>早鳥優惠與雪季團報方案即時更新，規劃行程就從這裡開始。</p>",
+                "text": "<p>第一次滑雪不擔心，規劃行程就從這裡開始。</p>",
                 "width": "fit-content",
                 "max_width": "normal",
                 "alignment": "left",
@@ -437,9 +437,7 @@
       "name": "Custom Breadcrumbs",
       "settings": {
         "padding_top": 0,
-        "padding_bottom": 0,
-        "max_width": 1200,
-        "side_padding": 15
+        "padding_bottom": 0
       }
     },
     "main": {

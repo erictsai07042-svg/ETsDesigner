@@ -507,6 +507,59 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   min-width: 0;
 }
 
+/* 2026-08-31（緊急止血）：BTA 幽靈 Reservation widget（見 PROGRESS.md）導致課程日曆
+   有高機率完全掛載失敗，官方修復時程未定。等待合理時間仍未偵測到 iframe 時，取代
+   空白畫面顯示這則訊息，引導客人改用 LINE 聯繫預約。維持正常文件流（不用 position:
+   absolute），.course-calendar-column 的高度會自然撐開容納它，不需要額外的 JS 量測。 */
+.bta-calendar-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 48px 24px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+.bta-calendar-fallback__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1A2E4A;
+}
+.bta-calendar-fallback__desc {
+  margin: 0;
+  max-width: 320px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #475569;
+}
+.bta-calendar-fallback__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px 28px;
+  background: #06C755;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.bta-calendar-fallback__btn img {
+  /* base.css 的全站 img { width:100%; height:auto } 會蓋掉 <img> 標籤本身的 width/height
+     屬性，這裡要明確蓋回去，否則 LINE 圖示會被撐大成整個按鈕（甚至整張卡片）的寬度。 */
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.bta-calendar-fallback__btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(6, 199, 85, 0.35);
+}
+
 /* 右欄：方案資訊卡片沿用 .info-block-card 既有樣式，這裡只補一個 grid 安全性設定，
    避免卡片內容（例如很長的英文網址/數字）把欄寬撐爆。 */
 .course-plan-summary-card {
@@ -1506,9 +1559,75 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     }
   };
 
+  /* 2026-08-31（緊急止血）：BTA 幽靈 Reservation widget 傳 null id 導致自己的
+     querySelectorAll crash，連帶讓這裡要等的真正課程日曆 iframe 有高機率（實測
+     60~90%）完全掛載失敗，BTA 客服已受理但修復時程未定。等待逾時後、iframe 依然
+     沒出現，就顯示這則訊息取代空白畫面，引導客人改用 LINE 聯繫預約。 */
+  const LINE_CONTACT_URL = 'https://line.me/R/ti/p/@455lfqzf'; // 沿用 layout/theme.liquid 懸浮按鈕跟 blocks/social-links.liquid 已在用的同一個官方 LINE 連結
+  const LINE_ICON_URL = 'https://cdn.shopify.com/s/files/1/0651/9413/1539/files/LINE-New-App-Icon.png?v=1767237533';
+  /* 逾時門檻刻意設在 12 秒，比使用者原本建議的 5~8 秒長：PROGRESS.md 記錄的實測正常
+     掛載平均時間本來就落在 10~11 秒，若用 5~8 秒判定失敗，會把還在正常載入中的日曆
+     一併誤判，備援訊息閃一下又被真正日曆蓋掉，反而更困惑。 */
+  const CALENDAR_FALLBACK_TIMEOUT_MS = 12000;
+
+  const removeCalendarFallback = () => {
+    const existing = document.getElementById('bta-calendar-fallback');
+    if (existing) existing.remove();
+  };
+
+  const showCalendarFallback = () => {
+    const widget = document.getElementById('bta-product-widget');
+    if (widget && widget.querySelector('iframe')) return; // 已經正常掛載，不需要備援
+    if (document.getElementById('bta-calendar-fallback')) return;
+    /* 實測發現：崩潰有時發生在 BTA 把我們模板原本渲染的 #bta-product-widget 整個移除、
+       但還沒來得及插入替代節點的中間狀態，這時 widget 是 null，不是「內容是空的」。
+       這種情況改插進 #booking-current-date-picker（穩定父層，BTA 不會替換掉這個節點），
+       避免因為找不到 widget 就整段放棄、讓客人看到的還是空白。 */
+    const mountTarget = widget || document.getElementById('booking-current-date-picker');
+    if (!mountTarget) return; // 連穩定父層都不存在，代表這頁根本不是課程商品頁
+    revealStepUI();
+    /* 用 DOM API 逐一組裝節點，不用 innerHTML 塞一整串 HTML 字串——避免這段字串裡的
+       <a>/<img> 標籤樣的內容被 Liquid/HTML 檢查器誤判成真正的模板標籤（實測過 innerHTML
+       字串寫法會讓 theme check 在檔案尾端噴出無關的 LiquidHTMLSyntaxError）。 */
+    const fallback = document.createElement('div');
+    fallback.id = 'bta-calendar-fallback';
+    fallback.className = 'bta-calendar-fallback';
+
+    const title = document.createElement('p');
+    title.className = 'bta-calendar-fallback__title';
+    title.textContent = '目前預約系統忙碌中';
+
+    const desc = document.createElement('p');
+    desc.className = 'bta-calendar-fallback__desc';
+    desc.textContent = '請點擊下方按鈕，透過 LINE 聯繫我們協助您完成預約';
+
+    const btn = document.createElement('a');
+    btn.href = LINE_CONTACT_URL;
+    btn.target = '_blank';
+    btn.rel = 'noopener noreferrer';
+    btn.className = 'bta-calendar-fallback__btn';
+
+    const icon = document.createElement('img');
+    icon.src = LINE_ICON_URL;
+    icon.alt = '';
+    icon.width = 24;
+    icon.height = 24;
+
+    const label = document.createElement('span');
+    label.textContent = '加 LINE 聯繫預約';
+
+    btn.appendChild(icon);
+    btn.appendChild(label);
+    fallback.appendChild(title);
+    fallback.appendChild(desc);
+    fallback.appendChild(btn);
+    mountTarget.appendChild(fallback);
+  };
+
   const checkAndReveal = () => {
     const widget = document.getElementById('bta-product-widget');
     if (widget && widget.querySelector('iframe')) {
+      removeCalendarFallback();
       revealStepUI();
       positionWidgetOverlay();
       setupBtaContentEnhancements(widget);
@@ -1521,21 +1640,26 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       if (checkAndReveal()) {
         obs.disconnect();
         clearInterval(pollId);
+        clearTimeout(fallbackTimer);
       }
     });
     observer.observe(watchContainer, { childList: true, subtree: true });
     observer.observe(document.body, { childList: true, subtree: true });
 
     /* 保底輪詢：MutationObserver 可能因為 BTA 特殊的 DOM 操作方式而沒被觸發，
-       用輪詢確保無論如何都能在 iframe 出現後盡快抓到，15 秒後放棄避免無限跑。 */
+       用輪詢確保無論如何都能在 iframe 出現後盡快抓到，15 秒後放棄避免無限跑。
+       ⚠️ 這裡「放棄」只停掉輪詢本身，不 disconnect 上面的 MutationObserver——
+       萬一 BTA 之後真的補上 iframe（幽靈 widget 問題時好時壞），還是能自動偵測到、
+       撤下備援訊息、換回真正的日曆，客人不需要手動重新整理頁面。 */
     let pollAttempts = 0;
     const pollId = setInterval(() => {
       pollAttempts++;
       if (checkAndReveal() || pollAttempts > 100) {
         clearInterval(pollId);
-        observer.disconnect();
       }
     }, 150);
+
+    const fallbackTimer = setTimeout(showCalendarFallback, CALENDAR_FALLBACK_TIMEOUT_MS);
   }
 })();
 </script>

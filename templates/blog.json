@@ -437,9 +437,7 @@
       "name": "Custom Breadcrumbs",
       "settings": {
         "padding_top": 0,
-        "padding_bottom": 0,
-        "max_width": 1200,
-        "side_padding": 15
+        "padding_bottom": 0
       }
     },
     "main": {

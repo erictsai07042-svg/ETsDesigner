@@ -256,9 +256,7 @@
       "name": "Custom Breadcrumbs",
       "settings": {
         "padding_top": 0,
-        "padding_bottom": 0,
-        "padding_left": 50,
-        "padding_right": 50
+        "padding_bottom": 0
       }
     },
     "form": {

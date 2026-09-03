@@ -156,6 +156,12 @@ import { CartUpdateEvent } from '@theme/events';
     { key: 'Kris', label: '教練：Kris' },
   ];
 
+  /* 2026-08-31（緊急修復）：指定教練原本只寫 properties，Shopify 從未真正收過這 $400——
+     跟裝備加租當初的根因完全一樣。業主已建立對應商品「課程加購 - 指定教練」（單一
+     variant，跟哪一位教練無關，三選一價格一致，做法比照雪鏡：固定送出同一顆 variant，
+     教練姓名維持寫入 properties 文字說明供核對）。variant id 即時查 /products.json 確認。 */
+  var COACH_VARIANT_ID = 46088858730579; // 課程加購 - 指定教練 / Default Title
+
   /* 品牌色彩／既有元件樣式，原封不動從 course-booking-form.liquid 搬過來（該檔案的 :root 變數在購物車頁不存在，這裡直接寫死色碼） */
   function injectStylesOnce() {
     if (document.getElementById('course-stage2-styles')) return;
@@ -656,7 +662,7 @@ import { CartUpdateEvent } from '@theme/events';
               '<div class="accordion-header">' +
                 '<div class="card-info">' +
                   '<h4>專屬特約民宿加購</h4>' +
-                  '<p>10 月份開放預訂・搶先預留官方民宿</p>' +
+                  '<p>2026 年 11 月開放預訂・搶先預留官方民宿</p>' +
                 '</div>' +
                 '<label class="toggle-switch">' +
                   '<input type="checkbox" disabled>' +
@@ -665,7 +671,7 @@ import { CartUpdateEvent } from '@theme/events';
               '</div>' +
               '<div class="hotel-placeholder-box">' +
                 '<span class="hotel-badge">敬請期待</span><br>' +
-                '民宿預訂系統建置中，預計 2026 年 10 月上線開放訂購' +
+                '民宿預訂系統建置中，預計 2026 年 11 月上線開放訂購' +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -880,8 +886,9 @@ import { CartUpdateEvent } from '@theme/events';
         var genderValue = gearControls.getAttendeeGender(Number(attendee));
         if (genderValue) properties['學員' + attendee + '_性別'] = genderValue;
       });
+      var selectedCoach = null;
       if (coachToggle.checked) {
-        var selectedCoach = coachControls.getSelectedCoach();
+        selectedCoach = coachControls.getSelectedCoach();
         if (selectedCoach) properties['指定教練'] = selectedCoach;
       }
       // 2026-08-29：GEAR_ITEMS 六項裝備額外算出真實 variant 清單，跟
@@ -890,6 +897,10 @@ import { CartUpdateEvent } from '@theme/events';
       // 並行、互不影響，不是二選一。尺寸資訊不論商品有沒有對應 variant，一律照舊
       // 寫入 properties 文字說明（見 buildRealGearCartItems 旁的說明）。
       var realGearCartItems = buildRealGearCartItems(selectedGear);
+      // 2026-08-31：指定教練跟哪一位教練無關（三選一價格一致），固定加入
+      // COACH_VARIANT_ID 這一顆 variant，quantity 固定 1（整組課程層級單選，不是
+      // 每學員各自一份，不受 selectedGear 的 quantity 疊加邏輯影響）。
+      if (selectedCoach) realGearCartItems.push({ id: COACH_VARIANT_ID, quantity: 1 });
       close();
       if (options.onSubmit) options.onSubmit(properties, realGearCartItems);
     });
@@ -915,7 +926,16 @@ import { CartUpdateEvent } from '@theme/events';
           body: JSON.stringify({ id: cartItemKey, quantity: item ? item.quantity : 1, properties: mergedProperties }),
         });
       })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        // 2026-09-01（緊急修復）：原本沒檢查 response.ok 就直接 .json()，非 200 回應
+        // （例如暫時性錯誤、速率限制）大多不是合法 JSON，會在這裡丟一個難懂的
+        // SyntaxError，而且呼叫端（cart-stage2-trigger.liquid 的 onSubmit）原本用
+        // Promise.all 平行送出、沒有 .catch()，這個例外會變成無聲失敗——畫面上完全
+        // 看不出來，購物車卻少了資料。改成明確擋下非 200 回應丟出可讀的錯誤，讓呼叫端
+        // 的 catch 有機會處理（顯示錯誤、避免誤標記完成）。
+        if (!r.ok) throw new Error('[CourseStage2] /cart/change.js 回應非 200（status ' + r.status + '）');
+        return r.json();
+      })
       .then(function (updatedCart) {
         /* 待辦 27 修復：改用 events.js 的 CartUpdateEvent，而不是裸的 CustomEvent。
            裸 CustomEvent 沒帶 detail（規格上會是 null），主題原生購物車元件（例如
@@ -947,7 +967,13 @@ import { CartUpdateEvent } from '@theme/events';
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items: items }),
     })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        // 2026-09-01（緊急修復）：同 writeCourseFormDataToCart() 的理由——非 200 回應
+        // 不能直接當成功處理，否則呼叫端完全不會知道這批加購項目（教練／裝備共用
+        // 這一個函式）其實沒有真的加進購物車。
+        if (!r.ok) throw new Error('[CourseStage2] /cart/add.js 回應非 200（status ' + r.status + '）');
+        return r.json();
+      })
       // /cart/add.js 只回傳「這次新加的項目」（{items:[...]}），不是完整購物車物件，
       // 跟 CartUpdateEvent 預期收到「完整購物車」的規格對不上——沿用
       // writeCourseFormDataToCart() 同一招，另外打一次 /cart.js 拿完整、正確的購物車

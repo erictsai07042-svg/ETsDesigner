@@ -209,7 +209,7 @@
               "name": "t:names.button",
               "settings": {
                 "label": "立即預定課程 ▶",
-                "link": "shopify://collections/all",
+                "link": "shopify://pages/course-introduction",
                 "open_in_new_tab": false,
                 "style_class": "button",
                 "width": "fit-content",
@@ -224,7 +224,7 @@
               "name": "t:names.button",
               "settings": {
                 "label": "了解課程內容 ▶",
-                "link": "shopify://collections/all",
+                "link": "https://lifechillsnow.com/blogs/guide_news/%E6%BB%91%E9%9B%AA%E8%AA%B2%E7%A8%8B%E4%BD%A0%E6%9C%83%E7%B6%93%E6%AD%B7%E7%94%9A%E9%BA%BC%E5%91%A2",
                 "open_in_new_tab": false,
                 "style_class": "button-secondary",
                 "width": "fit-content",
@@ -1131,7 +1131,7 @@
                 "horizontal_alignment": "center",
                 "vertical_alignment": "center",
                 "align_baseline": false,
-                "horizontal_alignment_flex_direction_column": "flex-start",
+                "horizontal_alignment_flex_direction_column": "center",
                 "vertical_alignment_flex_direction_column": "center",
                 "gap": 20,
                 "width": "fill",
@@ -1165,8 +1165,9 @@
                 "icon_bNQrYR": {
                   "type": "icon",
                   "settings": {
-                    "icon": "silhouette",
-                    "width": 32,
+                    "icon": "none",
+                    "image_upload": "shopify://shop_images/indexA.png",
+                    "width": 50,
                     "link": "",
                     "open_in_new_tab": false
                   },
@@ -1328,8 +1329,9 @@
                 "icon_R97ACL": {
                   "type": "icon",
                   "settings": {
-                    "icon": "snowflake",
-                    "width": 32,
+                    "icon": "none",
+                    "image_upload": "shopify://shop_images/indexB.png",
+                    "width": 50,
                     "link": "",
                     "open_in_new_tab": false
                   },
@@ -1491,8 +1493,9 @@
                 "icon_nfVAKj": {
                   "type": "icon",
                   "settings": {
-                    "icon": "pants",
-                    "width": 32,
+                    "icon": "none",
+                    "image_upload": "shopify://shop_images/indexC.png",
+                    "width": 50,
                     "link": "",
                     "open_in_new_tab": false
                   },
@@ -1654,8 +1657,9 @@
                 "icon_4hUYwU": {
                   "type": "icon",
                   "settings": {
-                    "icon": "heart",
-                    "width": 32,
+                    "icon": "none",
+                    "image_upload": "shopify://shop_images/indexD.png",
+                    "width": 50,
                     "link": "",
                     "open_in_new_tab": false
                   },
@@ -2072,7 +2076,7 @@
                     "text_Nr6gpg": {
                       "type": "text",
                       "settings": {
-                        "text": "<p><strong>語言：</strong>中文 / 英文<br/><strong>介紹：</strong>理工科系背景，教學風格親切細心，擅長以簡單直白的口語進行教學。</p>",
+                        "text": "<p><strong>語言：</strong>中文 / 英文<br/><strong>介紹：</strong>理工背景，擅長把技術動作拆解成簡單邏輯，讓你真正理解每個動作背後的原因。</p>",
                         "width": "100%",
                         "max_width": "normal",
                         "alignment": "left",
@@ -2238,7 +2242,7 @@
                     "text_6EHNbF": {
                       "type": "text",
                       "settings": {
-                        "text": "<p><strong>語言：</strong>中、英文 / 廣東話<br/><strong>介紹：</strong>來自香港，做事認真細心，教學循序漸進不急躁，熟悉裝備設定，能協助學員從裝備到技術一次到位。</p>",
+                        "text": "<p><strong>語言：</strong>中、英文 / 廣東話<br/><strong>介紹：</strong>熱愛 Free Ride 的自由探索，堅持由基礎紮根，助你穩步邁向大山滑雪。細心教授，能以廣東話、國語及英語溝通，讓你輕鬆掌握技巧，享受滑雪帶來的樂趣與進步。</p>",
                         "width": "100%",
                         "max_width": "normal",
                         "alignment": "left",
@@ -2522,7 +2526,7 @@
                       "type": "image",
                       "name": "t:names.image",
                       "settings": {
-                        "image": "shopify://shop_images/IMG_2653.jpg",
+                        "image": "shopify://shop_images/Una.jpg",
                         "link": "",
                         "image_ratio": "square",
                         "width": "fill",
@@ -2545,7 +2549,7 @@
                       "type": "text",
                       "name": "t:names.heading",
                       "settings": {
-                        "text": "<p><strong>教練：小熊</strong></p>",
+                        "text": "<p><strong>教練：Una</strong></p>",
                         "width": "100%",
                         "max_width": "normal",
                         "alignment": "left",
@@ -2570,7 +2574,7 @@
                     "text_NnMbLJ": {
                       "type": "text",
                       "settings": {
-                        "text": "<p><strong>語言：</strong>中文 / 英文<br/><strong>介紹：</strong>活潑不拘小節的外表下，藏著十足的責任感與專業實力。教學認真投入，讓你玩得開心又真的學得會。</p>",
+                        "text": "<p><strong>語言：</strong>中文 / 英文<br/><strong>介紹：</strong>滑雪之旅始於芬蘭雪景中的一場美麗意外，沒想到一滑便徹底愛上了白雪中的馳騁感！身為和藹可親的大 E 人，會用無敵的熱情與耐心，帶大家安全、歡樂地體驗滑雪魅力✌️</p>",
                         "width": "100%",
                         "max_width": "normal",
                         "alignment": "left",
@@ -3046,8 +3050,9 @@
                           "type": "image",
                           "name": "t:names.image",
                           "settings": {
+                            "image": "shopify://shop_images/Gemini_Generated_Image_1n6oor1n6oor1n6o.jpg",
                             "link": "",
-                            "image_ratio": "adapt",
+                            "image_ratio": "square",
                             "width": "fill",
                             "custom_width": 100,
                             "width_mobile": "fill",
@@ -3238,6 +3243,7 @@
                           "type": "image",
                           "name": "t:names.image",
                           "settings": {
+                            "image": "shopify://shop_images/Gemini_Generated_Image_1n6oor1n6oor1n6o_1.jpg",
                             "link": "",
                             "image_ratio": "square",
                             "width": "fill",
@@ -3430,6 +3436,7 @@
                           "type": "image",
                           "name": "t:names.image",
                           "settings": {
+                            "image": "shopify://shop_images/Gemini_Generated_Image_1n6oor1n6oor1n6o_2.jpg",
                             "link": "",
                             "image_ratio": "square",
                             "width": "fill",
@@ -3810,8 +3817,9 @@
                           "type": "image",
                           "name": "t:names.image",
                           "settings": {
+                            "image": "shopify://shop_images/Gemini_Generated_Image_2fz0202fz0202fz0.jpg",
                             "link": "",
-                            "image_ratio": "adapt",
+                            "image_ratio": "square",
                             "width": "fill",
                             "custom_width": 100,
                             "width_mobile": "fill",
@@ -4002,8 +4010,9 @@
                           "type": "image",
                           "name": "t:names.image",
                           "settings": {
+                            "image": "shopify://shop_images/Gemini_Generated_Image_2fz0202fz0202fz0_2.jpg",
                             "link": "",
-                            "image_ratio": "adapt",
+                            "image_ratio": "square",
                             "width": "fill",
                             "custom_width": 100,
                             "width_mobile": "fill",
@@ -4194,8 +4203,9 @@
                           "type": "image",
                           "name": "t:names.image",
                           "settings": {
+                            "image": "shopify://shop_images/Gemini_Generated_Image_2fz0202fz0202fz0_1.jpg",
                             "link": "",
-                            "image_ratio": "adapt",
+                            "image_ratio": "square",
                             "width": "fill",
                             "custom_width": 100,
                             "width_mobile": "fill",
@@ -5102,12 +5112,12 @@
         "text_mDUU9D",
         "popup_link_AeAkHf"
       ],
+      "disabled": true,
       "name": "t:names.collections_carousel",
       "settings": {
         "collection_list": [
           "北海道-富良野-神居-私人滑雪課程-全天-1",
           "北海道-富良野-神居-私人滑雪課程-半天-1",
-          "滑雪裝備租賃",
           "frontpage"
         ],
         "layout_type": "grid",
@@ -9284,6 +9294,9 @@
                 "show_sample_reviews": true,
                 "reviews_selection": "store_reviews",
                 "products": [],
+                "filter_pinned": false,
+                "filter_featured": false,
+                "filter_custom_tags": "",
                 "star_rating": "5_star",
                 "show_review_media": true,
                 "display_order": "media_first",
@@ -9322,6 +9335,9 @@
             "show_sample_reviews": true,
             "reviews_selection": "store_reviews",
             "products": [],
+            "filter_pinned": false,
+            "filter_featured": false,
+            "filter_custom_tags": "",
             "star_rating": "5_star",
             "show_review_media": true,
             "display_order": "media_first",
@@ -9381,6 +9397,172 @@
         "padding-block-start": 0,
         "padding-block-end": 50
       }
+    },
+    "collection_list_bQrBnB": {
+      "type": "collection-list",
+      "blocks": {
+        "group_fe7jjC": {
+          "type": "group",
+          "name": "t:names.header",
+          "settings": {
+            "content_direction": "column",
+            "vertical_on_mobile": true,
+            "horizontal_alignment": "flex-start",
+            "vertical_alignment": "center",
+            "align_baseline": false,
+            "horizontal_alignment_flex_direction_column": "flex-start",
+            "vertical_alignment_flex_direction_column": "center",
+            "gap": 12,
+            "width": "fill",
+            "custom_width": 100,
+            "width_mobile": "fill",
+            "custom_width_mobile": 100,
+            "height": "fit",
+            "custom_height": 100,
+            "inherit_color_scheme": true,
+            "color_scheme": "",
+            "background_media": "none",
+            "video_position": "cover",
+            "background_image_position": "cover",
+            "border": "none",
+            "border_width": 1,
+            "border_opacity": 100,
+            "border_radius": 0,
+            "toggle_overlay": false,
+            "overlay_color": "#00000026",
+            "overlay_style": "solid",
+            "gradient_direction": "to top",
+            "link": "",
+            "open_in_new_tab": false,
+            "placeholder": "",
+            "padding-block-start": 0,
+            "padding-block-end": 0,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0
+          },
+          "blocks": {
+            "text_TMqK4g": {
+              "type": "text",
+              "name": "t:names.text",
+              "settings": {
+                "text": "<h3>依商品系列選購</h3>",
+                "width": "fit-content",
+                "max_width": "normal",
+                "alignment": "left",
+                "type_preset": "rte",
+                "font": "var(--font-body--family)",
+                "font_size": "",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "wrap": "pretty",
+                "color": "var(--color-foreground)",
+                "background": false,
+                "background_color": "#00000026",
+                "corner_radius": 0,
+                "padding-block-start": 0,
+                "padding-block-end": 16,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            }
+          },
+          "block_order": [
+            "text_TMqK4g"
+          ]
+        },
+        "static-collection-card": {
+          "type": "_collection-card",
+          "name": "t:names.collection_card",
+          "static": true,
+          "settings": {
+            "placement": "below_image",
+            "horizontal_alignment": "flex-start",
+            "vertical_alignment": "center",
+            "collection_card_gap": 8,
+            "inherit_color_scheme": true,
+            "color_scheme": "",
+            "border": "none",
+            "border_width": 1,
+            "border_opacity": 100,
+            "border_radius": 0
+          },
+          "blocks": {
+            "collection_title_jWT69X": {
+              "type": "collection-title",
+              "name": "t:names.collection_title",
+              "settings": {
+                "width": "fit-content",
+                "max_width": "normal",
+                "alignment": "left",
+                "type_preset": "rte",
+                "font": "var(--font-body--family)",
+                "font_size": "",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "wrap": "pretty",
+                "color": "var(--color-foreground)",
+                "background": false,
+                "background_color": "#00000026",
+                "corner_radius": 0,
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "collection-card-image": {
+              "type": "_collection-card-image",
+              "name": "t:names.collection_card_image",
+              "static": true,
+              "settings": {
+                "image_ratio": "adapt",
+                "toggle_overlay": false,
+                "overlay_color": "#00000026",
+                "overlay_style": "solid",
+                "gradient_direction": "to top",
+                "border": "none",
+                "border_width": 1,
+                "border_opacity": 100,
+                "border_radius": 0
+              },
+              "blocks": {}
+            }
+          },
+          "block_order": [
+            "collection_title_jWT69X"
+          ]
+        }
+      },
+      "block_order": [
+        "group_fe7jjC"
+      ],
+      "disabled": true,
+      "name": "t:names.collections_carousel",
+      "settings": {
+        "collection_list": [
+          "全日-半日-滑雪課程"
+        ],
+        "layout_type": "carousel",
+        "carousel_on_mobile": false,
+        "columns": 3,
+        "mobile_columns": "2",
+        "mobile_card_size": "60cqw",
+        "columns_gap": 8,
+        "bento_gap": 8,
+        "rows_gap": 8,
+        "max_collections": 4,
+        "icons_style": "arrow",
+        "icons_shape": "circle",
+        "section_width": "page-width",
+        "gap": 12,
+        "color_scheme": "",
+        "padding-block-start": 48,
+        "padding-block-end": 48
+      }
     }
   },
   "order": [
@@ -9395,6 +9577,7 @@
     "product_list_ihmGtg",
     "product_list_BTQBgM",
     "carousel_FftiTP",
-    "178343181799faef2a"
+    "178343181799faef2a",
+    "collection_list_bQrBnB"
   ]
 }
