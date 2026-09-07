@@ -46,8 +46,15 @@
         <meta itemprop="position" content="3" />
       </li>
     {% elsif template contains 'collection' and collection %}
+      {% comment %}
+        2026-09-07：Shopify 自動產生的 all（所有商品）這個系統 collection 有個平台本身的怪異行為——
+        區塊層級用 closest.collection.title 讀到的是「所有商品」，但這裡全域 collection.title
+        讀到的卻是「商品」，兩者不一致（已實測用瀏覽器直接讀 DOM 確認）。業主要求麵包屑跟頁面
+        主標題一致顯示「所有商品」，這裡針對 handle 為 all 的狀況直接對齊，不影響其他 collection
+        （其他 collection 的 title 兩邊讀法本來就一致，不會有這個問題）。
+      {% endcomment %}
       <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
-        <span itemprop="name">{{ collection.title }}</span>
+        <span itemprop="name">{% if collection.handle == 'all' %}所有商品{% else %}{{ collection.title }}{% endif %}</span>
         <meta itemprop="position" content="2" />
       </li>
     {% elsif template contains 'page' and page %}

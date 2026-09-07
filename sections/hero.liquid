@@ -538,13 +538,22 @@
     </div>
   </div>
 
-  <!-- Scroll Down Indicator -->
-  <div class="scroll-down-indicator">
-    <div class="scroll-mouse">
-      <div class="scroll-wheel"></div>
+  {% comment %}
+    2026-09-07：這段 Scroll Down Indicator 是 hero.liquid 這個共用 section 檔案裡的固定 HTML，
+    沒有任何條件判斷，只要頁面用到「hero」這個 section 類型就會自動出現——查證發現 /collections/all
+    （collection.json／collection.all.json 都有用到 hero）也會出現，但業主原意只希望首頁的 Hero
+    才顯示這個「往下滑」提示（其他頁面的 hero 通常內容較短，沒有「往下滑看更多」的語意）。
+    改成用 template.name 判斷只在首頁（index 模板）顯示，不影響其他任何頁面用到 hero 的地方。
+  {% endcomment %}
+  {% if template.name == 'index' %}
+    <!-- Scroll Down Indicator -->
+    <div class="scroll-down-indicator">
+      <div class="scroll-mouse">
+        <div class="scroll-wheel"></div>
+      </div>
+      <span class="scroll-down-text">SCROLL</span>
     </div>
-    <span class="scroll-down-text">SCROLL</span>
-  </div>
+  {% endif %}
 </div>
 
 {% stylesheet %}

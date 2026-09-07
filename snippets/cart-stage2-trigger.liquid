@@ -32,53 +32,81 @@
   var ATTENDEE_COUNT_KEY = '實際參加人數';
   var COURSE_PRODUCT_IDS = '{{ course_product_ids }}'.split(',').filter(Boolean).map(Number);
   // 開發指令規格順序6 方向性修正（2026-08-27）：原本用商品 resort-furano 標籤判斷
-  // 是誤判資料模型——實際上客人是在 Stage 2「(測試) 滑雪場」／「滑雪場」這個 BTA
-  // Booking Field 下拉選單裡選雪場，不是商品本身帶什麼標籤。已實測兩邊環境的真實
-  // BTA 表單走一次完整流程、查 /cart.js 確認：這個欄位寫進購物車的 property key
-  // 不是表單原始 HTML 的 name 屬性（測試版 name="測試_滑雪場"、正式版
-  // name="滑雪場_"，兩邊底線位置還不對稱），而是 BTA Booking Field 設定的顯示
-  // Label 文字本身——測試版 key 是「(測試) 滑雪場」，正式版 key 是「滑雪場」，
-  // value 兩邊都是乾淨字串「富良野」（無空格無字尾）。單一 line item 不會同時
-  // 有這兩個 key，用 || 讀取剛好互斥安全；兩個 key 都讀不到時自然是
-  // undefined === '富良野' → false，跟改動前「未知情況不顯示」的 fail-safe
-  // 方向一致，不需要額外判斷正式/測試身份。resort-furano 商品標籤已確認不再使用，
-  // 不需要業主花時間確認補標籤是否成功。
-  var RESORT_KEY_PROD = '滑雪場';
-  var RESORT_KEY_TEST = '(測試) 滑雪場';
+  // 是誤判資料模型——實際上客人是在 Stage 2 BTA Booking Field 下拉選單裡選雪場，
+  // 不是商品本身帶什麼標籤。這個欄位寫進購物車的 property key 不是表單原始 HTML
+  // 的 name 屬性，而是 BTA Booking Field 設定當下的顯示 Label 文字本身——這代表
+  // Eric 之後如果在 BTA 後台編輯這個欄位的名稱/選項（例如清理「測試」字首、修正
+  // 選項文字），property key 會直接跟著變，程式碼這裡的常數就會失效。
+  //
+  // 2026-09-03 晚間查證+修復：Eric 反映富良野 Stage3 裝備/住宿加購卡片消失，查證
+  // 發現正是上述情況——Eric 稍早進 BTA 後台把「測試」字首拿掉、同時把過時的雪場
+  // 選項文字（旭川神居/佐幌）修正成正確名稱（旭川/十勝），這個欄位的 Label 本身也
+  // 從「滑雪場」變成「雪場區域」。已用 test-course-fullday-peak／test-course-halfday-peak
+  // 兩個正式商品各自走一次真實 BTA 預約流程、查 /cart.js 直接確認新的真實 key，
+  // 不是用猜的。8/27〜8/29 查證時的舊 key（測試版「(測試) 滑雪場」、正式版
+  // 「滑雪場」）繼續保留在 || 鏈最後面當 fallback——不刪除是因為不確定 widget 111783
+  // （非星號的舊正式商品）那邊的欄位有沒有被同一次清理動到，留著才不會讓舊商品的
+  // 判斷跟著壞掉，何況多一個 fallback key 幾乎零成本。單一 line item 不會同時命中
+  // 兩個以上的 key，用 || 讀取互斥安全；全部都讀不到時自然是 undefined === '富良野'
+  // → false，維持「未知情況不顯示」的 fail-safe 方向。
+  var RESORT_KEY_CURRENT = '雪場區域'; // 2026-09-03 起的真實 key（widget 124456，已實測確認）
+  var RESORT_KEY_PROD = '滑雪場'; // 8/27~9/3 期間的正式版 key，保留 fallback
+  var RESORT_KEY_TEST = '(測試) 滑雪場'; // 8/27~9/3 期間的測試版 key，保留 fallback
   var TARGET_RESORT = '富良野';
 
   /* 任務二（2026-08-29）：Stage 3 原本另外做了一個可勾選的「同行人員中有兒童」checkbox，
      業主確認這跟 Stage 2 既有的「是否有 6~12 歲兒童同行」BTA Booking Field 是重複詢問，
      改成 Stage 3 直接讀 Stage 2 這個欄位的答案，答案是「有」才唯讀顯示一行提示，不用
-     再讓客人操作一次。跟「滑雪場」欄位同一個教訓：**不能假設測試/正式環境的 property
-     key 一致**，已分別實測兩邊真實 BTA 表單送出後查 /cart.js 確認，兩邊的 key 連
-     全形/半形符號都不一樣（正式版波浪號、括號都是全形；測試版波浪號是半形、右括號
-     也是半形——這個不對稱是 BTA 後台原始資料本身就有的，不是這次改動造成的），照抄
-     原始 key 逐字元比對過（用 charCodeAt 交叉驗證，不是肉眼讀），不要自己改寫這兩個
-     常數字串。 */
-  var CHILD_COMPANION_KEY_PROD = '是否有 6～12 歲兒童？（每組最多接受 1 位兒童同行）';
-  var CHILD_COMPANION_KEY_TEST = '(測試) 是否有 6~12 歲兒童？（每組最多接受 1 位兒童同行)';
+     再讓客人操作一次。
+
+     2026-09-03 晚間修復：跟「雪場」欄位同一次 BTA 後台清理連帶弄壞——Eric 拿掉這個
+     欄位的「(測試) 」字首後，兩邊環境的 key 現在統一變成沒有字首、但符號維持原本
+     測試版的半形寫法（波浪號 `~`、右括號 `)` 都是半形）。已用 test-course-fullday-peak
+     真實送出一次 BTA 表單、查 /cart.js 直接確認新 key 的每個字元（含全半形符號），
+     不是憑印象照抄。8/29 查證時的兩個舊 key 一樣保留在 || 鏈最後面當 fallback，
+     理由跟「雪場」欄位一致（不確定 widget 111783 有沒有被連帶影響）。 */
+  var CHILD_COMPANION_KEY_CURRENT = '是否有 6~12 歲兒童？（每組最多接受 1 位兒童同行)'; // 2026-09-03 起的真實 key（已實測確認，波浪號/右括號皆半形，無「(測試) 」字首）
+  var CHILD_COMPANION_KEY_PROD = '是否有 6～12 歲兒童？（每組最多接受 1 位兒童同行）'; // 8/27~9/3 期間的正式版 key，保留 fallback
+  var CHILD_COMPANION_KEY_TEST = '(測試) 是否有 6~12 歲兒童？（每組最多接受 1 位兒童同行)'; // 8/27~9/3 期間的測試版 key，保留 fallback
 
   function isCourseItem(item) {
     return item.product_type === 'Course' || COURSE_PRODUCT_IDS.indexOf(item.product_id) > -1;
   }
 
   // 開發指令規格順序6（方向性修正）：裝備租賃／住宿加購是否顯示，改看 Stage 2
-  // 「滑雪場」欄位的答案是否為「富良野」，不再看商品標籤。
+  // 雪場欄位的答案是否為「富良野」，不再看商品標籤。
   function isFuranoItem(item) {
-    var resort = item.properties[RESORT_KEY_PROD] || item.properties[RESORT_KEY_TEST];
+    var resort = item.properties[RESORT_KEY_CURRENT] || item.properties[RESORT_KEY_PROD] || item.properties[RESORT_KEY_TEST];
     return resort === TARGET_RESORT;
   }
 
   // 任務二：Stage 3 兒童同行提示是否顯示，改看 Stage 2「是否有 6~12 歲兒童同行」答案。
   function hasChildCompanion(item) {
-    var answer = item.properties[CHILD_COMPANION_KEY_PROD] || item.properties[CHILD_COMPANION_KEY_TEST];
+    var answer = item.properties[CHILD_COMPANION_KEY_CURRENT] || item.properties[CHILD_COMPANION_KEY_PROD] || item.properties[CHILD_COMPANION_KEY_TEST];
     return answer === '有';
   }
 
+  /* 2026-09-04（緊急修復）：教練/裝備加購費用重複計費——根因是 addRealGearLineItems()
+     成功呼叫 /cart/add.js 後會 dispatch CartUpdateEvent（事件名稱就是 'cart:update'，
+     見 assets/events.js ThemeEvents.cartUpdate），而下面 document.addEventListener
+     ('cart:update', checkAndTrigger) 會接住這個事件重新檢查購物車。2026-09-01 那次把
+     「加裝備/教練」跟「寫 _stage2_completed 標記」改成依序執行（先加購、才標記完成）之後，
+     這個時序變成固定：addRealGearLineItems() 完成當下，_stage2_completed 必然還沒寫入，
+     連帶讓這裡的 cart:update 監聽器在標記完成「之前」就搶先重新觸發 checkAndTrigger()，
+     對同一筆還在送出中的課程項目重新彈出 Modal——如果使用者這時候又送出一次，教練/裝備
+     就會被真的加購兩次（教練費固定 quantity 1，兩次送出＝兩筆各自 quantity 1 的 line
+     item，合計金額變兩倍）。這不是機率性的，是今天那個依序修復必然會造成的副作用。
+
+     修法：用 pendingSubmissionKeys 記錄「正在送出中、還沒收到最終結果」的 line item key，
+     findItemNeedingStage2() 排除這些 key，讓中途觸發的 checkAndTrigger() 不會對同一筆
+     還在處理中的項目重新彈出 Modal。等 onSubmit 的 promise chain 真正結束（成功或失敗）
+     才解鎖——失敗時要解鎖，因為原本的設計就是要讓客人能重新送出重試，不能因為多了這個鎖
+     反而卡死重試路徑。 */
+  var pendingSubmissionKeys = {};
+
   function findItemNeedingStage2(cart) {
     return cart.items.filter(function (item) {
-      return isCourseItem(item) && !item.properties[STAGE2_DONE_KEY];
+      return isCourseItem(item) && !item.properties[STAGE2_DONE_KEY] && !pendingSubmissionKeys[item.key];
     })[0];
   }
 
@@ -293,6 +321,10 @@
             (targetItem.line_price != null ? targetItem.line_price : targetItem.price),
           onSubmit: function (properties, realGearCartItems) {
             properties[STAGE2_DONE_KEY] = 'true';
+            // 2026-09-04 緊急修復：送出中先鎖住這個 line item key，見上方
+            // pendingSubmissionKeys 的完整說明——避免 addRealGearLineItems() 觸發的
+            // cart:update 事件在標記完成前搶先重新彈出同一筆的 Modal 造成重複加購。
+            pendingSubmissionKeys[targetItem.key] = true;
             /* 2026-09-01（緊急修復）：原本這裡用 Promise.all 讓「寫課程 line item
                properties」跟「呼叫 /cart/add.js 加裝備/教練 line item」兩個購物車
                寫入動作同時平行送出。實測直接重現過這樣做的問題：對同一個購物車
@@ -319,11 +351,17 @@
                 return window.CourseStage2Module.writeCourseFormDataToCart(targetItem.key, properties);
               })
               .then(function () {
+                // 成功後才解鎖：_stage2_completed 這時已經寫入，就算解鎖後 cart:update
+                // 又觸發一次 checkAndTrigger()，也會正確判斷這筆項目已完成、不會重新彈出。
+                delete pendingSubmissionKeys[targetItem.key];
                 checkAndTrigger();
               })
               .catch(function (err) {
                 console.error('[CourseStage2] 加購送出失敗，_stage2_completed 未標記，下次會重新顯示 Modal 讓客人重試：', err);
                 alert('加購項目送出失敗，請重新嘗試一次。若持續發生，請透過 LINE 聯繫我們協助確認訂單。');
+                // 失敗也要解鎖：維持原本「失敗後客人可以重新送出重試」的設計，不能讓鎖
+                // 卡死這筆項目、變成永遠不會再彈出 Modal。
+                delete pendingSubmissionKeys[targetItem.key];
                 checkAndTrigger();
               });
           },

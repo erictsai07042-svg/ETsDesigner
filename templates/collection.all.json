@@ -130,7 +130,7 @@
           "type": "text",
           "name": "Collection title",
           "settings": {
-            "text": "<h2>{{ closest.collection.title }}</h2>",
+            "text": "<h2>所有商品</h2>",
             "width": "fit-content",
             "max_width": "normal",
             "alignment": "left",

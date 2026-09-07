@@ -49,10 +49,15 @@ import { CartUpdateEvent } from '@theme/events';
      skiType:'雙板' 跟自己的 sizeFields，renderGearRentalSection／驗證邏輯不需要改動。 */
   var GEAR_ITEMS = [
     { key: '單板鞋組', price: 1200, skiType: '單板', desc: '雪板 + 舒適雪鞋', isCombo: false, isMutual: false,
+      /* 2026-09-05（防呆修復）：min/max 是業主確認的合理區間——身高 100~220cm、
+         體重 20~150kg、鞋子尺寸（腳長，欄位單位本身就是 cm，不是歐規/日規鞋號）
+         15~35cm。renderGearSizeFieldHtml() 用這兩個值產生 HTML5 原生 min/max
+         屬性，findGearSizeIssues() 送出前另外用 JS 比對同一組數字（不只依賴
+         HTML5 原生限制，原生限制在不同瀏覽器/輸入方式下行為不一致、也能被繞過）。 */
       sizeFields: [
-        { key: 'height', label: '身高', type: 'number', unit: 'cm' },
-        { key: 'weight', label: '體重', type: 'number', unit: 'kg' },
-        { key: 'shoeSize', label: '鞋子尺寸', type: 'number', unit: 'cm' },
+        { key: 'height', label: '身高', type: 'number', unit: 'cm', min: 100, max: 220 },
+        { key: 'weight', label: '體重', type: 'number', unit: 'kg', min: 20, max: 150 },
+        { key: 'shoeSize', label: '鞋子尺寸', type: 'number', unit: 'cm', min: 15, max: 35 },
       ] },
     { key: '雪服帽鏡組', price: 1000, skiType: null, desc: '雪服 + 安全帽 + 雪鏡，一次租齊最划算', isCombo: true, isMutual: false,
       sizeFields: [ CLOTHING_SIZE_FIELD, HELMET_SIZE_FIELD ] },
@@ -147,13 +152,17 @@ import { CartUpdateEvent } from '@theme/events';
   }
 
   /* 指定教練加購：整組課程層級的單選（不是每學員各自選），固定加價 NT$400，
-     跟哪一位教練無關（三選一，價格一致）。跟裝備加租不同，資料寫入時只會有
+     跟哪一位教練無關（四選一，價格一致——2026-09-05 新增 Una 為第四位教練選項，
+     業主確認 Una 已經是 BTA Resource 共用容量的 4 位教練之一，跟 Stage3 加購清單
+     沒有同步過，純粹補上這個選項清單裡的一筆，不涉及新商品/variant）。跟裝備加租
+     不同，資料寫入時只會有
      一個 line item property（例如 `指定教練`: `阿哲`），不比照 `學員N_加購_XXX` 的每人一筆格式。 */
   var COACH_PRICE = 400;
   var COACH_ITEMS = [
     { key: '阿哲', label: '教練：阿哲' },
     { key: 'Angus', label: '教練：Angus' },
     { key: 'Kris', label: '教練：Kris' },
+    { key: 'Una', label: '教練：Una' },
   ];
 
   /* 2026-08-31（緊急修復）：指定教練原本只寫 properties，Shopify 從未真正收過這 $400——
@@ -348,10 +357,14 @@ import { CartUpdateEvent } from '@theme/events';
    * 依當下的依賴欄位值動態灌選項。 */
   function renderGearSizeFieldHtml(field) {
     if (field.type === 'number') {
+      // 2026-09-05：min/max 優先用欄位自己定義的合理區間（見 GEAR_ITEMS 的 height/
+      // weight/shoeSize），沒有定義的號稱數字欄位維持原本的 min="0" 下限。
+      var minAttr = (field.min != null) ? field.min : 0;
+      var maxAttr = (field.max != null) ? ' max="' + field.max + '"' : '';
       return '' +
         '<div class="gear-size-field" data-gear-size-field data-size-key="' + field.key + '">' +
           '<label class="gear-size-label">' + field.label + (field.unit ? ' (' + field.unit + ')' : '') + '</label>' +
-          '<input type="number" inputmode="decimal" step="any" min="0" data-gear-size-input placeholder="請輸入">' +
+          '<input type="number" inputmode="decimal" step="any" min="' + minAttr + '"' + maxAttr + ' data-gear-size-input placeholder="請輸入">' +
         '</div>';
     }
     if (field.type === 'select-dependent') {
@@ -765,17 +778,36 @@ import { CartUpdateEvent } from '@theme/events';
     /* 已勾選裝備裡，只要有一項帶 sizeFields 且任一欄位還空著，該學員就算「尺寸未完成」。
        另外，性別是學員層級共用欄位：只要該學員勾了 GEAR_KEYS_REQUIRING_GENDER 裡任一項
        裝備，性別就列為必填，不管實際勾了幾項——避免同一位學員被要求填好幾次，也避免
-       同一位學員各裝備間出現互相矛盾的性別值。回傳有缺漏的學員編號（去重、遞增排序），
-       用來組出「學員2、3 尺寸資訊未完成」這種提示。裝備加租開關關閉時直接視為沒有缺漏
-       （跟金額計算/送出邏輯排除已勾裝備的原則一致）。 */
-    function findAttendeesWithIncompleteGearSizes() {
-      if (!gearToggle.checked) return [];
+       同一位學員各裝備間出現互相矛盾的性別值。裝備加租開關關閉時直接視為沒有缺漏/異常
+       （跟金額計算/送出邏輯排除已勾裝備的原則一致）。
+
+       2026-09-05（防呆修復）：業主反映單板鞋組的身高/體重/鞋子尺寸原本只檢查「有沒有
+       填」，沒有檢查「填的數字合不合理」（例如 0、負數、9999 都能送出）。這裡擴充成
+       同時回傳兩種問題：incompleteAttendees（欄位空著）跟 invalidMessages（欄位有填，
+       但不是合法數字，或超出 GEAR_ITEMS 定義的 min/max 範圍）——分開回傳是因為兩種
+       情況要顯示不同訊息（「尺寸資訊未完成」vs「數值不合理」），不能混在同一句提示裡
+       讓客人搞不清楚是沒填還是填錯。只針對 type:'number' 的欄位做範圍檢查，select／
+       select-dependent 欄位本來就是從固定選項挑，不會有這個問題。 */
+    function findGearSizeIssues() {
+      if (!gearToggle.checked) return { incompleteAttendees: [], invalidMessages: [] };
       var incomplete = {};
+      var invalidMessages = [];
       var selectedGear = gearControls.getSelectedGear();
       selectedGear.forEach(function (g) {
         if (!g.sizeFields || !g.sizeFields.length) return;
-        var missing = g.sizeFields.some(function (field) { return !g.sizeValues[field.key]; });
-        if (missing) incomplete[g.attendee] = true;
+        g.sizeFields.forEach(function (field) {
+          var raw = g.sizeValues[field.key];
+          if (!raw) { incomplete[g.attendee] = true; return; }
+          if (field.type !== 'number') return;
+          var num = Number(raw);
+          var outOfRange = (field.min != null && num < field.min) || (field.max != null && num > field.max);
+          if (isNaN(num) || outOfRange) {
+            var rangeText = (field.min != null && field.max != null)
+              ? field.min + '~' + field.max + (field.unit || '')
+              : '合理範圍';
+            invalidMessages.push('學員' + g.attendee + '「' + field.label + '」需介於 ' + rangeText);
+          }
+        });
       });
       var attendeesNeedingGender = {};
       selectedGear.forEach(function (g) {
@@ -784,7 +816,10 @@ import { CartUpdateEvent } from '@theme/events';
       Object.keys(attendeesNeedingGender).forEach(function (attendee) {
         if (!gearControls.getAttendeeGender(Number(attendee))) incomplete[attendee] = true;
       });
-      return Object.keys(incomplete).map(Number).sort(function (a, b) { return a - b; });
+      return {
+        incompleteAttendees: Object.keys(incomplete).map(Number).sort(function (a, b) { return a - b; }),
+        invalidMessages: invalidMessages,
+      };
     }
 
     /* 指定教練不需要另外簽同意聲明，只需要「開關打開就必須選一位教練」這個較簡單的檢查；
@@ -792,13 +827,20 @@ import { CartUpdateEvent } from '@theme/events';
     function syncSubmitButtonState() {
       var needsConsent = gearToggle.checked;
       var needsCoach = coachToggle.checked && !coachControls.getSelectedCoach();
-      var incompleteAttendees = findAttendeesWithIncompleteGearSizes();
-      var needsGearSizes = incompleteAttendees.length > 0;
+      var gearSizeIssues = findGearSizeIssues();
+      var needsGearSizes = gearSizeIssues.incompleteAttendees.length > 0 || gearSizeIssues.invalidMessages.length > 0;
       submitBtn.disabled = (needsConsent && !legalCheckbox.checked) || needsCoach || needsGearSizes;
       if (!needsConsent || legalCheckbox.checked) legalWarning.hidden = true;
       if (!needsCoach) coachWarning.hidden = true;
       if (needsGearSizes) {
-        gearSizeWarning.textContent = '學員' + incompleteAttendees.join('、') + ' 尺寸資訊未完成';
+        // 缺漏（沒填）跟不合理（填了但超出範圍）兩種訊息分開組，客人才看得出來是要
+        // 補填還是要改數字。兩種都有時兩段訊息一起顯示。
+        var messages = [];
+        if (gearSizeIssues.incompleteAttendees.length > 0) {
+          messages.push('學員' + gearSizeIssues.incompleteAttendees.join('、') + ' 尺寸資訊未完成');
+        }
+        messages = messages.concat(gearSizeIssues.invalidMessages);
+        gearSizeWarning.textContent = messages.join('；');
         gearSizeWarning.hidden = false;
       } else {
         gearSizeWarning.hidden = true;
@@ -857,9 +899,14 @@ import { CartUpdateEvent } from '@theme/events';
         coachWarning.hidden = false;
         return;
       }
-      var incompleteAttendees = findAttendeesWithIncompleteGearSizes();
-      if (incompleteAttendees.length > 0) {
-        gearSizeWarning.textContent = '學員' + incompleteAttendees.join('、') + ' 尺寸資訊未完成';
+      var gearSizeIssues = findGearSizeIssues();
+      if (gearSizeIssues.incompleteAttendees.length > 0 || gearSizeIssues.invalidMessages.length > 0) {
+        var messages = [];
+        if (gearSizeIssues.incompleteAttendees.length > 0) {
+          messages.push('學員' + gearSizeIssues.incompleteAttendees.join('、') + ' 尺寸資訊未完成');
+        }
+        messages = messages.concat(gearSizeIssues.invalidMessages);
+        gearSizeWarning.textContent = messages.join('；');
         gearSizeWarning.hidden = false;
         return;
       }
