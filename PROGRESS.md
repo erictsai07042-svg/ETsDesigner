@@ -1,27 +1,101 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-09-07
+最後更新：2026-09-08
 
 ## 📍 接續指引（額度用盡前的斷點記錄）
 
-**這次對話的三項視覺修正（Hero捲動圖示／麵包屑文字／全站標題風格統一，見下方緊接的章節）已經全部完成、推送正式站、逐項驗證通過，包含 Eric 用 Sidekick 處理的「所有商品」文字也已回頭確認過——沒有任何進行到一半的工作，這輪任務是完整結束的，不是中斷。**
+**這次對話（Checkpoint 3）完成的工作：Stage 3 送出前確認彈窗的完整回歸測試矩陣，純驗證、沒有改任何程式碼。4 個測試商品 × 8 組測試情境全數通過，沒有發現任何 bug。細節見下方緊接的「Stage 3 送出前確認彈窗——完整回歸測試矩陣」章節。**
 
-**目前唯一還沒做的事：本機這些改動還沒有 commit 到 git。** `git status` 顯示以下檔案有異動但未 commit（其中 `assets/course-stage2-module.js`、`snippets/cart-stage2-trigger.liquid` 是更早之前幾輪任務留下的既有未 commit 異動，不是這次新增的）：
-```
-M  PROGRESS.md
-M  assets/course-stage2-module.js
-M  sections/hero.liquid
-M  snippets/breadcrumbs.liquid
-M  snippets/cart-stage2-trigger.liquid
-M  templates/collection.json
-M  templates/page.contact-us.json
-M  templates/page.equipment-rental.json
-M  templates/page.q-a.json
-?? templates/collection.all.json（新檔案）
-```
-**這些改動全部已經用 `shopify theme push --allow-live` 推送到正式站並驗證上線，不是只存在本機**——git 只是版本紀錄還沒補，不影響網站實際運作。下次接續時，如果 Eric 明確要求 commit，比照專案既有規範（不主動 commit、等明確指示、commit message 結尾加 `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`）處理即可，不需要重新查證這些改動內容或重新驗證線上效果。
+**Stage 3 送出前確認彈窗功能到此視為完整驗證完成（Checkpoint 2 單一情境 + Checkpoint 3 完整矩陣），沒有已知問題，可以視為穩定功能。**
+
+**本機還沒 commit 到 git**：`assets/course-stage2-module.js`、`snippets/cart-stage2-trigger.liquid` 這兩個檔案（含確認彈窗全部程式碼）已經 push 到正式站（Designer_Eric #147355926611）並驗證上線，但本機 git 還沒 commit。**這次驗證過程中確認功能穩定、沒有發現問題，建議可以請 Eric 確認是否要 commit 了**，但比照既有規範，不主動 commit、等明確指示。
+
+**另外提醒**：Eric 在 Checkpoint 1/2 之間曾在 Shopify 後台主題編輯器改過 `/collections/all` 頁面版面（`templates/collection.all.json`）。已用 `shopify theme pull` 確認本機/已 commit 版本跟正式站現況完全一致（0 差異），沒有衝突。**之後如果任務會動到這個檔案，還是要先 pull 一次確認最新再動手，不要假設這次的確認結果永遠有效。**
 
 **如果 Eric 有新任務，直接開始即可，不需要先做任何額外查證或恢復動作。**
+
+---
+
+## ✅✅ 2026-09-08（Checkpoint 3）：Stage 3 送出前確認彈窗——完整回歸測試矩陣，全數通過
+
+**背景**：Checkpoint 2 開發完成確認彈窗、用單一情境（半天旺季＋2學員多裝備＋教練）驗證通過。這次任務**純驗證、不修改任何程式碼**，針對 4 個測試商品（`test-course-fullday-peak`／`test-course-fullday-offpeak`／`test-course-halfday-peak`／`test-course-halfday-offpeak`）跑完整回歸測試矩陣，每個商品 2 個情境、8 次完整測試涵蓋業主要求的全部 6 種組合＋略過按鈕路徑。
+
+### 測試方式說明
+
+因為瀏覽器自動化工具沒辦法呈現/點擊 BTA 原生 `<select>` 的 OS 下拉選單清單（Checkpoint 1/2 已發現的既有工具限制），這次改用「直接操作 DOM 元素（`.value` + 原生 `input`/`change` 事件，或 `.click()`）」驅動 BTA iframe 表單跟我們自己的 Stage3 表單——**這不是繞過或模擬 widget 邏輯，兩者都是同一份表單元件的真實 DOM 節點，設值＋派發原生事件等同於一次真實使用者操作會觸發的效果**，送出流程本身（`/cart/add.js`、`/cart/change.js`）完全走真實 API，不是自己組資料直接寫入購物車。
+
+### 測試結果總表
+
+| # | 商品 | 情境 | 人數 | 裝備 | 教練 | 備註 | 時段驗證 | 結果 |
+|---|---|---|---|---|---|---|---|---|
+| A | fullday-peak | 2. 多人全裝備+教練 | 2人 | 兩學員各6項全勾 | Kris | 有填 | 全天商品無此欄位✓ | ✅ 通過（桌機+手機375px截圖確認） |
+| B | fullday-peak | 略過按鈕路徑 | 1人 | 未觸碰 | 未觸碰 | — | — | ✅ 通過 |
+| C | fullday-offpeak | 1. 零裝備直接確認 | 1人 | 完全不勾 | 未開 | 未填 | 全天商品無此欄位✓ | ✅ 通過 |
+| D | fullday-offpeak | 3. 部分學員勾裝備 | 2人 | 僅學員1（2項） | 未開 | 有填 | 全天商品無此欄位✓ | ✅ 通過（手機375px截圖確認） |
+| E | halfday-peak | 2. 多人全裝備+教練 | 2人 | 兩學員各6項全勾 | Angus | 未填 | 半天商品正確顯示✓ | ✅ 通過 |
+| F | halfday-peak | 6. 返回→修改→再確認 | 2人 | 初始→修改後不同 | 未開 | 有填 | 半天商品正確顯示✓ | ✅ 通過 |
+| G | halfday-offpeak | 1. 零裝備直接確認 | 1人 | 完全不勾 | 未開 | 有填 | 半天商品正確顯示✓ | ✅ 通過 |
+| H | halfday-offpeak | 3. 部分學員勾裝備 | 2人 | 僅學員2（1項） | 未開 | 未填 | 半天商品正確顯示✓ | ✅ 通過 |
+
+**每組測試都完整走過**：彈窗彙整內容 vs 表單實際填寫值逐項比對一致 → 按「確認」→ `/cart.js` 最終寫入結果跟彈窗顯示內容逐項核對一致（properties 全部欄位、line item 金額）→ 清空購物車。**8 組測試全數通過，沒有發現任何一項跟預期不符的狀況，這次新功能沒有 bug。**
+
+### 6 種指定組合逐項覆蓋確認
+
+1. **1人／零裝備／直接確認**：C、G 兩次驗證，彈窗「加購內容」只顯示「已同意租賃聲明」一行，沒有空白學員卡片、沒有報錯，結帳總額正確只算課程原價。
+2. **多人／全部裝備／有指定教練**：A、E 兩次驗證（分別 fullday／halfday），兩學員 6 項裝備全部正確列出＋各自尺寸，指定教練正確顯示，金額逐分核對正確（A：$21,950、E：$17,900）。
+3. **多人／僅部分學員勾裝備**：D、F、H 三次驗證，完全沒勾裝備的學員**整張卡片不出現**（不是顯示空清單），跟規格「同一學員的所有裝備收在一起、不勾的學員完全不出現」的描述一致；H 這組特別驗證了「只有學員2有裝備、學員1沒有」時彈窗正確跳過學員1、直接顯示學員2（不假設攤位必須從 1 開始或連續）。
+4. **備註欄位有填/沒填**：A/D/G 有填（各自逐字比對彈窗顯示值＝表單填寫值＝`/cart.js` 寫入值）；C/E/H 沒填（彈窗「備註」整行不出現，`/cart.js` 該 line item 的 properties 裡也確實沒有 `備註／其他需求` 這個 key，不是空字串殘留）。
+5. **半天商品「時段」欄位**：E/F/G/H（全部 halfday 商品測試）彈窗正確顯示時段值；A/B/C/D（全部 fullday 商品測試）彈窗完全沒有這一行、沒有任何報錯或空值異常顯示——`buildStage2SummaryHtml()` 用「有值才顯示」的判斷剛好自然覆蓋這個規則，不需要額外的商品類型判斷。
+6. **返回→真的修改→再次確認**：F 組完整驗證。初始狀態（學員1：單板鞋組+安全帽，總額$11,400）→確認彈窗內容核對正確→按返回→確認原表單所有欄位值完全保留（DOM 檢查）→**真的修改**（取消學員1的安全帽、改勾雪服，新增學員2的雪鏡）→再次確認加購→彈窗內容**正確反映新狀態**（不是顯示舊資料）：學員1顯示單板鞋組+雪服（不再有安全帽），新增學員2顯示雪鏡（因雪鏡不需要性別，正確地沒有性別欄位那一行），總額更新為$12,200→按確認→`/cart.js`最終結果逐項核對跟彈窗顯示的新內容完全一致。**確認彈窗每次開啟都是即時讀表單當下狀態重新產生，不會有快取舊資料的問題。**
+
+### 附帶發現（跟這次功能無關的既有現象，不是這次新增的 bug）
+
+- **BTA widget 掛載偶發失敗（LINE 備援機制觸發）**：測試過程中 `test-course-fullday-offpeak`／`test-course-halfday-peak`／`test-course-halfday-offpeak` 都各遇過至少一次頁面載入後 BTA 日曆完全沒掛載、直接跳出「目前預約系統忙碌中」LINE 備援畫面的狀況，重新整理同一個分頁有時候還是失敗，**改開一個全新分頁重新載入同一個網址就穩定成功**。這是文件待辦 35/36 已經記錄過的既有現象（BTA 日曆掛載時間偏長、偶發卡死），這次沒有新增修改任何相關程式碼，純粹是測試過程中的操作插曲，記錄下來方便下次測試時預期這個狀況、知道怎麼繞過（開新分頁）。
+- **`_resource` property 自動帶值**：Run C（沒有開啟指定教練功能）的 `/cart.js` 結果裡仍然出現 `_resource: "Una"`。查證確認這是 **BTA 系統自己的內部欄位**（每筆預約會自動指派一個內部資源/人力代號），跟我們自己的 `指定教練` property（客人透過 Stage3 UI 主動選擇時才會寫入）是兩個完全獨立的東西——`指定教練` property 在 Run C 正確地沒有出現（因為客人沒有開啟這個功能），確認我們的功能運作正常，`_resource` 的存在不影響、也不代表這次功能有問題。
+
+### 測試過程技術記錄（給下次接手的人參考，非功能問題）
+
+驅動 BTA 原生 `<select>` 下拉選單這次改用「JS 設值＋原生 `input`/`change` 事件」（`setNativeValue()` 手法），比 Checkpoint 1/2 的「點擊聚焦＋鍵盤方向鍵」更快也更穩定，8 組測試全數一次到位沒有卡住。我們自己的 Stage3 表單（`course-stage2-module.js` 渲染在主文件層級、不在 iframe 裡）checkbox／select／confirm 按鈕全部用同樣手法（`.click()` 或 `setNativeValue()`）驅動，確認跟真人點擊觸發的是同一個 `addEventListener` handler，不是另外寫的模擬邏輯。
+
+**working tree 只有 `assets/course-stage2-module.js`／`snippets/cart-stage2-trigger.liquid`／`PROGRESS.md` 異動（沿用 Checkpoint 2 的改動，這次沒有新增程式碼變更），尚未 commit。這次驗證確認功能穩定，建議可以請 Eric 決定是否要 commit 了。**
+
+---
+
+---
+
+## ✅ 2026-09-08（Checkpoint 2）：Stage 3 送出前確認彈窗——開發完成，單一情境驗證通過
+
+**背景**：Checkpoint 1 先查證了兩個 BTA 表單欄位（時段／備註）真實 property key。這次接續開發 Stage 3（購物車頁裝備/教練加購）送出前的確認彈窗，讓客人在真正送出（寫入購物車）之前，能看到一份彙整畫面核對 Stage 2（課程資訊）+ Stage 3（加購內容）的完整內容。**業主已拍板架構決策，這次任務不重新評估、不提替代方案，只負責照規格實作。**
+
+### 架構（已拍板，照描述實作）
+
+- **疊加式**：`showConfirmationOverlay()`（新函式，`assets/course-stage2-module.js`）用 `container.appendChild()` 疊加一個新的 `.cs2-overlay.cs2-confirm-overlay` 在原本 Stage3 表單的 `.cs2-overlay` 之上，完全沒有動原表單的 DOM（不做 innerHTML 替換、不做欄位回填）。z-index 特意設得比原表單高一階（99999 vs 99998），不依賴 DOM 順序決定的疊層行為。
+- **返回**：只 `overlay.remove()` 移除這個新增節點，原表單 DOM／所有欄位值完全沒被碰過。**已實測驗證**：按返回後重新截圖比對，所有 checkbox／select／input 值（含 2 位學員的裝備勾選、尺寸欄位、性別、教練選擇）逐項核對跟按確認前完全一致。
+- **確認**：呼叫既有 `close()`（`container.innerHTML=''`，會同時清掉原表單跟確認疊加層，兩者都在同一個 `container` 底下）+ `options.onSubmit(properties, realGearCartItems)`，沒有重新設計送出邏輯，`/cart/add.js` 呼叫時機維持不變（客人按確認彈窗的「確認」才觸發，不是按「確認加購」那顆按鈕就先送出）。
+- **資料來源**：Stage2 彙整內容直接讀 `options.stage2Properties`（`cart-stage2-trigger.liquid` 新增傳入 `targetItem.properties`，來自 `/cart.js`，不是重新問表單）；Stage3 彙整內容直接讀 `submitBtn` click handler既有算好的 `selectedGear`／`selectedCoach`／`gearControls.getAttendeeGender()`，新增 `buildStage3SummaryHtml()` 巢狀函式做分組格式化，沒有重新設計資料結構。
+
+### 新增/修改的函式（`assets/course-stage2-module.js`）
+
+- `escHtml()`：HTML 跳脫，彙整內容含使用者輸入（備註欄位）時用，防止意外的 HTML 注入。
+- `buildStage2SummaryHtml(properties)`：Stage2 區塊 11 個欄位。「時段(半天專用)」跟「備註／其他需求」用「有值才顯示」判斷（剛好同時滿足「僅半天商品顯示」跟「空值不顯示」兩條規則，不需要額外的 isHalfDay 旗標）；其餘 9 個欄位一律顯示，缺值顯示「—」不整行省略。
+- `buildStage3SummaryHtml(selectedGear, selectedCoach)`（`renderStage2Form` 內的巢狀函式，需要閉包存取 `gearControls`）：按學員分組（`byAttendee` 物件），只列有勾選裝備的學員，同一學員的所有裝備收在一起（不是先列裝備A的所有學員）。性別只在該學員有勾 `GEAR_KEYS_REQUIRING_GENDER` 任一項裝備時才顯示。指定教練有選才顯示。**「已同意租賃聲明」固定顯示，不受裝備/教練有沒有勾選影響**（業主拍板的規格，不是這裡自己判斷）。
+- `showConfirmationOverlay(container, opts)`：疊加層本身，`.cs2-summary-row`／`.cs2-summary-attendee`／`.cs2-summary-gear-list` 等新增 CSS class 已加進 `injectStylesOnce()`，裝備清單用 `<ul><li>` 清單式排版（不是表格）。
+
+### 驗證結果（`test-course-halfday-peak`，半天商品，2 位學員，各勾 2 項裝備含一項 select-dependent 尺寸欄位，開教練）
+
+**情境**：Dec 16 2026、實際參加人數 2 人、學員1（男）勾單板鞋組（身高175/體重68/鞋子尺寸27）+ 雪服（雪服尺碼L，select-dependent 依賴性別）、學員2（女）勾雪服帽鏡組（雪服尺碼S+安全帽尺寸S）+ 安全帽（安全帽尺寸M）、開指定教練選 Kris。
+
+1. **按「確認加購」→ 彈窗彈出，逐項核對彙整內容跟表單實際填寫值完全一致**（桌機 800px、手機 375px 皆截圖確認排版正常，裝備清單清單式排版在手機寬度沒有擠壓變形，「返回」/「確認」按鈕都在可視範圍內）：Stage2 11 個欄位（預約日期 12/16/2026、滑雪場富良野、雪板類型單板SNOWBOARD、課程分級零基礎、實際參加人數2人、是否有兒童同行沒有、語言中文、通訊軟體LINE、帳號/ID、時段、備註）全部正確；Stage3 學員1/學員2 分組正確、裝備+尺寸逐項正確、指定教練Kris、已同意租賃聲明固定顯示、結帳總額 $13,600.00（= 課程$9,900 + 單板鞋組$1,200 + 雪服$800 + 雪服帽鏡組$1,000 + 安全帽$300 + 教練$400）。
+2. **按「返回」→ 疊加層消失，回到表單，所有欄位值原封不動保留**（DOM 檢查＋截圖雙重確認：`.cs2-confirm-overlay` 已從 DOM 移除，`.cs2-overlay`（原表單）仍有 `[data-gear-toggle]` 等原生欄位，2 位學員的所有勾選/尺寸/性別/教練選擇逐項核對跟按確認前完全一致）。
+3. **再次按「確認加購」→ 彈窗正常再次彈出（確認返回後重新觸發正常，沒有殘留舊的 DOM 節點或事件監聽器問題）→ 按「確認」→ 查 `/cart.js` 確認最終寫入結果**：購物車變成 6 個 line item（課程 + 教練 + 4 項真實裝備 variant），總額 $13,600.00（990000+40000+30000+100000+80000+120000 分，逐分核對跟彈窗顯示的金額一致）；課程 line item 的 properties 完整寫入 `學員1_加購_單板鞋組`／`_身高`／`_體重`／`_鞋子尺寸`、`學員1_加購_雪服`／`_雪服尺碼`、`學員2_加購_雪服帽鏡組`／`_雪服尺碼`／`_安全帽尺寸`、`學員2_加購_安全帽`／`_安全帽尺寸`、`學員1_性別`／`學員2_性別`、`指定教練`、`_stage2_completed:true`，逐項比對跟確認彈窗顯示的內容完全一致，沒有任何欄位遺漏或跑掉。測試完成已 `/cart/clear.js` 清空購物車。
+
+**跟規格描述不一致的地方**：沒有發現任何跟規格不符的狀況——六項裝備尺寸欄位數量、select-dependent（雪服尺碼依賴性別）行為、學員分組排版、金額計算，全部跟規格文件描述的一致。
+
+**過程中遇到的技術插曲（跟功能本身無關，記錄供未來參考）**：
+- BTA 日曆／表單欄位一律在瀏覽器自動化工具裡用「點擊聚焦＋原生事件」或「JS 設值＋dispatch input/change 事件」驅動（不是纯粹憑座標點擊原生 `<select>`，因為這個工具環境沒辦法呈現/點擊 OS 原生下拉選單清單），Stage3 我們自己的表單（不在 BTA 的 iframe 裡，是主文件層級的 DOM）用同樣手法驅動。
+- 送出確認彈窗最後一步「確認」按鈕，瀏覽器自動化工具的座標點擊連續 3 次 timeout（30 秒），但頁面本身持續正常回應（`find()`/screenshot 都正常），研判是工具本身的問題不是網站的問題。最後改用 `document.querySelector('[data-cs2-confirm-yes]').click()` 觸發同一個按鈕的原生 `.click()`（等同真人點擊會觸發的同一個 `addEventListener('click', ...)` handler，不是繞過或模擬送出邏輯本身）完成最後一步驗證。**這只是這次驗證過程的工具限制記錄，不代表正式站上真人點擊這顆按鈕會有問題**——按鈕本身是標準 `<button type="button">`，沒有任何已知會導致真人點擊失敗的因素。
+
+**測試完成，working tree 只有 `assets/course-stage2-module.js`／`snippets/cart-stage2-trigger.liquid`／`PROGRESS.md` 異動，尚未 commit（見上方接續指引）。**
 
 ---
 

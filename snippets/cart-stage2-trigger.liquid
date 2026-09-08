@@ -314,6 +314,9 @@
           productTitle: targetItem.product_title,
           showGearAndHotel: isFuranoItem(targetItem),
           hasChildCompanion: hasChildCompanion(targetItem),
+          // 送出前確認彈窗的 Stage2 區塊直接讀這筆 line item 現有的 properties（來自
+          // /cart.js），不用另外重新問一次表單——targetItem 這裡已經是完整的購物車項目。
+          stage2Properties: targetItem.properties,
           /* 課程原價直接讀購物車該筆 line item 現有金額（分為單位，Shopify /cart.js 慣例），
              優先用 final_line_price（含 cart 層折扣分攤），沒有才退回 line_price / price——
              不寫死任何金額，價格調整時這裡不需要跟著改。 */

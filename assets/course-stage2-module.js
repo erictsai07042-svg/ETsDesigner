@@ -331,6 +331,22 @@ import { CartUpdateEvent } from '@theme/events';
       '.cs2-total-label { font-size: 14px; font-weight: 700; color: #5A6A78; }',
       '.cs2-total-amount { font-size: 20px; font-weight: 800; color: #1A2E4A; white-space: nowrap; }',
 
+      /* 送出前確認彈窗：疊加在原表單 .cs2-overlay 之上（appendChild 出來的新 sibling），
+         z-index 比表單那層高一階，確保穩定疊在最上面。彙整內容清單式排版（不用表格，
+         手機 375px 表格容易擠壓），跟現有 .cs2-panel 外殼共用同一套圓角/陰影/RWD/捲動。 */
+      '.cs2-confirm-overlay { z-index: 99999; }',
+      '.cs2-confirm-section { margin-bottom: 18px; }',
+      '.cs2-confirm-section-title { font-size: 14px; font-weight: 800; color: #1A2E4A; margin: 0 0 10px 0; padding-left: 10px; border-left: 3px solid #3A7AB5; }',
+      '.cs2-summary-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 4px; border-bottom: 1px solid #f0f4f8; font-size: 13px; }',
+      '.cs2-summary-label { color: #5A6A78; font-weight: 700; flex: 0 0 auto; }',
+      '.cs2-summary-value { color: #1A2E4A; font-weight: 700; text-align: right; word-break: break-word; }',
+      '.cs2-summary-attendee { border: 1px solid #B8D9ED; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: #fafcff; }',
+      '.cs2-summary-attendee-title { font-size: 12px; font-weight: 800; color: #fff; background: linear-gradient(90deg, #1A2E4A 0%, #2D5F8A 100%); display: inline-block; padding: 3px 12px; border-radius: 999px; margin: 0 0 8px 0; }',
+      '.cs2-summary-gear-list { list-style: disc; margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }',
+      '.cs2-summary-gear-name { font-weight: 700; color: #1A2E4A; font-size: 13px; }',
+      '.cs2-summary-gear-sizes { display: block; font-size: 12px; color: #5A6A78; margin-top: 2px; }',
+      '.cs2-summary-consent { font-size: 13px; font-weight: 700; color: #1A2E4A; background: #E8F4FA; border: 1px solid #B8D9ED; border-radius: 8px; padding: 10px 14px; margin-top: 6px; }',
+
       '.cs2-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }',
       '.cs2-btn-primary { background: #1A2E4A; color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }',
       '.cs2-btn-primary:hover { background: #2D5F8A; }',
@@ -555,6 +571,81 @@ import { CartUpdateEvent } from '@theme/events';
     toggleInput.addEventListener('change', function () {
       contentEl.classList.toggle('is-expanded', toggleInput.checked);
       if (cardEl) cardEl.classList.toggle('is-expanded', toggleInput.checked);
+    });
+  }
+
+  function escHtml(value) {
+    return String(value).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* 送出前確認彈窗——Stage2 區塊內容：直接讀呼叫端傳入的該 line item properties
+     （options.stage2Properties，來自 /cart.js，不是重新問一次表單）。「時段(半天專用)」
+     跟「備註／其他需求」兩個欄位刻意用「有值才顯示」判斷——半天商品才有時段欄位、
+     備註本身也是選填，這個判斷剛好同時滿足「僅半天商品顯示」跟「空值不顯示」兩條規則，
+     不需要額外傳一個 isHalfDay 旗標。其餘欄位一律顯示，缺值時顯示「—」而不是整行省略，
+     避免舊資料/欄位改名時整個確認畫面看起來像壞掉。 */
+  function buildStage2SummaryHtml(properties) {
+    properties = properties || {};
+    var alwaysRows = [
+      ['預約日期', properties['Start']],
+      ['滑雪場', properties['雪場區域']],
+      ['雪板類型', properties['雪板類型']],
+      ['課程分級', properties['課程分級']],
+      ['實際參加人數', properties['實際參加人數']],
+      ['是否有兒童同行', properties['是否有 6~12 歲兒童？（每組最多接受 1 位兒童同行)']],
+      ['語言', properties['語言']],
+      ['通訊軟體', properties['通訊軟體']],
+      ['通訊帳號／ID', properties['帳號／ID']],
+    ];
+    var html = alwaysRows.map(function (row) {
+      return '<div class="cs2-summary-row"><span class="cs2-summary-label">' + row[0] + '</span><span class="cs2-summary-value">' + escHtml(row[1] || '—') + '</span></div>';
+    }).join('');
+    var timeSlot = properties['時段(半天專用)'];
+    if (timeSlot) {
+      html += '<div class="cs2-summary-row"><span class="cs2-summary-label">時段</span><span class="cs2-summary-value">' + escHtml(timeSlot) + '</span></div>';
+    }
+    var notes = properties['備註／其他需求'];
+    if (notes) {
+      html += '<div class="cs2-summary-row"><span class="cs2-summary-label">備註</span><span class="cs2-summary-value">' + escHtml(notes) + '</span></div>';
+    }
+    return html;
+  }
+
+  /* 送出前確認彈窗本身：疊加式，appendChild 成 container 的新 sibling，不動原本表單的
+     DOM（container 目前只有一個子節點，就是 renderStage2Form 產生的 .cs2-overlay）。
+     「返回」只 remove() 這個新增節點，原表單完全沒被碰過；「確認」才呼叫 onConfirm()
+     觸發既有的 close()+onSubmit() 送出路徑。z-index 比表單那層 .cs2-overlay 高一階，
+     確保一定疊在最上面（不依賴 DOM 順序決定的 stacking 行為，避免未來結構調整意外翻車）。 */
+  function showConfirmationOverlay(container, opts) {
+    var overlay = document.createElement('div');
+    overlay.className = 'cs2-overlay cs2-confirm-overlay';
+    overlay.innerHTML =
+      '<div class="cs2-backdrop"></div>' +
+      '<div class="cs2-panel">' +
+        '<h3 class="cs2-title">確認預訂內容</h3>' +
+        '<div class="cs2-confirm-section">' +
+          '<h4 class="cs2-confirm-section-title">課程資訊</h4>' +
+          opts.stage2Html +
+        '</div>' +
+        '<div class="cs2-confirm-section">' +
+          '<h4 class="cs2-confirm-section-title">加購內容</h4>' +
+          opts.stage3Html +
+        '</div>' +
+        '<div class="cs2-total-summary"><span class="cs2-total-label">結帳總額</span><span class="cs2-total-amount">' + opts.totalText + '</span></div>' +
+        '<div class="cs2-footer">' +
+          '<button type="button" class="cs2-btn-skip" data-cs2-confirm-back>返回</button>' +
+          '<button type="button" class="cs2-btn-primary" data-cs2-confirm-yes>確認</button>' +
+        '</div>' +
+      '</div>';
+    container.appendChild(overlay);
+    overlay.querySelector('[data-cs2-confirm-back]').addEventListener('click', function () {
+      overlay.remove();
+    });
+    overlay.querySelector('[data-cs2-confirm-yes]').addEventListener('click', function () {
+      overlay.remove();
+      opts.onConfirm();
     });
   }
 
@@ -887,6 +978,50 @@ import { CartUpdateEvent } from '@theme/events';
       });
     });
 
+    /* 送出前確認彈窗——Stage3 區塊內容：按學員分組列出「客人有勾選」的裝備（未勾選的
+       完全不出現），同一位學員的所有裝備收在一起，不是先列裝備A的所有學員再列裝備B。
+       性別只在該學員有勾到 GEAR_KEYS_REQUIRING_GENDER 任一項裝備時才顯示那一行，
+       直接讀 gearControls.getAttendeeGender()（表單當下已選定的值，不重新觸發任何
+       change 邏輯）。「已同意租賃聲明」這行文字固定顯示（法律證據用途，不受裝備/教練
+       有沒有勾選影響）——這是業主拍板的最終規格，不是這裡自己判斷要不要顯示。 */
+    function buildStage3SummaryHtml(selectedGear, selectedCoach) {
+      var byAttendee = {};
+      selectedGear.forEach(function (g) {
+        if (!byAttendee[g.attendee]) byAttendee[g.attendee] = [];
+        byAttendee[g.attendee].push(g);
+      });
+      var attendeeNumbers = Object.keys(byAttendee).map(Number).sort(function (a, b) { return a - b; });
+      var html = '';
+      attendeeNumbers.forEach(function (a) {
+        var items = byAttendee[a];
+        var needsGender = items.some(function (g) { return GEAR_KEYS_REQUIRING_GENDER.indexOf(g.key) > -1; });
+        var genderValue = needsGender ? gearControls.getAttendeeGender(a) : '';
+        html += '<div class="cs2-summary-attendee">';
+        html += '<p class="cs2-summary-attendee-title">學員 ' + a + '</p>';
+        if (needsGender && genderValue) {
+          html += '<div class="cs2-summary-row"><span class="cs2-summary-label">性別</span><span class="cs2-summary-value">' + escHtml(genderValue) + '</span></div>';
+        }
+        html += '<ul class="cs2-summary-gear-list">';
+        items.forEach(function (g) {
+          html += '<li><span class="cs2-summary-gear-name">' + escHtml(g.key) + '</span>';
+          if (g.sizeFields && g.sizeFields.length) {
+            var parts = g.sizeFields.map(function (field) {
+              var value = g.sizeValues[field.key];
+              return value ? (field.label + '：' + value + (field.unit || '')) : null;
+            }).filter(Boolean);
+            if (parts.length) html += '<span class="cs2-summary-gear-sizes">' + escHtml(parts.join('、')) + '</span>';
+          }
+          html += '</li>';
+        });
+        html += '</ul></div>';
+      });
+      if (selectedCoach) {
+        html += '<div class="cs2-summary-row"><span class="cs2-summary-label">指定教練</span><span class="cs2-summary-value">' + escHtml(selectedCoach) + '</span></div>';
+      }
+      html += '<div class="cs2-summary-consent">已同意租賃聲明</div>';
+      return html;
+    }
+
     submitBtn.addEventListener('click', function () {
       /* 雙重防呆：即使 disabled 理論上點不到，仍在送出邏輯最前面擋一次，
          避免 disabled 屬性被其他腳本／瀏覽器擴充功能意外移除而繞過檢查。
@@ -948,8 +1083,18 @@ import { CartUpdateEvent } from '@theme/events';
       // COACH_VARIANT_ID 這一顆 variant，quantity 固定 1（整組課程層級單選，不是
       // 每學員各自一份，不受 selectedGear 的 quantity 疊加邏輯影響）。
       if (selectedCoach) realGearCartItems.push({ id: COACH_VARIANT_ID, quantity: 1 });
-      close();
-      if (options.onSubmit) options.onSubmit(properties, realGearCartItems);
+      // 疊加式確認彈窗：驗證通過後不直接送出，改成蓋一層彙整畫面讓客人核對。
+      // 「確認」才觸發既有 close()+onSubmit() 送出路徑；「返回」只移除疊加層
+      // （見 showConfirmationOverlay），原表單這裡完全不會被 close() 清空。
+      showConfirmationOverlay(container, {
+        stage2Html: buildStage2SummaryHtml(options.stage2Properties),
+        stage3Html: buildStage3SummaryHtml(selectedGear, selectedCoach),
+        totalText: totalAmountEl.textContent,
+        onConfirm: function () {
+          close();
+          if (options.onSubmit) options.onSubmit(properties, realGearCartItems);
+        },
+      });
     });
   }
 
