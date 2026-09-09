@@ -635,7 +635,7 @@ import { CartUpdateEvent } from '@theme/events';
         '</div>' +
         '<div class="cs2-total-summary"><span class="cs2-total-label">結帳總額</span><span class="cs2-total-amount">' + opts.totalText + '</span></div>' +
         '<div class="cs2-footer">' +
-          '<button type="button" class="cs2-btn-skip" data-cs2-confirm-back>返回</button>' +
+          '<button type="button" class="cs2-btn-skip" data-cs2-confirm-back>返回修改</button>' +
           '<button type="button" class="cs2-btn-primary" data-cs2-confirm-yes>確認</button>' +
         '</div>' +
       '</div>';
