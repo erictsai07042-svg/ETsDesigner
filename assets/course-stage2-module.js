@@ -266,7 +266,13 @@ import { CartUpdateEvent } from '@theme/events';
          行為意外干擾到裝備勾選狀態。 */
       '.gear-item-wrap { display: flex; flex-direction: column; }',
       '.gear-size-fields { max-height: 0; overflow: hidden; opacity: 0; display: flex; flex-direction: column; gap: 8px; padding: 0 2px; transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.25s ease; }',
-      '.gear-size-fields.is-expanded { max-height: 600px; opacity: 1; padding: 10px 2px 2px 2px; margin-top: 6px; border-top: 1px dashed #B8D9ED; }',
+      /* 2026-09-10（精確修復）：原本 600px 是設計給「只有幾個尺寸輸入欄位」的高度抓的，
+         2026-09-10 加入的裝備尺寸對照表（雪服/雪服帽鏡組最多同時顯示女+男共 5 張表，
+         實測 scrollHeight 高達 1525px）被這個 overflow:hidden 的天花板硬裁切，且因為是
+         hidden 不是 auto，裁掉的部分連捲軸提示都不會有——這正是業主用 DevTools 定位到
+         的根因。改成 3000px（跟外層 .accordion-content.is-expanded 的天花板同值，兩層
+         天花板一致，外層 3000px 才是真正的上限，這裡不會變成新的裁切點）。 */
+      '.gear-size-fields.is-expanded { max-height: 3000px; opacity: 1; padding: 10px 2px 2px 2px; margin-top: 6px; border-top: 1px dashed #B8D9ED; }',
       '.gear-size-field { display: flex; align-items: center; gap: 8px; }',
       '.gear-size-label { font-size: 12px; font-weight: 700; color: #1A2E4A; flex: 0 0 88px; }',
       '.gear-size-field select, .gear-size-field input[type="number"] { flex: 1 1 auto; min-width: 0; padding: 6px 8px; border: 1px solid #B8D9ED; border-radius: 6px; font-size: 13px; color: #1A2E4A; background: #fff; }',
