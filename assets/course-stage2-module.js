@@ -353,6 +353,21 @@ import { CartUpdateEvent } from '@theme/events';
       '.cs2-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; background: #1A2E4A; }',
       '.cs2-btn-primary:disabled:hover { background: #1A2E4A; }',
       '.cs2-btn-skip { background: none; border: none; color: #5A6A78; font-size: 14px; cursor: pointer; text-decoration: underline; }',
+
+      /* 裝備尺寸對照表：沿用原生 <details>/<summary>（比照 snippets/cart-products.liquid
+         已經在用的「摘要＋可展開」模式），不另外寫 JS 開關邏輯。表格本身重用既有的
+         .cs2-legal-table／.cs2-legal-note，不新增一套重複的表格樣式。 */
+      '.cs2-size-reference { margin-top: 8px; }',
+      '.cs2-size-reference summary { cursor: pointer; color: #2D5F8A; font-weight: 700; font-size: 12px; list-style: none; }',
+      '.cs2-size-reference summary::-webkit-details-marker { display: none; }',
+      '.cs2-size-reference summary::before { content: "▸ "; display: inline-block; transition: transform 0.15s ease; }',
+      '.cs2-size-reference[open] summary::before { transform: rotate(90deg); }',
+      '.cs2-size-reference-content { margin-top: 8px; padding: 10px 12px; background: #fafcff; border: 1px solid #B8D9ED; border-radius: 8px; }',
+      '.cs2-size-reference-subtitle { font-weight: 700; color: #1A2E4A; font-size: 12.5px; margin: 10px 0 4px 0; }',
+      '.cs2-size-reference-subtitle:first-child { margin-top: 0; }',
+      '.cs2-gender-table-hidden { display: none !important; }',
+      '.cs2-size-reference-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }',
+      '.cs2-size-reference-table-scroll .cs2-legal-table { min-width: 420px; }',
     ].join('\n');
     document.head.appendChild(style);
   }
@@ -366,6 +381,145 @@ import { CartUpdateEvent } from '@theme/events';
         '<div class="step-line"></div>' +
         '<div class="step-item is-active"><span class="step-dot">3</span><span>加購</span></div>' +
       '</div>';
+  }
+
+  /* 2026-09-10：裝備尺寸對照表——純參考資訊，供客人選尺寸時查閱，不寫入任何
+     line item property、不影響送出/驗證邏輯（getSelectedGear() 只讀
+     [data-gear-size-field]，這裡的內容完全在那個選擇器之外）。
+     安全帽頭圍區間、護臀腰圍區間直接沿用 HELMET_SIZE_OPTIONS／PAD_VARIANT_ID_BY_SIZE
+     旁邊註解裡業主已確認過的數字，不是另外定義的新資料來源。護膝區間、雪服/雪服帽鏡組
+     男女對照表的量測說明是業主這次任務直接提供的文字內容。雪服/雪服帽鏡組的六個維度
+     （衣長/袖長/胸圍/肩幅/身高/體重）具體數字業主之後才會提供參考截圖，這裡先把表格
+     欄位結構建好、格子用「－」佔位，不因為數字還沒到齊卡住這次開發；量測方式圖示同理
+     先留文字註記，等業主提供正式素材再做第二輪圖片替換。 */
+  function helmetSizeReferenceHtml() {
+    return '' +
+      '<p class="cs2-legal-note">量測方式：額頭與後腦勺最突出處、耳上一圈量測頭圍。（量測方式圖示製作中）</p>' +
+      '<table class="cs2-legal-table"><thead><tr><th>尺寸</th><th>頭圍</th></tr></thead><tbody>' +
+        '<tr><td>S</td><td>52-55cm</td></tr>' +
+        '<tr><td>M</td><td>55-59cm</td></tr>' +
+        '<tr><td>L</td><td>59-63cm</td></tr>' +
+      '</tbody></table>';
+  }
+
+  function padSizeReferenceHtml() {
+    return '' +
+      '<p class="cs2-legal-note">護臀量腰圍；護膝於膝上約 10cm 處量一圈。（量測方式圖示製作中）</p>' +
+      '<table class="cs2-legal-table"><thead><tr><th>尺寸</th><th>護臀（腰圍）</th><th>護膝（膝上10cm）</th></tr></thead><tbody>' +
+        '<tr><td>S</td><td>56-66cm</td><td>32-38cm</td></tr>' +
+        '<tr><td>M</td><td>60-74cm</td><td>38-52cm</td></tr>' +
+        '<tr><td>L</td><td>70-80cm</td><td>38-52cm</td></tr>' +
+        '<tr><td>XL</td><td>74-88cm</td><td>38-52cm</td></tr>' +
+      '</tbody></table>';
+  }
+
+  /* 2026-09-10（補件）：業主提供的實際數字是「外套」「褲子」兩份各自獨立的量測表
+     （外套：著丈/袖丈/胸圍/肩幅/身高/體重；褲子：腰圍/臀圍/大腿圍/股上/褲長/褲口），
+     不是原本 Checkpoint 1 估計的單一 6 欄表格——雪服帽鏡組本來就是「雪服+安全帽+雪鏡」
+     一次租齊的組合，「雪服」品項本身其實包含外套跟褲子兩件，資料到齊後才發現這個
+     結構差異，這裡照實際資料結構拆成兩張表，不是自己另外設計的規格。
+     尺碼列（S/M/L/XL、M/L/XL/2XL/3XL）維持跟 CLOTHING_SIZE_BY_GENDER 一致，沒有調整。 */
+  var CLOTHING_JACKET_DATA = {
+    '女': { headers: ['著丈', '袖丈', '胸圍', '肩幅', '身高(cm)', '體重(kg)'], rows: {
+      'S': ['72', '57', '120', '54', '155-165', '45-50'],
+      'M': ['74', '58', '125', '56', '160-175', '47.5-55'],
+      'L': ['76', '59', '130', '58', '160-180', '55-65'],
+      'XL': ['78', '60', '135', '60', '170-185', '62.5-72.5'],
+    } },
+    '男': { headers: ['著丈', '袖丈', '胸圍', '肩幅', '身高(cm)', '體重(kg)'], rows: {
+      'M': ['74', '58', '125', '56', '160-175', '47.5-55'],
+      'L': ['76', '59', '130', '58', '160-180', '55-65'],
+      'XL': ['78', '60', '135', '60', '170-185', '62.5-72.5'],
+      '2XL': ['80', '61', '140', '62', '170-190', '70-80'],
+      '3XL': ['82', '62', '145', '64', '170-195', '77.5-90'],
+    } },
+  };
+  var CLOTHING_PANTS_DATA = {
+    '女': { headers: ['腰圍', '臀圍', '大腿圍', '股上(前/後)', '褲長', '褲口'], rows: {
+      'S': ['63-67', '104', '66', '32/45', '100', '47'],
+      'M': ['67-71', '108', '68', '33/45', '101', '48'],
+      'L': ['75-79', '112', '70', '33/46', '102', '49'],
+      'XL': ['79-87', '116', '72', '34/47', '103', '50'],
+    } },
+    '男': { headers: ['腰圍', '臀圍', '大腿圍', '股上(前/後)', '褲長', '褲口'], rows: {
+      'M': ['67-71', '108', '68', '33/45', '101', '48'],
+      'L': ['75-79', '112', '70', '33/46', '102', '49'],
+      'XL': ['79-87', '116', '72', '34/47', '103', '50'],
+      '2XL': ['87-95', '120', '74', '34/47', '104', '51'],
+      '3XL': ['95-103', '124', '76', '35/48', '105', '52'],
+    } },
+  };
+
+  /* 6 欄數值＋尺碼共 7 欄，375px 寬度下會被壓到文字換行——包一層 overflow-x:auto
+     讓表格用自己的寬度橫向捲動，不擠壓儲存格（不動共用的 .cs2-legal-table 本身，
+     避免影響它原本只有 2~3 欄的其他用途，例如租賃風險聲明表格）。 */
+  function sizeDataTableHtml(headers, sizeData) {
+    var headHtml = '<th>尺碼</th>' + headers.map(function (h) { return '<th>' + h + '</th>'; }).join('');
+    var bodyHtml = Object.keys(sizeData.rows).map(function (size) {
+      var cells = sizeData.rows[size].map(function (v) { return '<td>' + v + '</td>'; }).join('');
+      return '<tr><td>' + size + '</td>' + cells + '</tr>';
+    }).join('');
+    return '' +
+      '<div class="cs2-size-reference-table-scroll">' +
+        '<table class="cs2-legal-table"><thead><tr>' + headHtml + '</tr></thead><tbody>' + bodyHtml + '</tbody></table>' +
+      '</div>';
+  }
+
+  /* data-gender-table 屬性給 wireSizeReferenceGenderToggle() 用，依客人當下選的性別
+     動態只顯示對應那組；性別尚未選擇時（gender === ''）兩組都顯示，各自清楚標示
+     「女款」/「男款」，不會讓客人看到空白內容。 */
+  function clothingSizeReferenceHtml() {
+    function genderBlock(genderLabel) {
+      return '' +
+        '<div data-gender-table="' + genderLabel + '">' +
+          '<p class="cs2-size-reference-subtitle">' + genderLabel + '款・外套</p>' +
+          sizeDataTableHtml(CLOTHING_JACKET_DATA[genderLabel].headers, CLOTHING_JACKET_DATA[genderLabel]) +
+          '<p class="cs2-size-reference-subtitle">' + genderLabel + '款・褲子</p>' +
+          sizeDataTableHtml(CLOTHING_PANTS_DATA[genderLabel].headers, CLOTHING_PANTS_DATA[genderLabel]) +
+        '</div>';
+    }
+    return '' +
+      '<p class="cs2-legal-note">未標註單位的欄位皆為公分（cm）。（量測方式圖示製作中）</p>' +
+      genderBlock('女') +
+      genderBlock('男');
+  }
+
+  /** 依裝備品項組出尺寸對照表的 <details> HTML；沒有對照表的品項（單板鞋組、雪鏡）
+   * 回傳空字串，呼叫端不會渲染出空的 <details>。 */
+  function renderSizeReferenceDetailsHtml(gearKey) {
+    var contentHtml = '';
+    if (gearKey === '安全帽') {
+      contentHtml = helmetSizeReferenceHtml();
+    } else if (gearKey === '雪服') {
+      contentHtml = clothingSizeReferenceHtml();
+    } else if (gearKey === '雪服帽鏡組') {
+      contentHtml = clothingSizeReferenceHtml() +
+        '<p class="cs2-size-reference-subtitle">安全帽頭圍對照</p>' + helmetSizeReferenceHtml();
+    } else if (gearKey === '滑雪護具') {
+      contentHtml = padSizeReferenceHtml();
+    }
+    if (!contentHtml) return '';
+    return '' +
+      '<details class="cs2-size-reference">' +
+        '<summary>查看尺寸對照表</summary>' +
+        '<div class="cs2-size-reference-content">' + contentHtml + '</div>' +
+      '</details>';
+  }
+
+  /** 尺寸對照表裡的男女對照表（data-gender-table）依當下選的性別動態只顯示對應那組。
+   * 呼叫時機、參數跟 wireDependentSizeFields() 一致（同一輪迴圈裡一起呼叫），
+   * 沒有 data-gender-table 元素的品項（安全帽、滑雪護具）直接跳過。 */
+  function wireSizeReferenceGenderToggle(sizeFieldsRoot, genderSelect) {
+    var genderTables = sizeFieldsRoot.querySelectorAll('[data-gender-table]');
+    if (!genderTables.length || !genderSelect) return;
+    function sync() {
+      var gender = genderSelect.value;
+      genderTables.forEach(function (el) {
+        el.classList.toggle('cs2-gender-table-hidden', gender !== '' && el.getAttribute('data-gender-table') !== gender);
+      });
+    }
+    genderSelect.addEventListener('change', sync);
+    sync();
   }
 
   /** 單一尺寸欄位的 HTML。number/select/select-dependent 三種型別，皆是 GEAR_ITEMS 裡
@@ -481,6 +635,7 @@ import { CartUpdateEvent } from '@theme/events';
         if (hasSizeFields) {
           html += '<div class="gear-size-fields" data-gear-size-fields>' +
             item.sizeFields.map(renderGearSizeFieldHtml).join('') +
+            renderSizeReferenceDetailsHtml(item.key) +
           '</div>';
         }
         html += '</div>';
@@ -494,7 +649,10 @@ import { CartUpdateEvent } from '@theme/events';
       groupBox.querySelectorAll('[data-gear-item-wrap]').forEach(function (wrap) {
         var item = GEAR_ITEMS.filter(function (g) { return g.key === wrap.getAttribute('data-gear-key'); })[0];
         var sizeFieldsRoot = wrap.querySelector('[data-gear-size-fields]');
-        if (item && sizeFieldsRoot) wireDependentSizeFields(sizeFieldsRoot, item, genderSelect);
+        if (item && sizeFieldsRoot) {
+          wireDependentSizeFields(sizeFieldsRoot, item, genderSelect);
+          wireSizeReferenceGenderToggle(sizeFieldsRoot, genderSelect);
+        }
       });
     });
 
