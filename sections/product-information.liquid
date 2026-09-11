@@ -199,8 +199,12 @@
      checked radio and only hides *other* labels' pills relative to that one
      - with zero checked, that assumption breaks and every pill falls back
      to its default (visible) position, making every button look selected.
-     Force pills hidden while a dimension genuinely has no selection yet. */
-  .product-form-gear fieldset.variant-option:not(:has(input:checked)) .variant-option__button-label__pill {
+     Force pills hidden while a dimension genuinely has no selection yet.
+     The div selector covers the script's own injected gender-toggle control
+     (a <div>, not <fieldset> - see the script for why), which needs the same
+     treatment before a gender is picked. */
+  .product-form-gear fieldset.variant-option:not(:has(input:checked)) .variant-option__button-label__pill,
+  .product-form-gear div.variant-option:not(:has(input:checked)) .variant-option__button-label__pill {
     display: none;
   }
 

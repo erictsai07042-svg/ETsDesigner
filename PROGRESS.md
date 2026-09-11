@@ -4,6 +4,70 @@
 
 ## 📍 接續指引（額度用盡前的斷點記錄）
 
+**這輪範圍限定：護具／安全帽購物車明細比照雪服／雪服帽鏡組呈現方式（properties標籤＋隱藏原生摘要）。已完成、已驗證，工作量確實不大（架構比雪服單純，沒有佔位值問題）。單板鞋組身高/體重/鞋碼欄位這次沒有處理，留到下一輪。**
+
+1. **properties標籤**：`gear-rental-variant-guard.js`裡上一輪只在`hasGenderPair`（雪服/雪服帽鏡組）成立時才寫入properties，這次把「每個維度用自己的legend文字當property key」這段邏輯獨立出來、對所有有variant維度的商品都生效（不再限定`hasGenderPair`）——安全帽（`頭圍尺寸`）、護具（`護臀尺寸`／`護膝尺寸`）的維度legend文字本來就是簡潔清楚的既有用詞，直接沿用當property key，不用另外命名。雪服／雪服帽鏡組的「性別」「尺碼」特殊命名邏輯維持不變。
+2. **隱藏原生摘要**：`snippets/cart-products.liquid`的商品handle清單加入`gear-rent-protect`、`gear-rent-helmet`（原本只有`gear-rent-jacket-pant`、`full-set-bundle`）。單板鞋組沒有variant維度，不需要加進清單。
+3. **驗證（各測2組，`/cart.js`核對＋購物車截圖）**：
+   - 安全帽：S（`{頭圍尺寸: "S (52-55 cm)"}`，45841778606163）、L（`{頭圍尺寸: "L (59-63 cm)"}`，45841778671699）——購物車原生「L (59-63 cm)」摘要消失，只留「頭圍尺寸: L (59-63 cm)」。
+   - 護具：M+護膝共用（`{護臀尺寸: "M...", 護膝尺寸: "適用於 M/L/XL..."}`，45840784588883）、S+護膝S專用（`{護臀尺寸: "S...", 護膝尺寸: "適用於S號..."}`，45840784490579）——購物車原生摘要消失，清楚顯示兩行property。
+   - 確認不影響其他商品：雪服（男-L，只有「性別」「尺碼」兩個property，沒有多出來的）、雪服帽鏡組（安全帽M+女-S，「性別」「尺碼」「安全帽」三個property跟之前一樣）、單板鞋組（`properties: {}`，完全不受影響）都重新測過一次。
+
+**本機累計四個檔案待commit**：`assets/gear-rental-variant-guard.js`、`sections/product-information.liquid`、`snippets/cart-products.liquid`、`PROGRESS.md`——都已push上正式站驗證過，等明確指示才commit。
+
+---
+
+<details>
+<summary>舊進度：數量變數查證（無法重現，判斷為舊資料，見下方）</summary>
+
+**業主回報：購物車裡數量2的雪服項目properties整個消失（數量1正常）。這輪針對「數量」這個變數專門查證，用9種不同路徑測試都無法重現，改動前的程式碼邏輯也沒查到問題——目前判斷業主看到的是舊資料（這次properties功能上線前加進購物車的項目），需要業主/Eric確認。這輪沒有改任何程式碼。**
+
+1. **查證範圍（9種路徑，涵蓋雪服＋雪服帽鏡組，數量1/2/3都測）**：商品頁面加購前把數量點/打字改成2或3再送出（模擬點擊＋真實滑鼠點擊＋真實鍵盤輸入三種方式）、購物車頁面用+/-把既有項目數量從1調到2、不重整頁面連續加購兩次合併成數量2、用捲動後出現的黏性列按鈕加購、手機版視角操作——**全部9種路徑`/cart.js`回傳的properties都正確**，跟數量1的結果一樣可靠。
+2. **程式碼邏輯複查**：確認商品頁面的數量欄位（`quantity-selector-component`）跟`properties[性別]`/`properties[尺碼]`等隱藏欄位完全不在同一個容器裡，也不在`<variant-picker>`元素範圍內，數量欄位的事件不會觸發到`gear-rental-variant-guard.js`裡任何一個監聽器；程式碼裡也沒有任何邏輯會依賴或讀取數量值來決定要不要寫入properties——目前看不出數量本身會造成properties遺失的技術路徑。
+3. **判斷**：業主提供的截圖如果是本次功能（properties標註）上線前就已經加進購物車的舊項目，會呈現「新項目有properties、舊項目沒有」這種表面上「看起來跟數量相關」但實際上是時間先後造成的巧合現象——這點需要業主回想/確認那兩筆數量2的項目是什麼時候加進購物車的。**如果業主確認是全新測試（清空購物車、用最新頁面重新操作）、且仍然重現「數量2遺失properties」，麻煩具體說明操作步驟（用桌機還是手機、Safari還是Chrome、是否有使用購物車內建的數量調整、還是在商品頁面就把數量設成2再加購)，我會針對那個具體路徑再深入查。**
+
+</details>
+
+---
+
+<details>
+<summary>舊進度：隱藏原生variant摘要文字（已完成，見下方）</summary>
+
+**業主反饋：上一輪加的properties標註清楚，但購物車上方還留著Shopify原生的variant規格摘要文字（例如「M (55-59 cm), XL, M」），含客人看不到的佔位值，容易誤導。這輪把這行原生文字對`gear-rent-jacket-pant`／`full-set-bundle`兩個商品隱藏（購物車頁面＋購物車抽屜共用同一份模板`snippets/cart-products.liquid`，改一處兩邊同步），安全帽/護具/單板鞋組不受影響。**
+
+1. **實作方式**：`snippets/cart-products.liquid`的cart item迴圈裡，用`item.product.handle`比對這兩個商品的handle清單，符合的話跳過原本渲染`item.options_with_values`的那段`<dl class="cart-items__variants">`（上一輪加的properties區塊`<dl class="cart-items__properties">`完全不受影響，兩個是獨立的區塊）。
+2. **購物車抽屜查證結果**：這個商店目前主題設定的`cart_type`是`page`（不是`drawer`）——直接查`config/settings_schema.json`確認只有`page`／`drawer`兩個選項，且首頁購物車圖示是純`<a href="/cart">`連結、頁面DOM完全沒有`cart-drawer`相關元素，證實目前沒有啟用購物車抽屜，沒有東西可以實際截圖驗證。但因為`cart-products.liquid`是`header-actions.liquid`裡購物車抽屜跟`main-cart.liquid`購物車頁面**共用的同一份模板**（不是分別維護兩份），如果Eric之後在主題設定把cart_type切換成`drawer`，這次的隱藏邏輯會自動同步生效，不需要再改一次。
+3. **驗證（截圖購物車頁面）**：
+   - `gear-rent-jacket-pant`（男-XL）+ `gear-rent-helmet`（L）同時在購物車：雪服原生「S, XL」摘要消失，只留「性別: 男」「尺碼: XL」；安全帽原生「L (59-63 cm)」摘要正常保留（沒被誤隱藏）。
+   - `full-set-bundle`（安全帽M+女-XL）：原生「M (55-59 cm), XL, M」摘要消失，只留「性別: 女」「尺碼: XL」「安全帽: M (55-59 cm)」三行。
+4. **結帳頁面範圍聲明**：這次只改了購物車頁面／抽屜共用的`cart-products.liquid`，沒有動結帳頁面——Shopify結帳頁面的line item顯示是系統另外控制的範本，這次沒有嘗試處理，如果結帳頁面仍顯示原生摘要文字，這是已知範圍外的情況，不是這次沒做完。
+
+
+</details>
+
+<details>
+<summary>舊進度：性別互斥維度合併UI（已完成，見上方新內容）</summary>
+
+**業主反饋上一輪「選滿所有維度才解鎖」防呆機制套在「性別互斥」維度上不合理（強迫客人選用不到的異性尺碼），這輪改成「先選性別→只顯示對應那排尺寸→另一排整排隱藏」的自訂UI。動工前先給Eric看文字wireframe確認流程沒問題才寫程式碼（避免第三次認知落差）。`gear-rent-jacket-pant`／`full-set-bundle`都已修好並完整驗證，Stage3查表**沒有**改動（如預期，variant id沒變）。**
+
+1. **新流程**：`gear-rental-variant-guard.js`新增一個自訂「性別」切換UI（女款/男款兩個按鈕，不是Shopify原生option），插在原本「女雪服尺寸」「男雪服尺寸」兩排最前面。頁面載入時兩排原生選項都先隱藏；客人選性別後，只顯示對應那排（未選，需要客人自己點），另一排整個消失，背後自動用該排第一個尺碼值當佔位（沿用Stage3查表已經在用的慣例：女佔位固定第一個值S、男佔位固定第一個值M）。`full-set-bundle`的安全帽尺寸維度跟性別無關，維持原樣必選，不受影響。
+2. **開發前先文字wireframe確認**：把兩個商品「客人視角完整操作流程」逐步寫成文字（頁面載入→選性別→顯示對應尺寸→選尺寸→解鎖，含「客人反悔切換性別」的情境）貼給Eric看過，確認符合預期後才動手寫程式碼，這次沒有先斬後奏。
+3. **開發過程踩到兩個真實的坑，都已修復**：
+   - **坑1**：自訂性別切換UI原本用`<fieldset>`包裝（方便沿用原生CSS class），結果被Shopify原生`variant-picker.js`自己的`fieldset input:checked`查詢意外掃到（它沒有排除「這是不是真正的商品option」），因為我們的性別radio沒有`data-option-value-id`，直接讓原生code丟出`No option value ID found`例外，靜默打斷後續每一次真實選尺寸的fetch/更新流程（客人畫面上尺寸看起來選了，但送出的variant id其實還停在舊的）。改用`<div>`包裝（同一套CSS class，原生查詢語法排除`<div>`）解決，已用console錯誤訊息確認修復前後的差異。
+   - **坑2**：Shopify的`morph()`每次更新都會把整個variant-picker子樹跟伺服器最新HTML比對，任何它不認得的節點（包含我們插入的性別切換UI）在下一次更新就會被直接移除。改成「每次伺服器更新後都重新插入一次」（插入到已經在正確位置時是no-op，不會閃爍/不會有副作用），確認切換性別、選尺寸、送出購物車來回操作四五次，性別切換UI都沒有消失。
+   - 因為這兩個坑，程式碼也順手把「女/男尺寸維度」的追蹤方式從直接存DOM節點參考改成存`data-fieldset-index`字串、每次用時重新查詢——避免萬一morph真的整個替換掉節點時程式邏輯跟著壞掉（沿用上一輪已經在用的同一套防禦寫法，這次全面套用到性別判斷邏輯上）。
+4. **完整驗證**：
+   - `gear-rent-jacket-pant`：測女路徑（選女→只顯示女尺寸→選L→解鎖→送出45841849221203正確）跟男路徑（同一頁切換男→女尺寸消失→選2XL→解鎖→送出45841848795219正確），也測了「選完女L又反悔切男」的情境，女尺寸正確消失、男尺寸重新要求選擇。
+   - `full-set-bundle`：測「安全帽S+女+M」（送出45841855217747=`S|女-M`）、「安全帽L+男+XL」（送出45841856397395=`L|男-XL`），兩組都跟Stage3查表算出來的id完全一致。
+   - 安全帽／護具兩個「不受性別互斥影響」的商品重新測過一次，確認沒有被這次改動波及（沒有插入性別UI，維持原本「全部維度選滿才解鎖」邏輯，送出的variant id正確）。
+   - 全程用`read_console_messages`確認沒有殘留錯誤。
+5. **Stage3查表沒有變動**：`CLOTHING_VARIANT_ID_BY_GENDER_SIZE`／`FULL_SET_BUNDLE_VARIANT_ID_BY_KEY`維持上一輪內容不變——這次只是前端呈現方式（隱藏/顯示、佔位邏輯），送出的variant id本來就該跟查表結果一致（也已用跨路徑比對驗證過），符合業主原本的預期跟指示。
+
+</details>
+
+<details>
+<summary>更舊進度：Stage3雪服/雪服帽鏡組查表化（已完成，見上方新內容）</summary>
+
 **業主已完成`full-set-bundle`／`gear-rent-jacket-pant`兩商品的男款尺碼統一（M/L/XL/2XL/3XL），Stage3「雪服／雪服帽鏡組」已從固定variant改成真正依客人選擇一對一查表，5個商品獨立頁面＋Stage3表單＋跨路徑比對全部驗證通過。**
 
 1. **資料確認**：即時查`/products/full-set-bundle.js`／`/products/gear-rent-jacket-pant.js`，確認跟業主說明完全一致——`full-set-bundle`3(安全帽)×4(女S/M/L/XL)×5(男M/L/XL/2XL/3XL)=60變體；`gear-rent-jacket-pant`4×5=20變體。價格單一（$1000／$800）、`inventory_management`皆`null`。
@@ -33,7 +97,9 @@
    - `buildRealGearCartItems`已grep確認全檔案沒有殘留`FULL_SET_BUNDLE_VARIANT_ID`／`JACKET_PANT_VARIANT_ID`引用。
 5. **程式碼結構調整**：`buildRealGearCartItems(selectedGear)`加了第二個參數`gearControls`（因為要呼叫`gearControls.getAttendeeGender()`才能組出查表key），呼叫端（submitBtn click handler）已同步更新傳入。Stage3表單本身（`CLOTHING_SIZE_FIELD`／`GENDER_FIELD`／`HELMET_SIZE_FIELD`）完全沒有修改。
 
-**本機還有兩個改動待commit**：`assets/course-stage2-module.js`（Stage3查表化）、`PROGRESS.md`本次更新——都已push上正式站驗證過，等明確指示才commit。
+（此段已於 commit `56f8069` 完成並push，這裡僅保留歷史記錄）
+
+</details>
 
 ---
 

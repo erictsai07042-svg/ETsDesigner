@@ -123,6 +123,23 @@
 
           <tbody role="rowgroup">
             {% for item in cart.items %}
+              {%- liquid
+                # 2026-09-12：gear-rent-jacket-pant／full-set-bundle 這兩個商品的
+                # variant 結構是「女款尺寸×男款尺寸」兩個並列 option，客人只會用到
+                # 其中一個，另一個永遠是 gear-rental-variant-guard.js 自動帶入的佔位
+                # 值——這裡原生攤平列出所有 option 值的摘要文字（例如「M, XL」）會讓
+                # 人誤以為客人自己選了兩個尺寸。客人真正選的性別/尺碼已經改成寫進
+                # line item properties（上一輪加的），這裡不再需要原生摘要文字。
+                # gear-rent-protect（護臀尺寸×護膝尺寸）／gear-rent-helmet（頭圍尺寸）
+                # 這次一併加入——這兩個商品沒有佔位值問題，但呈現方式比照同一套
+                # 「隱藏原生摘要、只顯示 properties 標籤」風格統一。單板鞋組沒有
+                # variant 維度、不受影響，不需要加進這個清單。
+                assign hide_native_variant_summary_handles = 'gear-rent-jacket-pant,full-set-bundle,gear-rent-protect,gear-rent-helmet' | split: ','
+                assign hide_native_variant_summary = false
+                if hide_native_variant_summary_handles contains item.product.handle
+                  assign hide_native_variant_summary = true
+                endif
+              -%}
               <tr
                 role="row"
                 class="cart-items__table-row{% if item.parent_relationship.parent != null %} cart-items__nested-line{% endif %}{% unless item.unit_price_measurement %} cart-items__table-row--full-width-variants{% endunless %}"
@@ -203,7 +220,7 @@
                       or item.properties.size != 0
                       or item.selling_plan_allocation != null
                     -%}
-                      {%- if item.product.has_only_default_variant == false and item.item_components.size == 0 -%}
+                      {%- if item.product.has_only_default_variant == false and item.item_components.size == 0 and hide_native_variant_summary == false -%}
                         <dl class="cart-items__variants">
                           {%- for option in item.options_with_values -%}
                             <div class="cart-items__variant">
