@@ -4,6 +4,39 @@
 
 ## 📍 接續指引（額度用盡前的斷點記錄）
 
+**業主已完成`full-set-bundle`／`gear-rent-jacket-pant`兩商品的男款尺碼統一（M/L/XL/2XL/3XL），Stage3「雪服／雪服帽鏡組」已從固定variant改成真正依客人選擇一對一查表，5個商品獨立頁面＋Stage3表單＋跨路徑比對全部驗證通過。**
+
+1. **資料確認**：即時查`/products/full-set-bundle.js`／`/products/gear-rent-jacket-pant.js`，確認跟業主說明完全一致——`full-set-bundle`3(安全帽)×4(女S/M/L/XL)×5(男M/L/XL/2XL/3XL)=60變體；`gear-rent-jacket-pant`4×5=20變體。價格單一（$1000／$800）、`inventory_management`皆`null`。
+2. **獨立頁面防呆機制驗證**：`gear-rental-variant-guard.js`（上一輪產物，本身沒有改動）在新的選項值下運作正常——空白未選狀態、只選部分維度仍鎖住、選滿才解鎖，兩商品各測3-4組都正確。尺寸對照表（body_html，Eric已貼上）男款本來就是M起跳，不需要更新。
+3. **Stage3查表化（`assets/course-stage2-module.js`）**：移除`FULL_SET_BUNDLE_VARIANT_ID`／`JACKET_PANT_VARIANT_ID`兩個固定variant常數（已grep確認全檔案沒有殘留引用），改用兩份即時查`/products/*.js`逐一比對產生的靜態查表：
+
+   **`CLOTHING_VARIANT_ID_BY_GENDER_SIZE`**（雪服，單一維度，9種「性別-尺碼」值）：
+   | Key | Variant ID |
+   |---|---|
+   | 女-S | 45841848696915 |
+   | 女-M | 45841848959059 |
+   | 女-L | 45841849221203 |
+   | 女-XL | 45841849483347 |
+   | 男-M | 45841848696915 |
+   | 男-L | 45841848729683 |
+   | 男-XL | 45841848762451 |
+   | 男-2XL | 45841848795219 |
+   | 男-3XL | 45841848827987 |
+
+   **`FULL_SET_BUNDLE_VARIANT_ID_BY_KEY`**（雪服帽鏡組，複合key「安全帽尺寸\|性別-尺碼」，3×9=27種組合，完整內容見程式碼註解）。
+
+   兩份表的設計：因為業主這次只統一了男款尺碼清單，**沒有**把「女款雪衣雪褲」「男款雪衣雪褲」合併成 Shopify 商品的單一 option（維度數量沒變，還是各自2或3個獨立option），所以查表時「客人沒選的那個性別」維度固定取該維度第一個尺碼當佔位值（女固定佔位S、男固定佔位M）——價格不受影響（同商品所有variant價格一致），variant title裡佔位那段文字只是佔位，**真正的客人尺寸一律另外寫進line item properties**（沿用既有的`學員N_加購_XXX_雪服尺碼`格式），後勤/教練核對尺寸看properties，不是看variant title。
+4. **完整驗證**：
+   - 獨立頁面：`full-set-bundle`／`gear-rent-jacket-pant`各測3-4組不同組合，`/cart.js`送出的variant跟畫面選擇一致。
+   - Stage3表單：用test-course直接`/cart/add.js`帶`雪場區域:富良野`跳過BTA Stage1/2（BTA預約系統當下忙碌，走LINE備援），實測雪服／雪服帽鏡組各3組不同性別/尺寸/安全帽組合，properties記錄的尺寸正確、送出的真實variant id正確（不再是固定variant）。
+   - **跨路徑比對**：同一個「性別-尺碼」組合，從獨立頁面直接選購 vs 從Stage3加購，兩條路徑送出的variant id完全相同（測了2組，`男-XL`雪服＝45841848762451、`L\|女-M`雪服帽鏡組＝45841856528467，兩邊分毫不差）。
+   - `buildRealGearCartItems`已grep確認全檔案沒有殘留`FULL_SET_BUNDLE_VARIANT_ID`／`JACKET_PANT_VARIANT_ID`引用。
+5. **程式碼結構調整**：`buildRealGearCartItems(selectedGear)`加了第二個參數`gearControls`（因為要呼叫`gearControls.getAttendeeGender()`才能組出查表key），呼叫端（submitBtn click handler）已同步更新傳入。Stage3表單本身（`CLOTHING_SIZE_FIELD`／`GENDER_FIELD`／`HELMET_SIZE_FIELD`）完全沒有修改。
+
+**本機還有兩個改動待commit**：`assets/course-stage2-module.js`（Stage3查表化）、`PROGRESS.md`本次更新——都已push上正式站驗證過，等明確指示才commit。
+
+---
+
 **裝備租賃 variant picker 新增「客人要主動選滿所有尺寸維度，加入購物車才會解鎖」防呆機制，5個商品全部實測（含連網路層攔截`/cart/add.js`）驗證通過。**
 
 1. **業主回報**：頁面一進入（例如安全帽、雪服帽鏡組），還沒點擊就已經是預設選中的深藏青樣式，「加入購物車」全程可按——這是上一輪把已選中樣式改明顯之後才變得容易注意到的既有問題，容易手滑買錯尺寸。

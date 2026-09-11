@@ -101,30 +101,58 @@ import { CartUpdateEvent } from '@theme/events';
     'XL': 45840784719955, // 護臀 XL (參考腰圍 74-88 cm) / 護膝 適用於 M/L/XL 號
   };
 
-  /* 2026-08-29（第三批，固定 variant 退而求其次方案）：單板鞋組／雪服帽鏡組／雪服
-     這三項真實商品的 variant 結構跟 Stage3 收集的尺寸資料維度對不起來（單板鞋組完全
-     沒有尺寸變體；雪服帽鏡組／雪服是「男女尺寸並列」兩個獨立 option，跟 Stage3「依
-     性別切換單一尺寸池」的收集方式不同），沒辦法比照安全帽／雪鏡／滑雪護具做「一對一
-     查表」。改用退而求其次的做法：不管客人在 Stage3 填什麼尺寸，一律固定送出該商品
-     底下的同一顆 variant，讓 Shopify 收到正確金額；客人實際填的尺寸維持寫入
-     line item properties 文字說明，供教練/後勤核對，不影響這裡的計費邏輯。
-     這個做法成立的前提（即時查 /products.json 逐一驗證過，不是假設）：
-     (1) 同一商品底下所有 variant 價格完全一致——選哪個尺寸/性別組合都不影響金額；
-     (2) 三個商品都沒有追蹤庫存（inventory_management 全部是 null）——固定送出某個
-     variant 不會有「該 variant 缺貨/售完」導致 /cart/add.js 失敗的風險。
-     固定送出的 variant id 只是任取商品底下第一個組合，選哪一個不影響金額。 */
-  var SBOARD_BOOTS_VARIANT_ID = 43406544830547;   // 裝備租賃 - 單板鞋組 / Default Title（唯一 variant）
-  var FULL_SET_BUNDLE_VARIANT_ID = 45841855021139; // 裝備租賃 - 雪服帽鏡組 / S (52-55 cm) / S / S（60 變體任取一顆，價格皆為 $1,000）
-  var JACKET_PANT_VARIANT_ID = 45841848664147;      // 裝備租賃 - 雪服 / S / S（24 變體任取一顆，價格皆為 $800）
+  /* 2026-09-11：單板鞋組確實只有單一 variant（無尺寸維度），繼續固定送出這一顆——
+     這不是退而求其次，是這個商品本來就沒有尺寸可選。 */
+  var SBOARD_BOOTS_VARIANT_ID = 43406544830547; // 裝備租賃 - 單板鞋組 / Default Title（唯一 variant）
+
+  /* 2026-09-11（雪服／雪服帽鏡組改真正一對一查表）：業主已把 gear-rent-jacket-pant／
+     full-set-bundle 兩個商品的男款尺碼統一成 M/L/XL/2XL/3XL（女款維持 S/M/L/XL），
+     Stage3 這邊原本因為「男女尺寸並列兩個獨立 option」跟「依性別切換單一尺寸池」
+     兩種資料維度對不起來、只能固定送出同一顆 variant 的問題，改用「性別-尺碼」
+     組合字串當 key 來解決——這兩個商品的 variant 本身還是「女款尺寸 × 男款尺寸」
+     兩個獨立 option（業主這次沒有把它們合併成一個 option，只統一了男款尺碼清單），
+     所以同一個「性別-尺碼」key 底下，另一個性別的維度必須固定填一個佔位值才能對到
+     單一 variant——這裡統一固定取該維度的第一個尺碼（女款固定用 S、男款固定用 M）
+     當佔位值，價格不受影響（同商品所有 variant 價格一致，即時查 /products.json 確認
+     過），variant title 裡「客人沒選的那個性別」尺寸只是佔位文字，真正的客人尺寸
+     一律另外寫進 line item properties（buildStage3SummaryHtml／送出邏輯既有的
+     「學員N_加購_XXX_雪服尺碼」文字說明），後勤／教練核對尺寸看 properties，不是看
+     variant title。
+     兩份表都是即時查 /products/gear-rent-jacket-pant.js、/products/full-set-bundle.js
+     的完整 variant 清單逐一比對產生，不是手動推算或用文字反推。 */
+  var CLOTHING_VARIANT_ID_BY_GENDER_SIZE = {
+    // 裝備租賃 - 雪服（gear-rent-jacket-pant，4 女款 × 5 男款 = 20 variant，男款尺碼佔位固定用 M，女款尺碼佔位固定用 S）
+    '女-S': 45841848696915,  // S / M（男款佔位）
+    '女-M': 45841848959059,  // M / M（男款佔位）
+    '女-L': 45841849221203,  // L / M（男款佔位）
+    '女-XL': 45841849483347, // XL / M（男款佔位）
+    '男-M': 45841848696915,  // S（女款佔位）/ M
+    '男-L': 45841848729683,  // S（女款佔位）/ L
+    '男-XL': 45841848762451, // S（女款佔位）/ XL
+    '男-2XL': 45841848795219,// S（女款佔位）/ 2XL
+    '男-3XL': 45841848827987,// S（女款佔位）/ 3XL
+  };
+  var FULL_SET_BUNDLE_VARIANT_ID_BY_KEY = {
+    // 裝備租賃 - 雪服帽鏡組（full-set-bundle，3 安全帽 × 4 女款 × 5 男款 = 60 variant，
+    // key 格式：安全帽尺寸 + '|' + 性別-尺碼；女款尺碼佔位固定用 S，男款尺碼佔位固定用 M）
+    'S|女-S': 45841855053907,  'S|女-M': 45841855217747,  'S|女-L': 45841855381587,  'S|女-XL': 45841855545427,
+    'S|男-M': 45841855053907,  'S|男-L': 46229523464275,  'S|男-XL': 45841855086675, 'S|男-2XL': 45841855119443, 'S|男-3XL': 45841855152211,
+    'M|女-S': 45841855709267,  'M|女-M': 45841855873107,  'M|女-L': 45841856036947,  'M|女-XL': 45841856200787,
+    'M|男-M': 45841855709267,  'M|男-L': 46229523595347,  'M|男-XL': 45841855742035, 'M|男-2XL': 45841855774803, 'M|男-3XL': 45841855807571,
+    'L|女-S': 45841856364627,  'L|女-M': 45841856528467,  'L|女-L': 45841856692307,  'L|女-XL': 45841856856147,
+    'L|男-M': 45841856364627,  'L|男-L': 46229523726419,  'L|男-XL': 45841856397395, 'L|男-2XL': 45841856430163, 'L|男-3XL': 45841856462931,
+  };
 
   /* 把已勾選的裝備（selectedGear，來自 getSelectedGear()）轉成 /cart/add.js 需要的
      { id, quantity } 清單。GEAR_ITEMS 六項裝備現在全部有對應：安全帽／滑雪護具用
-     「尺寸→variant」查表，雪鏡固定一顆 variant，單板鞋組／雪服帽鏡組／雪服三項用
-     固定 variant 退而求其次方案（見上方 SBOARD_BOOTS_VARIANT_ID 等常數旁的說明）。
-     同一個 variant（例如兩位學員都選 M 號安全帽，或都勾了雪服帽鏡組）合併成一筆、
-     quantity 疊加，不會拆成兩筆重複的 line item——這是 Shopify 購物車本來就有的
-     「同 variant 用 quantity 疊加」慣例，不是這裡額外發明的邏輯。 */
-  function buildRealGearCartItems(selectedGear) {
+     「尺寸→variant」查表，雪鏡固定一顆 variant，單板鞋組維持固定一顆（無尺寸維度），
+     雪服／雪服帽鏡組改用「性別-尺碼」組合 key 查表（見上方兩份常數旁的說明）——
+     這兩項需要 gearControls.getAttendeeGender() 才能組出 key，所以這個函式多收一個
+     gearControls 參數（呼叫端 submitBtn 的 click handler 本來就有這個變數在作用域內）。
+     同一個 variant（例如兩位學員都選 M 號安全帽，或兩位學員都選女 M 號雪服帽鏡組）
+     合併成一筆、quantity 疊加，不會拆成兩筆重複的 line item——這是 Shopify 購物車
+     本來就有的「同 variant 用 quantity 疊加」慣例，不是這裡額外發明的邏輯。 */
+  function buildRealGearCartItems(selectedGear, gearControls) {
     var quantityByVariantId = {};
     (selectedGear || []).forEach(function (g) {
       var variantId = null;
@@ -139,9 +167,18 @@ import { CartUpdateEvent } from '@theme/events';
       } else if (g.key === '單板鞋組') {
         variantId = SBOARD_BOOTS_VARIANT_ID;
       } else if (g.key === '雪服帽鏡組') {
-        variantId = FULL_SET_BUNDLE_VARIANT_ID;
+        var bundleGender = gearControls && gearControls.getAttendeeGender(g.attendee);
+        var bundleClothingSize = g.sizeValues && g.sizeValues.clothingSize;
+        var bundleHelmetSize = g.sizeValues && g.sizeValues.helmetSize;
+        if (bundleGender && bundleClothingSize && bundleHelmetSize) {
+          variantId = FULL_SET_BUNDLE_VARIANT_ID_BY_KEY[bundleHelmetSize + '|' + bundleGender + '-' + bundleClothingSize] || null;
+        }
       } else if (g.key === '雪服') {
-        variantId = JACKET_PANT_VARIANT_ID;
+        var jacketGender = gearControls && gearControls.getAttendeeGender(g.attendee);
+        var jacketClothingSize = g.sizeValues && g.sizeValues.clothingSize;
+        if (jacketGender && jacketClothingSize) {
+          variantId = CLOTHING_VARIANT_ID_BY_GENDER_SIZE[jacketGender + '-' + jacketClothingSize] || null;
+        }
       }
       if (!variantId) return;
       quantityByVariantId[variantId] = (quantityByVariantId[variantId] || 0) + 1;
@@ -1242,7 +1279,7 @@ import { CartUpdateEvent } from '@theme/events';
       // 原本的 writeCourseFormDataToCart()，這份清單另外呼叫 /cart/add.js，兩件事
       // 並行、互不影響，不是二選一。尺寸資訊不論商品有沒有對應 variant，一律照舊
       // 寫入 properties 文字說明（見 buildRealGearCartItems 旁的說明）。
-      var realGearCartItems = buildRealGearCartItems(selectedGear);
+      var realGearCartItems = buildRealGearCartItems(selectedGear, gearControls);
       // 2026-08-31：指定教練跟哪一位教練無關（三選一價格一致），固定加入
       // COACH_VARIANT_ID 這一顆 variant，quantity 固定 1（整組課程層級單選，不是
       // 每學員各自一份，不受 selectedGear 的 quantity 疊加邏輯影響）。
