@@ -1,10 +1,69 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-09-10
+最後更新：2026-09-11
 
 ## 📍 接續指引（額度用盡前的斷點記錄）
 
-**Stage 3 加購表單「裝備尺寸對照表」功能（安全帽／雪服／雪服帽鏡組／滑雪護具）已開發完成、資料補齊，業主回報的「褲子表格顯示不完整」問題**已由業主自己用 DevTools 定位到方向、這次由 CC 精確定位到確切的單一根因並修復，重新驗證通過。**程式碼已 commit 並 push 到 GitHub，working tree 乾淨。**
+**裝備租賃 variant picker 新增「客人要主動選滿所有尺寸維度，加入購物車才會解鎖」防呆機制，5個商品全部實測（含連網路層攔截`/cart/add.js`）驗證通過。**
+
+1. **業主回報**：頁面一進入（例如安全帽、雪服帽鏡組），還沒點擊就已經是預設選中的深藏青樣式，「加入購物車」全程可按——這是上一輪把已選中樣式改明顯之後才變得容易注意到的既有問題，容易手滑買錯尺寸。
+2. **查證是否為主題原生行為**：確認是 Shopify Horizon 主題原生設計，不是這個專案自己加的邏輯——`product.selected_or_first_available_variant`這個Liquid物件貫穿整個主題（price/buy-buttons/variant-picker都用它），商品頁一律預設解析出一個「目前選中的variant」，`blocks/buy-buttons.liquid`的Add to Cart按鈕`disabled`只看這個variant是否有庫存（`variant.available`），完全不看客人是否真的點過選項。**沒有任何主題設定可以關掉這個預設行為**，必須寫JS覆蓋，且風險比預期更高：
+   - 更麻煩的是，客人只選了「部分」尺寸維度（例如雪服只選了女款，男款還沒點）時，Shopify後端解析variant時，會自動幫沒選的維度**補上第一個可選值**當作預設，並在回傳的HTML裡把它標記成「已選中」——這代表只用「有沒有checked」來判斷「選滿了沒」是不夠的，會被這個自動補值誤判成「選滿了」。開發過程中先寫了一版單純判斷`checked`的邏輯，上線測試時就實際踩到這個問題（雪服只點女款M，男款被自動補選成S，看起來像選滿了），改用「追蹤客人真的點過哪些維度」的方式才修正。
+3. **修復方案**：新增`assets/gear-rental-variant-guard.js`（只在`template.suffix == 'gear-rental'`的5個商品頁載入，透過`sections/product-information.liquid`條件式`<script>`引入，不影響其他商品頁）：
+   - 頁面載入時，把主題預設勾選的選項全部清空（S/M/L等都不選）
+   - 用`data-fieldset-index`追蹤每個尺寸維度「客人是否真的手動點過」（監聽原生`change`事件——這只會在真人互動時觸發，主題自動補值不會觸發`change`，所以能準確分辨「真選」vs「系統偷偷補的」）
+   - 每次Shopify伺服器回應後（`variant:update`事件），把「客人還沒真的點過」的維度重新清空，蓋掉伺服器自動補的預設值
+   - 只有當「每個維度都是客人真的點過」才把加入購物車按鈕（含頁面往下捲動後出現的黏性列按鈕，兩顆按鈕一起管控，因為黏性列按鈕實際上是代理點擊主按鈕）解鎖
+   - 另外在`sections/product-information.liquid`加了一條範圍限定的CSS（`.product-form-gear fieldset.variant-option:not(:has(input:checked)) .pill{display:none}`）——因為主題原生的「選中膠囊」CSS假設一個維度裡一定有一個被選中的，全部清空後這個假設不成立，膠囊會全部跑出來變成「看起來全部都選中」，需要這條CSS在真的沒人選時強制隱藏膠囊。
+4. **驗證（5個商品，每個都測到「只選一部分維度按鈕仍鎖住」＋「選滿才解鎖」＋攔截`/cart/add.js`確認送出的variant跟畫面一致，不是只看disabled屬性）**：
+
+   | 商品 | 維度數 | 只選一部分時按鈕狀態 | 選滿後 | 送出variant_id |
+   |---|---|---|---|---|
+   | 安全帽 | 1（頭圍） | N/A（只有1個維度） | 選M後解鎖 | 45841778638931（M）✓ |
+   | 雪服 | 2（女/男） | 只選女M時，男款維持空白、按鈕仍鎖 | 補選男L後解鎖 | 45841848991827（M/L）✓ |
+   | 雪服帽鏡組 | 3（安全帽/女/男） | 選了2個維度，第3個維持空白、按鈕仍鎖 | 補選第3個後解鎖 | 45841856069715（M/L/XL）✓ |
+   | 護具 | 2（護臀/護膝） | 只選護臀M時，護膝維持空白、按鈕仍鎖 | 補選護膝後解鎖 | 45840784588883 ✓ |
+   | 單板鞋組 | 0（單一variant，無選單） | 不適用 | 本來就可直接點 | 43406544830547 ✓（不受影響）|
+
+   另外實測：未選滿時直接點擊disabled的「加入購物車」，`read_network_requests`確認**連`/cart/add.js`請求都沒有送出**（不是送出後被拒絕，是真的按不下去）。截圖（空白狀態＋選滿後恢復可點）已在對話中呈現給 Eric。
+
+**本機還有六個改動待 commit**：`templates/product.gear-rental.json`、`config/settings_data.json`（累計三項色彩修正）、`sections/product-information.liquid`（script引入＋CSS修正）、`assets/gear-rental-variant-guard.js`（新檔）、`PROGRESS.md`本次更新——都已push上正式站驗證過，跟之前每一輪一樣，等明確指示才commit。
+
+**另外發現、還沒處理的問題（超出這次任務範圍，需要 Eric 注意）**：正式站 `/products/gear-rent-helmet` 的商品描述（body_html）裡，在「加入購物車」按鈕跟「注意事項」中間，看到一段像是「1. GEAR-RENT-HELMET（裝備租賃 - 安全帽）」的標題文字，風格很像 CC 內部測試用的預覽檔案標題，懷疑是貼上尺寸對照表內容時不小心從錯的來源檔案複製的。CC 沒有 body_html 寫入權限，無法直接修，需要 Eric 到 Admin 檢查這段文字並自行清除或修正。
+
+**獨立裝備租賃頁面尺寸對照表交付檔案（更早一輪的任務）仍在等 Eric 貼進 Shopify Admin**——貼上後建議回來截圖驗證顯示效果（見下方 2026-09-10 章節）。
+
+**如果 Eric 有新任務，直接開始即可，不需要先做任何額外查證或恢復動作。**
+
+---
+
+## ✅ 2026-09-11（下）：variant picker 未選中狀態文字對比度修正
+
+見上方「接續指引」，內容一致，此處不重複列出。commit 尚未建立（等待明確指示）。
+
+---
+
+## ✅ 2026-09-11（上）：裝備租賃 5 商品共用模板缺少 variant selector 根因查證＋修復
+
+1. **業主回報**：`/products/gear-rent-helmet` 沒有顯示 S/M/L 尺寸選單，客人可以直接加入購物車不選尺寸。
+2. **根因**：`templates/product.gear-rental.json` 裡的 `variant_picker_R3rGDr` 區塊一直帶著 `"disabled": true`。用 `git log --follow` + `git show a5ef3b3:...` 查證，這個 `disabled: true` **從專案最初的 Initial commit（`a5ef3b3`）就存在**，不是這次任務任何一次編輯造成的——用 `git diff` 確認這次先前「移除安全帽需備注文字」那次編輯（改的是 `text_GghYRp` 的文字，約第293行）跟 `variant_picker_R3rGDr`（第176-189行）完全不相關。
+3. **範圍**：這個模板是 5 個裝備租賃商品共用的（`gear-rent-helmet`／`gear-rent-jacket-pant`／`full-set-bundle`／`gear-rent-protect`／`gear-rent-sboard-boots`），所以缺 variant selector 是 5 個商品共同的問題，不是安全帽單一個案。
+4. **修復**：移除 `variant_picker_R3rGDr` 的 `"disabled": true`，沿用 Horizon 主題原生的 variant-picker 元件（沒有另外自己刻一個），已 push 上正式站。
+5. **驗證（5 個商品逐一實測「選尺寸→加入購物車→查 `/cart.js`」，每次測完都清空購物車）**：
+
+   | 商品 | 選擇 | `/cart.js` 回傳 variant_id | 結果 |
+   |---|---|---|---|
+   | 安全帽 gear-rent-helmet | L | 45841778671699 | ✅ 一致 |
+   | 雪服 gear-rent-jacket-pant | 女S/男L | 45841848729683（title "S / L"） | ✅ 一致 |
+   | 雪服帽鏡組 full-set-bundle | 安全帽M/女L/男XL | 45841856069715（title "M (55-59 cm) / L / XL"） | ✅ 一致 |
+   | 護具 gear-rent-protect | 護臀M＋護膝(M/L/XL共用) | 45840784588883（title "M (參考腰圍 60-74 cm) / 適用於 M / L / XL 號護臀的護膝..."） | ✅ 一致，且跟 Stage3 `course-stage2-module.js` 裡 `PAD_VARIANT_ID_BY_SIZE['M']` 常數值相同，交叉驗證通過 |
+   | 單板鞋組 gear-rent-sboard-boots | （單一 variant，本就沒有選單） | 43406544830547 | ✅ 正確行為，無需選單 |
+
+見上方「接續指引」，內容一致，此處不重複列出。commit 尚未建立（等待明確指示）。
+
+---
+
+## ✅ 2026-09-10（Stage 3 根因修復）：裝備尺寸對照表容器高度裁切問題
 
 ### 根因（業主定位方向正確，這次精確定位到唯一根因）
 
@@ -29,10 +88,11 @@
 - `.cs2-legal-scrollbox`（法律聲明賠償表）維持原本 `max-height:200px`／`overflow-y:auto`／8 列，不受影響。
 - 簡單送出流程重新驗證：勾選雪服帽鏡組→選性別/尺寸→確認彈窗正確顯示→送出→`/cart.js` 核對 `_stage2_completed`／性別／尺寸全部正確，購物車已清空。
 
-**明確還沒做完的事**：
+**這一輪結束時明確還沒做完的事**：
 1. 所有量測方式的圖示目前都是文字註記「（量測方式圖示製作中）」，業主之後會提供正式圖片素材，屆時要做圖片替換（這次任務範圍不含圖片）。
-2. 獨立裝備租賃頁面（`pages/equipment-rental`）這次沒有做，業主說留到下一輪。
-3. **單板鞋組拿掉身高/體重欄位的技術疑慮，等業主確認**（身高/體重可能是雪板長度判斷依據，不只是給鞋子用；拿掉也會連帶失去既有的防呆驗證區間）——這是查證後主動提出的疑慮，還沒有業主的最終決定，目前沒有動這個欄位。
+2. **單板鞋組拿掉身高/體重欄位的技術疑慮，等業主確認**（身高/體重可能是雪板長度判斷依據，不只是給鞋子用；拿掉也會連帶失去既有的防呆驗證區間）——這是查證後主動提出的疑慮，還沒有業主的最終決定，目前沒有動這個欄位。
+3. 裝備租賃 4 個商品（安全帽/雪服/雪服帽鏡組/護具）的 body_html 尺寸對照表 HTML 已交付給 Eric（見最上方接續指引），**還沒真正貼進 Shopify Admin**，貼上後建議回來這裡截圖驗證一次實際顯示效果。
+4. `gear-rent-jacket-pant`／`full-set-bundle` 既有描述文字裡「女S/M/L」「男M/L/XL」跟新對照表真實尺碼範圍不一致，已請 Eric 決定要不要順手修正，這次沒有動。
 
 **如果 Eric 有新任務，直接開始即可，不需要先做任何額外查證或恢復動作。**
 
