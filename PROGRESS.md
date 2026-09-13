@@ -1,6 +1,6 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-09-11
+最後更新：2026-09-13
 
 ## 📍 接續指引（額度用盡前的斷點記錄）
 
@@ -17,6 +17,33 @@
    - 確認不影響其他4個商品：安全帽／護具／雪服／雪服帽鏡組都重新測過一次，`hasSboardFields`（新欄位容器）在這4個商品頁面上都是`false`，各自原本的properties跟variant邏輯都正常。
 
 **本機一個檔案待commit**：`assets/gear-rental-variant-guard.js`——已push上正式站驗證過，等明確指示才commit。
+
+---
+
+## 🔍 2026-09-13：查證業主反映的護具尺寸配對異常——確認是Admin後台資料問題，不是前端顯示問題
+
+**業主反饋**：`gear-rent-protect`（滑雪護臀護膝）商品頁面，選了「護臀M」之後，「護膝」選項裡「適用於S號護臀的護膝」依然可以點選，畫面上沒有任何限制——邏輯上護臀M應該只能搭配「適用於M/L/XL號護臀的護膝」。
+
+**查證方式**：這次這個Claude Code環境（透過網頁啟動的隔離容器）的出網政策直接擋掉`lifechillsnow.com`／`*.myshopify.com`（curl測試三個網域皆回403 policy denial），沒辦法直接查活資料，先用純程式碼查證能確認的部分：
+
+1. `snippets/variant-main-picker.liquid`（渲染尺寸選項的原始模板）：確認「選項是否可選」完全是Shopify主題原生機制在管，由`product_option_value.available`（後端即時算出「這個選項值搭配目前已選的其他選項，是否存在對應的真實variant」）驅動，不可用時標上`aria-disabled="true"`＋`data-option-available="false"`，`assets/base.css`（2051~2089行）有對應的「劃斜線不可用」樣式。**這個機制只加`aria-disabled`，沒有加真正的HTML `disabled`屬性**，`assets/variant-picker.js`也確認沒有攔截點擊的邏輯。
+2. `assets/gear-rental-variant-guard.js`（這個專案自己寫的防呆腳本）：確認完全沒有碰`aria-disabled`／`data-option-available`，不會遮蔽或關掉主題原生的不可用樣式。
+3. **結論**：這個專案的程式碼完全沒有引入這個問題，如果組合真的不存在，原生機制理論上會顯示劃斜線樣式——業主截圖裡完全沒看到這個視覺差異，初步判斷是後台真的存在這個組合，但因為環境網路限制沒辦法100%確認，請Eric/業主直接查活資料驗證。
+
+**Eric查證`/products/gear-rent-protect.js`後確認**：後台這個商品共8個variant，其中4個是不合理組合，且全部標記`available:true`：
+
+| Variant ID | 錯誤配對 | 應有配對 |
+|---|---|---|
+| `45840784523347` | S護臀 / 適用M-L-XL號護臀的護膝 | S護臀應只能配S號護膝 |
+| `45840784556115` | M護臀 / 適用S號護臀的護膝 | M護臀應只能配M/L/XL號護膝 |
+| `45840784621651` | L護臀 / 適用S號護臀的護膝 | L護臀應只能配M/L/XL號護膝 |
+| `45840784687187` | XL護臀 / 適用S號護臀的護膝 | XL護臀應只能配M/L/XL號護膝 |
+
+**交叉驗證（確認Stage3不受影響）**：`assets/course-stage2-module.js`（97~101行）`PAD_VARIANT_ID_BY_SIZE`查表用的4組合理variant id（S=45840784490579、M=45840784588883、L=45840784654419、XL=45840784719955）跟上面4個不合理id**完全沒有交集**，兩邊加總剛好等於8個variant總數，數字吻合。**確認Stage3加購路徑完全乾淨，這個資料缺陷只影響客人直接在`/products/gear-rent-protect`商品頁自行選購這條路徑。**
+
+**結論：純屬Admin後台資料問題，不需要改任何程式碼**。Shopify原生的「選項組合可用性」機制（`product_option_value.available`）只要後台資料乾淨，就會自動讓客人在前端選不到不合理組合，跟上面查到的原生variant picker邏輯是同一套。**待辦：業主到Shopify Admin → 商品 →「裝備租賃 - 滑雪護臀 護膝」→ Variants，把上面4個variant id設成缺貨或直接刪除即可**，設定完後台馬上生效，不影響現有訂單記錄或Stage3加購功能。
+
+**這次純查證，沒有修改任何程式碼。**
 
 ---
 
