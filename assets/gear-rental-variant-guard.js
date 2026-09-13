@@ -425,8 +425,144 @@
     });
   }
 
+  /**
+   * gear-rent-sboard-boots（單板鞋組）只有單一 variant，整個頁面完全不會渲染
+   * <variant-picker>，setupPicker() 從來沒機會對它跑——但業主仍需要身高／體重／
+   * 鞋子尺寸這三個數字才知道要準備多長的板、多大的鞋，比照 Stage3 加購表單裡
+   * 單板鞋組已經在用的同一組欄位跟同一組合理區間（assets/course-stage2-module.js
+   * 的 GEAR_ITEMS，身高 100~220cm／體重 20~150kg／鞋子尺寸 15~35cm，這裡刻意
+   * 沿用同一組數字，不重新定義一套，確保兩邊標準一致）。這個商品沒有 variant
+   * 可選，這三個欄位純粹透過 line item properties 送出，不影響送出的 variant id。
+   * 也因為沒有 variant-picker，這個頁面上完全不會觸發任何 fetch/morph 循環，
+   * 插入的欄位不會有 gender-pair 那套邏輯要處理的「morph 移除節點」風險。
+   *
+   * 用網址路徑（商品 handle）判斷是不是這個商品，不是用「有沒有 variant-picker」
+   * 這個 DOM 特徵來判斷——同一個模板下的其他 4 個商品理論上都有 variant-picker，
+   * 但這裡还是選最明確的訊號（商品本身），避免未來模板結構變化時誤判。
+   */
+  function setupSboardBootsFields() {
+    if (window.location.pathname.indexOf('gear-rent-sboard-boots') === -1) return;
+    if (document.querySelector('variant-picker')) return;
+
+    var form = document.querySelector('product-form-component');
+    var mainButton = form && form.querySelector('[ref="addToCartButton"]');
+    var htmlForm = form && form.querySelector('form');
+    var productFormButtons = htmlForm && htmlForm.querySelector('.product-form-buttons');
+    if (!mainButton || !htmlForm || !productFormButtons) return;
+
+    var productId = form.dataset.productId;
+    var stickyButton = document.querySelector(
+      'sticky-add-to-cart[data-product-id="' + productId + '"] [ref="addToCartButton"]'
+    );
+
+    // Same keys, units and min/max as Stage3's GEAR_ITEMS entry for 單板鞋組 -
+    // deliberately kept in sync so a customer sees the same acceptable range
+    // whichever path (this page or Stage3's add-on flow) they book through.
+    var FIELDS = [
+      { key: '身高', unit: 'cm', min: 100, max: 220 },
+      { key: '體重', unit: 'kg', min: 20, max: 150 },
+      { key: '鞋子尺寸', unit: 'cm', min: 15, max: 35 },
+    ];
+
+    injectSboardBootsStylesOnce();
+
+    var container = document.createElement('div');
+    container.className = 'gear-sboard-boots-fields';
+
+    var warning = document.createElement('p');
+    warning.className = 'gear-sboard-boots-fields__warning';
+    warning.hidden = true;
+
+    var entries = FIELDS.map(function (field) {
+      var fieldId = 'SboardBoots-' + field.key + '-' + (productId || '');
+
+      var wrapper = document.createElement('div');
+      wrapper.className = 'gear-sboard-boots-fields__field';
+
+      var label = document.createElement('label');
+      label.className = 'gear-sboard-boots-fields__label';
+      label.setAttribute('for', fieldId);
+      label.textContent = field.key + '(' + field.unit + ')';
+
+      var fieldBox = document.createElement('div');
+      fieldBox.className = 'field';
+
+      var input = document.createElement('input');
+      input.type = 'number';
+      input.inputMode = 'decimal';
+      input.step = 'any';
+      input.id = fieldId;
+      input.className = 'field__input';
+      input.name = 'properties[' + field.key + '(' + field.unit + ')]';
+      input.min = String(field.min);
+      input.max = String(field.max);
+      input.required = true;
+      input.placeholder = field.min + '~' + field.max;
+
+      fieldBox.appendChild(input);
+      wrapper.appendChild(label);
+      wrapper.appendChild(fieldBox);
+      container.appendChild(wrapper);
+
+      return { field: field, input: input };
+    });
+
+    container.appendChild(warning);
+    htmlForm.insertBefore(container, productFormButtons);
+
+    function fieldValid(entry) {
+      var raw = entry.input.value.trim();
+      if (!raw) return false;
+      var num = Number(raw);
+      if (isNaN(num)) return false;
+      return num >= entry.field.min && num <= entry.field.max;
+    }
+
+    function sync() {
+      var outOfRangeMessages = [];
+      entries.forEach(function (entry) {
+        var raw = entry.input.value.trim();
+        if (!raw) return; // empty just keeps the button disabled, no need to nag yet
+        if (!fieldValid(entry)) {
+          outOfRangeMessages.push(
+            entry.field.key + '需介於 ' + entry.field.min + '~' + entry.field.max + entry.field.unit
+          );
+        }
+      });
+
+      var ready = entries.every(fieldValid);
+      mainButton.disabled = !ready;
+      if (stickyButton) stickyButton.disabled = !ready;
+
+      if (outOfRangeMessages.length > 0) {
+        warning.textContent = outOfRangeMessages.join('；');
+        warning.hidden = false;
+      } else {
+        warning.hidden = true;
+      }
+    }
+
+    entries.forEach(function (entry) {
+      entry.input.addEventListener('input', sync);
+    });
+
+    sync();
+  }
+
+  function injectSboardBootsStylesOnce() {
+    if (document.getElementById('gear-sboard-boots-fields-style')) return;
+    var style = document.createElement('style');
+    style.id = 'gear-sboard-boots-fields-style';
+    style.textContent =
+      '.gear-sboard-boots-fields{display:flex;flex-direction:column;gap:var(--gap-sm, 12px);margin-block-end:var(--margin-md, 16px);}' +
+      '.gear-sboard-boots-fields__label{display:block;font-size:var(--font-paragraph--size, 14px);color:rgb(var(--color-foreground-rgb, 26,46,74) / var(--opacity-80, 0.8));margin-block-end:4px;}' +
+      '.gear-sboard-boots-fields__warning{color:var(--color-error, #c0392b);font-size:var(--font-paragraph-small--size, 13px);margin:0;}';
+    document.head.appendChild(style);
+  }
+
   function init() {
     document.querySelectorAll('variant-picker[data-template-product-match="true"]').forEach(setupPicker);
+    setupSboardBootsFields();
   }
 
   if (document.readyState === 'loading') {

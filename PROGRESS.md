@@ -4,16 +4,19 @@
 
 ## 📍 接續指引（額度用盡前的斷點記錄）
 
-**這輪範圍限定：護具／安全帽購物車明細比照雪服／雪服帽鏡組呈現方式（properties標籤＋隱藏原生摘要）。已完成、已驗證，工作量確實不大（架構比雪服單純，沒有佔位值問題）。單板鞋組身高/體重/鞋碼欄位這次沒有處理，留到下一輪。**
+**這輪範圍限定：單板鞋組獨立商品頁面新增身高/體重/鞋子尺寸三個必填數字欄位，比照Stage3同一組欄位跟同一組合理區間，透過line item properties送出。已完成、已驗證。**
 
-1. **properties標籤**：`gear-rental-variant-guard.js`裡上一輪只在`hasGenderPair`（雪服/雪服帽鏡組）成立時才寫入properties，這次把「每個維度用自己的legend文字當property key」這段邏輯獨立出來、對所有有variant維度的商品都生效（不再限定`hasGenderPair`）——安全帽（`頭圍尺寸`）、護具（`護臀尺寸`／`護膝尺寸`）的維度legend文字本來就是簡潔清楚的既有用詞，直接沿用當property key，不用另外命名。雪服／雪服帽鏡組的「性別」「尺碼」特殊命名邏輯維持不變。
-2. **隱藏原生摘要**：`snippets/cart-products.liquid`的商品handle清單加入`gear-rent-protect`、`gear-rent-helmet`（原本只有`gear-rent-jacket-pant`、`full-set-bundle`）。單板鞋組沒有variant維度，不需要加進清單。
-3. **驗證（各測2組，`/cart.js`核對＋購物車截圖）**：
-   - 安全帽：S（`{頭圍尺寸: "S (52-55 cm)"}`，45841778606163）、L（`{頭圍尺寸: "L (59-63 cm)"}`，45841778671699）——購物車原生「L (59-63 cm)」摘要消失，只留「頭圍尺寸: L (59-63 cm)」。
-   - 護具：M+護膝共用（`{護臀尺寸: "M...", 護膝尺寸: "適用於 M/L/XL..."}`，45840784588883）、S+護膝S專用（`{護臀尺寸: "S...", 護膝尺寸: "適用於S號..."}`，45840784490579）——購物車原生摘要消失，清楚顯示兩行property。
-   - 確認不影響其他商品：雪服（男-L，只有「性別」「尺碼」兩個property，沒有多出來的）、雪服帽鏡組（安全帽M+女-S，「性別」「尺碼」「安全帽」三個property跟之前一樣）、單板鞋組（`properties: {}`，完全不受影響）都重新測過一次。
+1. **實作方式**：`gear-rental-variant-guard.js`新增`setupSboardBootsFields()`，跟現有的`setupPicker()`（處理有variant-picker的4個商品）完全獨立——單板鞋組是單一variant、整個頁面不會渲染`<variant-picker>`，原本的邏輯完全碰不到它。新函式用網址路徑判斷是不是這個商品（不是用DOM特徵，避免誤判），在`<form>`裡`.product-form-buttons`（數量/加入購物車按鈕的容器）前面插入3個`<input type="number">`，樣式沿用主題既有的`.field`／`.field__input`通用input class（不用另外設計/比照variant picker按鈕樣式，因為這3個是數字輸入框，性質本來就不同）。
+2. **區間直接沿用Stage3**：身高100~220cm、體重20~150kg、鞋子尺寸15~35cm三組數字，直接抄自`assets/course-stage2-module.js`的`GEAR_ITEMS`定義（單板鞋組那筆），程式碼註解裡有寫明「刻意沿用同一組數字，不重新定義一套」，沒有自訂新標準。
+3. **防呆邏輯**：3個欄位都要「有填」且「在範圍內」，加入購物車按鈕（含黏性列按鈕）才解鎖；欄位有填但超出範圍時，額外顯示紅色警告文字（例如「身高需介於 100~220cm」），行為比照Stage3「不只看有沒有填、還要檢查數字合不合理」的邏輯，只是沒有複製Stage3「學員N」那種多人分組的訊息格式（這裡只有單一客人，不適用）。這個商品沒有variant可選，3個數字純粹透過properties送出，不影響`variant_id`（固定43406544830547）。
+4. **驗證**：
+   - 空白時點擊「加入購物車」：按鈕disabled，實測點擊後`/cart.js`確認`item_count`仍是0（不是只看視覺變灰）。
+   - 只填2個欄位：按鈕仍disabled，點擊無效。
+   - 身高填300（超出範圍）：按鈕仍disabled，正確顯示「身高需介於 100~220cm」警告文字。
+   - 兩組合理數值都測過：178/65/26 → `{身高(cm):178, 體重(kg):65, 鞋子尺寸(cm):26}`；160/50/23 → `{身高(cm):160, 體重(kg):50, 鞋子尺寸(cm):23}`，`variant_id`都是43406544830547沒有變動，購物車頁面清楚顯示三行property，風格跟其他商品一致（已截圖）。
+   - 確認不影響其他4個商品：安全帽／護具／雪服／雪服帽鏡組都重新測過一次，`hasSboardFields`（新欄位容器）在這4個商品頁面上都是`false`，各自原本的properties跟variant邏輯都正常。
 
-**本機累計四個檔案待commit**：`assets/gear-rental-variant-guard.js`、`sections/product-information.liquid`、`snippets/cart-products.liquid`、`PROGRESS.md`——都已push上正式站驗證過，等明確指示才commit。
+**本機一個檔案待commit**：`assets/gear-rental-variant-guard.js`——已push上正式站驗證過，等明確指示才commit。
 
 ---
 
