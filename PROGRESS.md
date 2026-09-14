@@ -2,6 +2,96 @@
 
 最後更新：2026-09-14
 
+## ✅ 2026-09-14：商品圖片+資訊卡跟頁面其他區塊container對齊——已push上正式站並驗證通過
+
+業主提供標註截圖：`gear-rental`模板商品頁的圖片+右側資訊卡整塊滿版貼齊螢幕邊緣，跟Navbar/麵包屑/「You may also like」/Footer的container留白不一致。
+
+1. **根因（純設定值，不是CSS bug）**：Horizon主題的media-gallery區塊有一個原生設定`extend_media_to_screen_edge`（對應JSON裡的`extend_media`），**桌機版**預設`true`，作用就是讓圖片刻意「延伸到螢幕邊緣」——這是主題自己設計好的版型開關，不是意外或bug。用`getBoundingClientRect()`實測確認：圖片的`grid-column`從預期的`2/3`（跟麵包屑對齊）變成`1/3`（延伸吃掉左邊界margin），完全對應這個設定被啟用時的CSS規則（`snippets/product-information-content.liquid`）。比對`product.fullday.json`發現這個設定兩邊predict一樣是`true`——**不是gear-rental獨有的設定差異**，只是fullday那類商品這次沒被特別檢視到、或業主一直沒特別注意到這個外觀。
+2. **桌機修復**：`templates/product.gear-rental.json`的media-gallery block，`extend_media`改成`false`——只改這一個模板檔案，其他模板（fullday/halfday/course-booking/預設product.json）完全沒動，屬性本來就是各模板檔案各自獨立的設定值，不會互相影響。
+3. **手機版另外有一條路要修**：手機版（max-width:749px）的滿版其實是主題另外寫死在`snippets/product-information-content.liquid`的mobile media query（`.product-information__media { grid-column: 1 / -1 }`），**完全不受`extend_media`這個設定控制**（桌機、手機是兩條獨立的CSS路徑）。這條沒辦法透過模板JSON設定關掉，改在`sections/product-information.liquid`新增一條手機專用覆寫，範圍一樣用`body.template-gear-rental`限定，只在裝備租賃模板生效。
+4. **完整驗證**：
+   - 用`getBoundingClientRect()`精確測量圖片跟麵包屑的左邊界像素值，桌機、手機都完全一致（桌機40px、手機16px的頁面margin，兩者分毫不差）。
+   - 桌機（可同時看到麵包屑、圖片+資訊卡、「You may also like」三者對齊）+手機375px都截圖確認，本機、正式站都測過。
+   - 確認`test-course-fullday-peak`（`template-fullday`）的`body` class正確是`template-fullday`不是`template-gear-rental`，範圍限定生效，這次的手機CSS覆寫不會命中其他模板。
+   - 護具商品也重新截圖確認同樣對齊正確，不是`gear-rent-glass`單一商品的巧合。
+5. **已push上正式站**（`shopify theme push --allow-live`，`theme pull`比對確認`templates/product.gear-rental.json`、`sections/product-information.liquid`兩個檔案內容都跟正式站一致），並在`lifechillsnow.com`正式網址上桌機+手機375px重新截圖確認。
+6. **目前狀態**：兩個檔案已push上正式站生效，尚未commit——等業主看過正式站截圖確認對齊OK後再commit。
+
+---
+
+## ✅ 2026-09-14：「You may also like」卡片內距調整——已push上正式站並驗證通過
+
+業主反饋窄版（4欄）卡片的文字/按鈕貼邊太擠，要求加內距。
+
+1. **調整內容**：卡片內容區塊（`_product-card-group`）內距從原本`14px 16px 16px`改成統一`20px`；按鈕（`_text_rental_button`）內部padding從`10px`改成`12px 16px`，比例更舒適。
+2. **踩到一個選擇器誤判，過程中修正**：原本CSS用`[class*="__group_zGryyP"]`（比照其他text block套用的「自動產生唯一id class」模式）來選取內容區塊，**但實測發現`_product-card-group`這個block類型並不會產生這種唯一id class**，選取器完全沒命中，20px從來沒真正生效過（第一輪視覺檢查誤判成功，這輪深入用`getBoundingClientRect()`精確測量才抓到）。改用`.group-block`（每張卡片裡唯一，已用DOM查證數量為1，在既有的`body.template-gear-rental [id$="__product_recommendations_qggXJq"]`範圍限定下可以安全直接選取）才真正生效。
+3. **驗證（本機+正式站都測過）**：
+   - 用`getBoundingClientRect()`精確測量標題文字距卡片左邊界的距離：桌機/手機都是21px（20px padding + 1px border），確認內距真正套用，不是只看畫面猜測。
+   - 桌機4欄、手機375px 2欄都截圖確認：文字/按鈕不再貼邊，視覺比例協調，文字換行程度可接受（護具卡片的副標文字在窄版下維持2行，沒有因為加大內距而產生過多換行）。
+   - equipment-rental列表頁的`.er-body`內距（原本`20px 22px 24px`，跟這次數字接近但完全獨立）重新查證一次，完全沒被這次CSS影響到（`body.template-gear-rental`範圍限定正確生效，equipment-rental頁面是`body.template-equipment-rental`，選擇器命中不到）。
+   - 卡片點擊跳轉：確認`.product-card__link`（原生全卡覆蓋連結）的`href`正確指向對應商品，沒有被這次調整影響。
+4. **已push上正式站**（`shopify theme push --allow-live`，`theme pull`比對確認`sections/product-information.liquid`內容一致），並在`lifechillsnow.com`正式網址上重新截圖確認桌機+手機都正常。
+5. **目前狀態**：`sections/product-information.liquid`已push上正式站生效，尚未commit——等業主看過正式站截圖確認留白比例OK後再commit。
+
+---
+
+## ✅ 2026-09-14：需求1「You may also like」套用equipment-rental卡片樣式——已push上正式站，正式站重新驗證通過
+
+業主確認方向：4欄/最多4張維持不變、卡片內距不用跟equipment-rental一樣寬（窄版比例）、副標文字新增metafield兩邊共用（選項A）。
+
+1. **新增商品metafield**：`custom.rental_tagline`（multi_line_text_field，PRODUCT），用`shopify store execute`（GraphQL Admin API，額外跑過一次`shopify store auth --scopes write_products`，Eric在自己終端機完成瀏覽器授權）建立定義，並把`er_cards_xK9mLp`（equipment-rental自訂卡片）裡原本寫死的6組副標文字**逐字遷移**進對應商品的metafield值（單板鞋組/雪服/安全帽/護具/雪鏡/雪服帽鏡組）。
+2. **`templates/page.equipment-rental.json`**：`er_cards_xK9mLp`的6處`<span>...</span><br>...`寫死副標文字，改成`{% if pN != blank and pN.metafields.custom.rental_tagline != blank %}{{ pN.metafields.custom.rental_tagline.value | newline_to_br }}{% else %}原寫死文字{% endif %}`——metafield有值就讀metafield，沒有值時保留原本寫死文字當fallback，不會開天窗。
+3. **`templates/product.gear-rental.json`**：`product_recommendations_qggXJq`的`static-product-card`卡片新增3個block：副標文字（讀同一個metafield）、`_divider`分隔線、按鈕文字（純視覺`<p>立即預訂 →</p>`），移除原本的`swatches`block。**過程中連續踩到Shopify「text」設定型別的schema驗證限制**（這是這次唯一花比較多輪次才搞定的部分）：
+   - 最上層節點只能是`<p>/<ul>/<ol>/<h1>~<h6>`，不能直接放`<details>`或裸露文字——已知限制（上一輪`<details>`就踩過一次），這次也用`<p>`包起來解決。
+   - 「動態來源」（`closest.product.xxx`）有自己的型別白名單：`closest.product.url`是「URL」型別、`closest.product.handle`根本不在白名單裡，兩個都被擋——最後放棄用「text」block動態組出商品連結。
+   - 「text」設定的HTML消毒器（sanitizer）**會整個剝除自訂`class`屬性**，不只是限制標籤——原本想寫`<a class="ymal-btn">`當按鈕全部失敗。
+   - **最終解法**：按鈕不需要是真的`<a>`連結——`_product-card`元件本身原生就有一個蓋住整張卡（圖片+文字區）的隱形連結（`<a class="product-card__link">`，已用DOM結構＋實測點擊確認），所以按鈕只要是`<p>立即預訂 →</p>`這種純視覺文字、樣式全部靠CSS選取器套在這個block自動產生的外層class（`[class*="__text_rental_button"]`）上就好，完全不需要在「text」設定裡放`class`或連結。
+4. **CSS範圍限定**：`product_recommendations_qggXJq`這個section/block id在其他商品模板（fullday/halfday/course-booking/預設product.json）裡是同一個字串（複製模板留下來的），沒辦法單靠id選取器分辨，所以在`layout/theme.liquid`的`<body>`標籤新增`template-{{ template.suffix }}`這個class（純新增，不影響任何既有class），CSS統一用`body.template-gear-rental [id$="__product_recommendations_qggXJq"] ...`限定範圍，只在裝備租賃模板生效。CSS本身加在`sections/product-information.liquid`既有的`{% stylesheet %}`區塊（跟之前護具視覺優化那批CSS放一起）。
+5. **完整驗證（本機`shopify theme dev`）**：
+   - 護具、安全帽兩個商品頁的「You may also like」都截圖確認：邊框、副標文字、分隔線、價格、深色「立即預訂→」按鈕，桌機（4欄）+手機375px（2欄）都正常。
+   - 點擊測試按鈕：確認靠卡片原生的全卡覆蓋連結正確導到對應商品頁（例如在護具頁點雪服卡片的按鈕，正確跳到`/products/gear-rent-jacket-pant`）。
+   - equipment-rental頁面本身逐一查證6張卡片文字：跟改動前的寫死文字逐字相同（現在來源是metafield），版面樣式完全沒變。
+   - 護具商品完整加入購物車流程重新測過一次（選M護臀+M/L/XL護膝→送出）：variant id、properties標籤（護臀尺寸/護膝尺寸）都正確，確認這次大範圍模板改動沒有影響既有購買邏輯。
+6. **已push上正式站並重新驗證（`shopify theme push --allow-live`，逐檔用`shopify theme pull`比對確認4個檔案跟正式站內容一致）**：
+   - 護具、安全帽兩個商品頁的「You may also like」在`lifechillsnow.com`正式網址上桌機（4欄）+ 手機375px（2欄）都重新截圖確認：邊框、副標文字、分隔線、價格、深色「立即預訂→」按鈕正常顯示。
+   - equipment-rental正式頁面6張卡片文字用`document.querySelectorAll('.er-card')`直接查證，逐字跟改動前相同，排版沒有跑掉。
+   - 護具商品在正式站重新完整跑一次加入購物車流程（M護臀+M/L/XL護膝）：variant id `45840784588883`、properties標籤（護臀尺寸/護膝尺寸）都正確，購物車已清空。
+7. **目前狀態**：`templates/product.gear-rental.json`、`templates/page.equipment-rental.json`、`sections/product-information.liquid`、`layout/theme.liquid`四個檔案**已push上正式站生效**，但**都還沒commit進git**——等業主看過正式站畫面確認後再commit。Metafield定義跟6筆資料是透過Admin API直接寫入Shopify後台的真實資料，跟theme push是各自獨立的動作，兩者都已經生效。
+
+---
+
+## 🔍 2026-09-14：需求1查證——`/pages/equipment-rental`客製卡片是硬寫在custom_liquid裡，非可重用元件
+
+業主提供截圖釐清：想要「You may also like」套用的不是Shopify原生`_product-card`，而是`/pages/equipment-rental`列表頁自己的客製卡片樣式（邊框/副標文字/分隔線/全寬深色「立即預訂」按鈕）。查證結果（純查證，未動手實作）：
+
+1. **元件位置**：`templates/page.equipment-rental.json` → `sections.main.blocks.er_cards_xK9mLp`，`type: "custom_liquid"`——**整個卡片grid（6張卡片的HTML/CSS/Liquid）是一整段字串直接寫死在這一個Custom Liquid block的設定裡**，不是獨立的section檔案或snippet，Shopify原生`_product-card`、`product-recommendations`完全沒被用到。**沒辦法直接被商品詳情頁的「You may also like」重用**——那是不同的section類型（`product-recommendations`只能放`_product-card`類型的block，放不進一段custom_liquid字串）。
+2. **副標文字資料來源**：**完全是寫死的文案，沒有連到任何product欄位或metafield**。6張卡片各自用`{% assign pN = all_products['商品handle'] %}`抓對應商品（圖片/價格/連結是動態的，抓得到真商品資料就用真的，抓不到才 fallback 寫死的NT$金額），但**副標文字（例如雪服帽鏡組的「一次租齊最劃算/省時省力超方便」）是直接寫在HTML字串裡、按照卡片順序人工對應到哪個商品，不是從任何商品資料讀出來的**——這代表如果照樣搬到「You may也like」，沒有任何欄位可以自動帶出對應文字。
+3. **套用到「You may also like」的工作量與風險評估**：
+   - **不影響`/pages/equipment-rental`本身**：只要不去動`er_cards_xK9mLp`這個既有block，另外重寫一份給recommendations用，兩邊完全獨立，不會互相干擾。
+   - **但不是「套用樣式」這麼簡單，是要重新開發一份**：CSS（`.er-card`/`.er-img`/`.er-body`/`.er-hr`/`.er-btn`等）可以直接複製沿用；但HTML結構需要改成**迴圈渲染**（recommendations給的是動態商品清單，不能像現在這樣針對6個固定handle各自寫一段），需要新寫一個依`recommendations.products`迴圈的Liquid片段。
+   - **副標文字是最大的缺口，需要業主先決定方向**：
+     - **選項A（正確做法，工作量較高）**：新增一個商品metafield（例如`custom.rental_tagline`），業主到Admin幫5個裝備商品各自填一行文案，`equipment-rental`頁面跟「You may also like」都改成讀這個metafield——**長期最乾淨，兩處文案只會有一份，之後改文案不用兩邊都改**，但需要業主手動建立metafield定義+填值，還要把`er_cards_xK9mLp`裡現有的寫死文字遷移過去（確認文字一致不遺漏）。
+     - **選項B（省事，但犧牲副標）**：「You may also like」的卡片直接不顯示副標文字這一行（只有圖片/標題/分隔線/價格/按鈕），其餘視覺完全比照。不用動`equipment-rental`頁面，風險最低，但兩處卡片不會100%一模一樣（少一行文字）。
+     - **選項C（不建議）**：在新程式碼裡再複製一份「handle → 文案」對照表——等於文案存在兩個地方，以後新增商品或改文案容易漏改其中一處，是目前`er_cards_xK9mLp`本身已經有的同一種脆弱設計，不應該再複製一次。
+   - **排版差異需要額外調整**：`equipment-rental`頁面是6張卡片、3欄；商品頁「You may also like」目前設定是最多4張、4欄（`product_recommendations_qggXJq`的`max_products:4, columns:4`）——4欄配這種比較「重」的卡片（大圖+多行文字+全寬按鈕）視覺上可能偏窄，需要業主確認要不要連同欄數/張數一起調整，不是單純換皮就好。
+4. **這次沒有動任何檔案**，等業主看過這份評估、決定要選A/B/C哪個方向（尤其是副標文字的處理方式），以及是否要調整recommendations欄數，才會實際開發。
+
+---
+
+## 🔶 2026-09-14：裝備租賃模板三項UI優化（需求2、3已完成本機驗證；需求1查無差異，待業主澄清；尚未push上正式站）
+
+**業主提出3項需求**：①「You may also like」商品卡跟其他頁面視覺不一致 ②右側資訊欄「注意事項」「滑雪裝備租賃風險與責任聲明」改收折呈現 ③「查看尺寸對照表」搬到尺寸選單上方。
+
+1. **需求1（商品卡視覺不一致）——查無實際差異，需要業主提供具體對比**：逐項比對`templates/product.gear-rental.json`跟`product.fullday.json`／`product.halfday.json`／`product.course-booking.json`／`product.json`的`product-recommendations` section，**整段JSON（section設定＋`_product-card`卡片設定＋swatches/title/price子區塊）逐位元組完全一致**，用Node.js `JSON.stringify`深度比對確認`EQUAL: true`。另外直接比對這個section在兩種模板下實際回傳的HTML（`/recommendations/products`端點），卡片標籤與class結構也完全相同。**目前找不到任何模板/CSS層級的差異可以修——這部分還沒有動手實作，需要業主提供具體是在哪個頁面、看到什麼視覺差異（截圖最理想），才能往下查證，避免亂猜方向做錯工。**
+2. **需求2（注意事項/風險聲明改收折）**：原本這兩塊內容是寫死在同一個`text`類型block（`text_GghYRp`）的單一HTML字串裡。第一版直接在字串裡包`<details><summary>`（比照獨立商品頁尺寸對照表在body_html裡用的寫法），但**Shopify的`text`設定型別有內建schema驗證，最上層節點只允許`<p>`／`<ul>`／`<ol>`／`<h1>`~`<h6>`，`<details>`/`<summary>`/`<div>`會被`theme push`直接拒絶**（`shopify theme push`當場報錯，沒有part推上正式站，未造成任何實際影響）。改用這個模板裡**已經存在、目前是disabled狀態**的Shopify原生`accordion`／`_accordion-row`block（比原本設想的`<details>`寫法更貼近「沿用既有模式」的精神，因為它是theme原生元件，不是硬寫HTML）：啟用`accordion_znzJHk`，把原本3個跟這個模板完全不相關的列（報名須知／風險宣告／退款政策——明顯是從課程模板複製過來、從未依裝備租賃調整內容，一直是disabled看不到），換成「注意事項」「滑雪裝備租賃風險與責任聲明」2個列，內容逐字保留原`text_GghYRp`的文字，`open_by_default: false`（預設收合）。原本的`text_GghYRp`整個移除（內容完全轉移到新的accordion列，沒有遺漏任何文字）。
+3. **需求3（尺寸對照表搬到尺寸選單上方）**：「查看尺寸對照表」是Admin商品描述（body_html）內容的一部分，CC沒有body_html寫入權限，沒辦法直接搬動Admin端內容順序。改用DOM搬移：`assets/gear-rental-variant-guard.js`新增`moveSizeChartAboveVariantPicker()`，頁面載入後把商品描述裡`<summary>`文字含「尺寸對照表」的`<details>`節點整個搬到variant-picker前面，商品描述本文（其餘段落）留在原位不動——只搬移既有DOM節點，不複製/改寫任何文字，Admin端body_html完全沒被動到。單板鞋組沒有這張表（用身高/體重/鞋碼數字欄位取代），函式對它是no-op，不會報錯。
+4. **完整驗證（本機`shopify theme dev`預覽，5個裝備租賃商品）**：
+   - 安全帽／雪服／雪服帽鏡組／護具4個有尺寸對照表的商品，桌機+手機375px都確認顯示順序正確：標題→價格→尺寸對照表→尺寸選單→加入購物車→商品描述→（收折）注意事項→（收折）風險與責任聲明。
+   - 點擊測試「查看尺寸對照表」跟兩個新accordion列都能正常展開/收合（原生accordion互斥展開，開一個會收合另一個，屬於theme原生行為，非bug）；每個商品初次載入時兩個accordion列都確認是收合狀態（用`getComputedStyle`/`details.open`直接查證，不是只看畫面）。
+   - 單板鞋組確認正常：沒有尺寸對照表（本來就沒有）、身高/體重/鞋子尺寸欄位正常、`moveSizeChartAboveVariantPicker()`靜默跳過不報錯，主控台無新增錯誤。
+   - 既有防呆機制沒有被影響：安全帽實測「未選尺寸→加入購物車鎖住→選M→送出」全程正確，`/cart.js`回傳variant `45841778638931`正確對應M尺寸。
+5. **目前狀態**：`templates/product.gear-rental.json`（需求2、3內容）＋`assets/gear-rental-variant-guard.js`（需求3的DOM搬移邏輯）本機已修改並驗證通過，**尚未push上正式站**，也還沒commit——需求1還在等業主提供具體差異點，且push前也照舊要等明確指示。
+
 ## ✅ 2026-09-14：`gear-rent-protect` 不可選variant樣式改成柔和淡化（已push上正式站，已在live環境完整驗證）
 
 **業主反饋**：護具商品選了護臀尺寸後，不可選的護膝選項用Shopify主題原生「劃斜線」樣式，跟已打磨過的其他UI比起來顯得突兀，要求改成灰階柔和淡化、不劃斜線。

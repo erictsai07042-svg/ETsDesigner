@@ -549,6 +549,32 @@
     sync();
   }
 
+  /**
+   * 需求3（2026-09-14）：業主要求「查看尺寸對照表」從商品描述文字之後移到
+   * variant-picker（尺寸選單）上方，讓客人先看懂尺寸區間、再選尺寸。這張表格
+   * 是 body_html（Admin 商品描述）內容的一部分，CC 沒有 body_html 寫入權限，
+   * 沒辦法直接搬動 Admin 端內容順序——改用 DOM 搬移：伺服器渲染出來的
+   * <details><summary>查看尺寸對照表</summary>...</details> 本來就在商品描述
+   * 區塊（rte-formatter）裡，頁面載入後直接把這個節點整個搬到 variant-picker
+   * 前面，商品描述本文（rte-formatter 剩下的段落）留在原位不動。只搬移既有
+   * DOM 節點本身，不複製/改寫任何文字內容，Admin 端 body_html 完全沒被動到。
+   * 單板鞋組（gear-rent-sboard-boots）沒有這張表（尺寸改用身高/體重/鞋碼數字
+   * 欄位呈現）、也沒有 variant-picker，兩個 guard 都會讓它直接跳過。
+   */
+  function moveSizeChartAboveVariantPicker() {
+    var variantPicker = document.querySelector('variant-picker[data-template-product-match="true"]');
+    if (!variantPicker || !variantPicker.parentNode) return;
+
+    var summary = Array.prototype.filter
+      .call(document.querySelectorAll('summary'), function (el) {
+        return el.textContent.indexOf('尺寸對照表') > -1;
+      })[0];
+    var details = summary && summary.closest('details');
+    if (!details) return;
+
+    variantPicker.parentNode.insertBefore(details, variantPicker);
+  }
+
   function injectSboardBootsStylesOnce() {
     if (document.getElementById('gear-sboard-boots-fields-style')) return;
     var style = document.createElement('style');
@@ -563,6 +589,7 @@
   function init() {
     document.querySelectorAll('variant-picker[data-template-product-match="true"]').forEach(setupPicker);
     setupSboardBootsFields();
+    moveSizeChartAboveVariantPicker();
   }
 
   if (document.readyState === 'loading') {

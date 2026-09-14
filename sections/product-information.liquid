@@ -242,6 +242,76 @@
     color: rgb(var(--color-variant-text-rgb) / var(--opacity-60));
   }
 
+  /* 需求1（2026-09-14）："You may also like" 改成比照 /pages/equipment-rental
+     客製卡片的視覺（邊框/分隔線/副標文字/全寬深色按鈕），取代原生 _product-card
+     的純圖+標題+價格外觀。這裡不是全站樣式，只在裝備租賃模板生效——
+     product_recommendations_qggXJq 這個 section/block id 在其他商品模板裡也是
+     同一個字串（複製模板時沿用下來的），不能單靠 id 選取器分辨，所以額外用
+     layout/theme.liquid 新增的 body.template-{{ template.suffix }} 這個 class
+     做範圍限定，只有 template.suffix == 'gear-rental' 的頁面才會命中。
+     內距刻意比 equipment-rental 原本的卡片窄（那邊是 3 欄，這裡維持 4 欄），
+     純粹是同一套視覺語言在較窄卡寬下的比例調整，不是照搬同一份數字。 */
+  body.template-gear-rental [id$="__product_recommendations_qggXJq"] .product-card__content {
+    background: #ffffff;
+    border: 1px solid #B8D9ED;
+    border-radius: 12px;
+    overflow: clip;
+    box-shadow: 0 2px 8px rgba(26, 46, 74, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  body.template-gear-rental [id$="__product_recommendations_qggXJq"] .product-card__content:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(26, 46, 74, 0.12);
+  }
+
+  /* NOTE: unlike "text" blocks, this "_product-card-group" block doesn't get
+     its own unique __group_zGryyP class anywhere in the rendered markup - the
+     wrapper actually carries only the generic .group-block classes. There is
+     exactly one .group-block per card here (verified via DOM dump), so it's
+     safe to target directly within this already-scoped selector. */
+  body.template-gear-rental [id$="__product_recommendations_qggXJq"] .group-block {
+    padding: 20px;
+  }
+
+  body.template-gear-rental [id$="__product_recommendations_qggXJq"] [class*="__text_rental_tagline"] {
+    color: #5A6A78;
+  }
+
+  body.template-gear-rental [id$="__product_recommendations_qggXJq"] [class*="__divider_rental_card"] hr {
+    border-color: #B8D9ED;
+  }
+
+  /* The "text" block's rich-text sanitizer strips any custom class/href
+     attribute from its content (only bare structural tags like <p>/<span>
+     survive), so the button can't carry its own class or a dynamic
+     product-url href - it's a plain <p>立即預訂 →</p>, purely visual. Actual
+     navigation still works because the whole card is already wrapped in the
+     native product-card__link overlay (see the DOM dump captured while
+     building this), so clicking the fake button still opens the product.
+     Styling is scoped entirely off this block's own auto-generated wrapper
+     class (__text_rental_button), not a class in the sanitized text. */
+  body.template-gear-rental [id$="__product_recommendations_qggXJq"] [class*="__text_rental_button"] p {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin: 0;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: #1A2E4A;
+    color: #E8F4FA;
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    transition: background 0.2s ease;
+  }
+
+  body.template-gear-rental [id$="__product_recommendations_qggXJq"] .product-card__content:hover [class*="__text_rental_button"] p {
+    background: #2D5F8A;
+  }
+
   .sticky-add-to-cart__bar {
     position: fixed;
     bottom: 20px;
@@ -422,6 +492,21 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+  }
+
+  /* 需求（2026-09-14）：商品圖片+右側資訊卡跟頁面其他區塊（Navbar/麵包屑/
+     You may also like/Footer）左右不對齊，圖片貼齊螢幕邊緣。根因是這個
+     media-gallery block 的「extend_media_to_screen_edge」設定（桌機版）預設
+     開啟 true——這是 Horizon 主題自己的版型開關，不是CSS bug，關掉後桌機版
+     已經在 templates/product.gear-rental.json 把 extend_media 改成 false 解決。
+     但手機版（max-width:749px）的滿版是主題另外寫死在
+     snippets/product-information-content.liquid 的 mobile media query
+     （.product-information__media { grid-column: 1 / -1 }），完全不受
+     extend_media 設定控制，所以手機版需要另外在這裡覆寫，只限定裝備租賃模板。 */
+  @media screen and (max-width: 749px) {
+    body.template-gear-rental .product-information__media {
+      grid-column: 2 / 3;
     }
   }
 {% endstylesheet %}
