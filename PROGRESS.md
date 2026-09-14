@@ -1,6 +1,53 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-09-11
+最後更新：2026-09-14
+
+## ✅ 2026-09-14：`gear-rent-protect` 不可選variant樣式改成柔和淡化（已push上正式站，已在live環境完整驗證）
+
+**業主反饋**：護具商品選了護臀尺寸後，不可選的護膝選項用Shopify主題原生「劃斜線」樣式，跟已打磨過的其他UI比起來顯得突兀，要求改成灰階柔和淡化、不劃斜線。
+
+1. **根因**：斜線來自`snippets/strikethrough-variant.liquid`——這是Horizon主題原生元件，`variant-main-picker.liquid`／`variant-swatches.liquid`都有引用，**全站共用**，不是這次任務寫的客製邏輯。
+2. **範圍評估與做法**：比照先前「variant picker未選中狀態文字對比度」的做法，用`.product-form-gear`這個既有的裝備租賃專屬class（`blocks/_product-details.liquid`裡`template.suffix == 'gear-rental'`時才會加上）把新CSS規則限定在裝備租賃範圍內，不動`strikethrough-variant.liquid`本身、不影響全站其他商品。修改的檔案是`sections/product-information.liquid`的`{% stylesheet %}`區塊，新增：
+   - `.product-form-gear .variant-option__strikethrough { display: none; }`（隱藏斜線SVG）
+   - `.product-form-gear .variant-option__button-label:has([data-option-available='false']) { opacity: 0.45; filter: grayscale(1); cursor: not-allowed; }`（柔和淡化，疊加在原生已有的「文字60%透明度」效果上）
+3. **範圍驗證（邏輯保證，非全靠實測）**：`.product-form-gear`這個class只會在`template.suffix == 'gear-rental'`時才存在於DOM裡，全站唯一有這個class的就是5個裝備租賃商品，這條CSS規則物理上不可能命中其他商品頁面。另外實測確認：安全帽（單一維度，天生不會有不可選組合）、雪服/雪服帽鏡組（因為沒有開庫存追蹤，所有組合`data-option-available`永遠是`true`，也不會觸發這個樣式）、單板鞋組（沒有variant picker）——**這4個商品在正常使用情境下本來就不會出現不可選狀態**，這次改動對它們沒有實質影響。真正會用到這個新樣式的只有護具（唯一有刻意設計「不合理組合」防呆的商品）。
+4. **完整驗證（本機`shopify theme dev`預覽，護具商品）**：
+   - S/M/L/XL四種護臀尺寸都測過：選哪個尺寸，對應「不適用」的護膝選項就正確呈現柔和淡化（`opacity: 0.45` + 灰階 + 游標`not-allowed`），劃斜線SVG確認被隱藏（`display: none`）。
+   - 四組都用真實加入購物車測試到底：S→45840784490579、M→45840784588883、L→45840784654419、XL→45840784719955，`/cart.js`回傳的variant id全部正確。
+   - 刻意點擊不合理組合（S護臀+M/L/XL護膝）：確認Shopify後端仍正確拒絕（`POST /cart/add.js`回傳`422 Unprocessable Entity`），購物車維持空——這次只換視覺呈現，底層Shopify原生的組合驗證機制完全沒被動到。
+   - 桌機（1280px）+ 手機（375px）都截圖確認柔和淡化效果清楚可辨識、不會過度不明顯。
+5. **追加修正：不可選選項的hover效果也移除**——業主反饋滑鼠移到不可選的護膝選項上，還是會出現Horizon主題原生的hover背景/邊框/文字色變化（`base.css`裡`&:hover`規則對所有label一視同仁，不分是否可選），容易讓人誤以為「這個看起來能點」。追加規則：
+   ```css
+   .product-form-gear .variant-option__button-label:has([data-option-available='false']):hover {
+     background-color: var(--color-variant-background);
+     border-color: var(--color-variant-border);
+     color: rgb(var(--color-variant-text-rgb) / var(--opacity-60));
+   }
+   ```
+   把hover時的背景/邊框/文字色重設回跟平常（非hover）完全一樣的值——**第一版曾誤把`color`重設成`var(--color-variant-text)`（100%不透明），結果hover時文字反而變得比平常更深、更明顯，跟「柔和淡化」的目標相反**，已修正成套用跟平常一致的60%透明度值（`rgb(var(--color-variant-text-rgb) / var(--opacity-60))`），實測hover前後bg/border/color/opacity四個值完全一致，滑鼠移過去視覺上沒有任何反應。可選的護膝選項（`data-option-available='true'`）不受影響，hover效果維持原生正常。
+6. **目前狀態（2026-09-14更新）**：業主要求補齊完整報告並在正式站重新驗證。展開查證後發現這個CSS改動**其實已經push上正式站**（Designer_Eric，theme id 147355926611）——`shopify theme pull`直接拉取正式站當前的`sections/product-information.liquid`比對，確認新規則已存在。研判是先前額度用盡的那次session在寫完這則筆記後、對話中斷前又多做了一次`theme push`，但沒來得及回頭更新這則筆記；`sections/product-information.liquid`在git裡目前仍是uncommitted狀態，跟本專案「theme push（正式站生效）跟git commit是兩件獨立的事、commit要等明確指示」的既有慣例一致（可對照上面「單板鞋組」那筆的`assets/gear-rental-variant-guard.js`也是同樣狀態）。
+
+   **2026-09-14在正式站`lifechillsnow.com`重新完整驗證**（不只是本機dev preview）：
+   - **視覺**：直接在live網址用瀏覽器DOM/computed style查證，`.variant-option__strikethrough`的`display`確實是`none`（斜線已隱藏），不可選選項的`opacity`/`filter`computed值確實是`0.45`/`grayscale(1)`。「前」的原生劃斜線樣式已無法在正式站重現（改動已生效），改用本機`shopify theme dev`暫時性地本機端comment掉新規則（沒有動到正式站任何東西，截圖後立刻復原、git diff確認完全還原）截到真正的原生劃斜線畫面，跟現在正式站的柔和淡化畫面做前後對比。
+   - **S/M/L/XL四組完整矩陣**（在正式站`gear-rent-protect`）：每個護臀尺寸都實際點選，確認對應的不可選護膝選項都正確呈現柔和淡化、無劃斜線；直接點擊不可選選項確認完全無法選中（accessibility tree/畫面都沒有變化，「加入購物車」維持disabled狀態，不會意外選中）；四組合理組合（S/M/L/XL）都實測加入購物車，`POST /cart/add.js`全部回傳`200`，購物車內容跟variant配對正確，測完已清空購物車。
+   - **手機375px**：正式站上選S護臀後，M/L/XL護膝選項的柔和淡化效果在小螢幕上清楚可辨識，不會過淡看不出來。
+   - **範圍確認（正式站逐一實測，不只是邏輯推論）**：安全帽、雪服（女/男+尺寸表）、雪服帽鏡組（安全帽尺寸+性別）、單板鞋組（純數字輸入無variant picker）——4個商品頁面在正式站上都逐一開啟確認，畫面完全正常、沒有任何不預期的灰階/淡化/游標樣式，跟改動前一致。另外開了一個不相關商品（*全天滑雪課程(旺季)，BTA課程預約頁面）確認完全不受影響。
+   - **結論**：CSS改動範圍verified為只命中`.product-form-gear .variant-option__button-label:has([data-option-available='false'])`——只有`gear-rent-protect`這個唯一有刻意設計「不合理尺寸組合」的商品會顯示新樣式，其餘4個裝備租賃商品與其他商品完全不受影響，功能（Shopify原生的組合驗證、加入購物車）也沒有被動到，這次改動純粹是視覺呈現的替換。
+
+---
+
+## ✅ 2026-09-13：`gear-rent-protect` 4個不合理variant已由業主清除，查證通過
+
+業主已到Admin後台**直接刪除**（原本沒開庫存追蹤，不是設缺貨）4個護臀/護膝尺寸配對錯誤的variant。純資料清理，這輪沒有改任何程式碼，只做查證。
+
+1. **`/products/gear-rent-protect.js`查證**：4個不合理variant id（`45840784523347`／`45840784556115`／`45840784621651`／`45840784687187`）已完全從清單消失。
+2. **剩餘4組合理variant**（`45840784490579`=S/45840784588883=M/45840784654419=L/45840784719955=XL）維持正常，`available:true`。
+3. **總variant數量**：確認現在是4個（原本8個）。
+4. **商品頁面實測**：選護臀「M」後，護膝選項裡「適用於S號護臀的護膝」正確劃斜線標記為不可選，「適用於M/L/XL號護臀的護膝」維持可選——`gear-rental-variant-guard.js`的防呆邏輯跟新的variant結構相容，不需要調整。
+
+**結論**：待辦「`gear-rent-protect`的4個不合理variant是否已由業主到Admin後台處理」已結案。
+
+---
 
 ## 📍 接續指引（額度用盡前的斷點記錄）
 

@@ -208,6 +208,40 @@
     display: none;
   }
 
+  /* strikethrough-variant.liquid draws a diagonal line SVG for unavailable
+     variant combinations - it's the theme's native, site-wide component
+     (also used outside gear-rental), so it's hidden here rather than edited
+     globally. Replaced with a softer greyed-out look, scoped to gear-rental
+     only via .product-form-gear. */
+  .product-form-gear .variant-option__strikethrough {
+    display: none;
+  }
+
+  .product-form-gear .variant-option__button-label:has([data-option-available='false']) {
+    opacity: 0.45;
+    filter: grayscale(1);
+    cursor: not-allowed;
+  }
+
+  /* The radio <input> is the element that actually sits under the cursor
+     (absolutely positioned, inset:0, covering the whole label) and base.css
+     sets it to cursor:pointer unconditionally - that wins the rendered
+     cursor over the label's own cursor:not-allowed above, since the input is
+     the topmost hit-tested element. Override it directly on the input. */
+  .product-form-gear .variant-option__button-label:has([data-option-available='false']) input {
+    cursor: not-allowed;
+  }
+
+  /* base.css gives every label (available or not) the same hover background/
+     border/text-color swap. That reads as "this responds to your cursor" -
+     wrong signal for an option that's already greyed out as unavailable, so
+     hovering it here is reset back to the same look as not hovering. */
+  .product-form-gear .variant-option__button-label:has([data-option-available='false']):hover {
+    background-color: var(--color-variant-background);
+    border-color: var(--color-variant-border);
+    color: rgb(var(--color-variant-text-rgb) / var(--opacity-60));
+  }
+
   .sticky-add-to-cart__bar {
     position: fixed;
     bottom: 20px;
