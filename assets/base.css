@@ -4401,6 +4401,17 @@ div[class*="shopify-app-block"] {
   }
 }
 
+/* 5. 撐開輪播可視窗口（.jdgm-cards-wrapper），此元素是 App 自己算出的固定寬度（980px）
+   造成即使外層容器已對齊，卡片可視範圍仍只佔容器中間一小段、兩側留白。
+   只放寬「可視窗口」本身，不動內部卡片軌道（.jdgm-videos-container，箭頭切換靠它的位移計算，
+   維持原樣才不會讓左右箭頭滑動距離跟畫面對不上）。 */
+.shopify-section:has(.jdgm-widget) .jdgm-cards-wrapper,
+#shopify-section-178343181799faef2a .jdgm-cards-wrapper,
+#shopify-section-template--18579450822941__apps_dG9d3X .jdgm-cards-wrapper {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
 @media screen and (max-width: 749px) {
 
   .group-block--height-fill,

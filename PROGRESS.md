@@ -1,6 +1,20 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-09-14
+最後更新：2026-09-17
+
+## ✅ 2026-09-17：首頁「學員五星好評」Judge.me輪播撐滿容器寬度——本機已修復並驗證通過，尚未push上正式站
+
+業主反饋首頁最下方Judge.me評論輪播左右比其他區塊窄。先前查證發現：外層容器（`.jdgm-widget`）寬度其實已經跟其他區塊對齊（前人在`layout/theme.liquid`／`assets/base.css`已有兩道CSS強制對齊，實測仍正常生效）；業主也試過把App自己的「顯示評論數量」從4調到5，但卡片只是被壓窄塞進5張，兩側留白依然明顯，證實App設定這條路不夠。
+
+1. **真正根因**：Judge.me輪播元件自己的可視窗口`.jdgm-cards-wrapper`有一個App內建的固定寬度（980px，不隨外層容器變寬），這是「可視窗口」，內部還有一層`.jdgm-videos-container`（flex軌道，裝著全部評論卡片，用`transform: translateX()`位移做切換），寬度限制在可視窗口這一層，跟外層容器已對齊的1440px/1016px脫節，才是造成兩側留白的真正原因（不是容器問題，是輪播元件自己的視窗大小問題）。
+2. **修法**：`assets/base.css`既有Judge.me CSS區塊新增第5條規則，只加寬`.jdgm-cards-wrapper`這個可視窗口本身到`width:100%!important`，**刻意不動**`.jdgm-videos-container`（軌道本身維持原生寬度，讓箭頭/滑動的位移計算不受影響）。
+3. **完整驗證（本機`shopify theme dev`）**：
+   - 桌機1920px、1440px：`.jdgm-widget`容器寬度跟上方區塊（教練介紹/DAY1-3行程格）逐像素比對一致，卡片撐滿到接近容器邊緣（兩側各留約60px給左右箭頭按鈕，這是必要空間不是bug）。
+   - 輪播互動功能：桌機左右箭頭各點擊多次，用`transform`位移量＋卡片文字內容雙重確認每次切換正確、無跳位/卡住/重疊（Judge.me的位移計算會動態抓可視窗口當下的實際寬度，不是寫死980px，所以撐寬後位移量automatically跟著變大，運作正常）。
+   - 手機375px：卡片撐滿到跟頁面標準留白（16px）一致；手動觸控滑動（因為App設定`hide_arrows_mobile:true`手機本來就不顯示箭頭）用`transform`位移+卡片內容變化確認滑動正常運作。
+   - 主控台檢查：沒有新增的JS錯誤（既有的BTA本機環境network error、shop.app iframe CSP錯誤跟這次改動無關，是既有背景雜訊）。
+4. **長期維護風險（如實告知）**：這是針對Judge.me App目前DOM結構（`.jdgm-cards-wrapper`／`.jdgm-videos-container`這兩個class名稱）寫死的CSS覆寫，**不是一次性永久解法**——Judge.me之後更新App版本，如果改了這兩個class名稱或改了輪播的內部實作方式，這道CSS會失效或需要重新調整，屆時可能需要重新查證。
+5. **目前狀態**：已於2026-09-17`shopify theme push --allow-live`推送上正式站（`Designer_Eric` #147355926611，確認為`[live]`主題），並在`lifechillsnow.com`正式網址重新完整驗證：桌機1920px／1440px容器寬度逐像素跟上方區塊一致、左右箭頭雙向切換正常、手機375px撐滿+觸控滑動正常，行為跟本機測試結果一致。**正式站已生效，但`assets/base.css`／`PROGRESS.md`兩個檔案還沒commit進git**，等業主指示再commit。
 
 ## ✅ 2026-09-14：商品圖片+資訊卡跟頁面其他區塊container對齊——已push上正式站並驗證通過
 
