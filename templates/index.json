@@ -23,8 +23,8 @@
             "align_baseline": false,
             "horizontal_alignment_flex_direction_column": "flex-start",
             "vertical_alignment_flex_direction_column": "center",
-            "gap": 12,
-            "width": "fill",
+            "gap": 5,
+            "width": "fit-content",
             "custom_width": 100,
             "width_mobile": "fill",
             "custom_width_mobile": 100,
@@ -39,28 +39,153 @@
             "border_width": 1,
             "border_opacity": 100,
             "border_radius": 0,
-            "toggle_overlay": false,
-            "overlay_color": "#00000026",
+            "toggle_overlay": true,
+            "overlay_color": "#FFFFFFB0",
             "overlay_style": "solid",
             "gradient_direction": "to top",
             "link": "",
             "open_in_new_tab": false,
             "placeholder": "",
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
+            "padding-block-start": 15,
+            "padding-block-end": 15,
+            "padding-inline-start": 15,
+            "padding-inline-end": 15
           },
           "blocks": {
+            "group_NiqDF4": {
+              "type": "group",
+              "name": "t:names.group",
+              "settings": {
+                "content_direction": "column",
+                "vertical_on_mobile": true,
+                "horizontal_alignment": "flex-start",
+                "vertical_alignment": "center",
+                "align_baseline": false,
+                "horizontal_alignment_flex_direction_column": "flex-start",
+                "vertical_alignment_flex_direction_column": "center",
+                "gap": 0,
+                "width": "fill",
+                "custom_width": 100,
+                "width_mobile": "fill",
+                "custom_width_mobile": 100,
+                "height": "fit",
+                "custom_height": 100,
+                "inherit_color_scheme": true,
+                "color_scheme": "",
+                "background_media": "none",
+                "video_position": "cover",
+                "background_image_position": "cover",
+                "border": "none",
+                "border_width": 1,
+                "border_opacity": 100,
+                "border_radius": 0,
+                "toggle_overlay": false,
+                "overlay_color": "#00000026",
+                "overlay_style": "solid",
+                "gradient_direction": "to top",
+                "link": "",
+                "open_in_new_tab": false,
+                "placeholder": "",
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {
+                "text_ffzwAN": {
+                  "type": "text",
+                  "name": "t:names.heading",
+                  "settings": {
+                    "text": "<h3>專業教練 × 小班教學 × 在地服務</h3>",
+                    "width": "fit-content",
+                    "max_width": "normal",
+                    "alignment": "left",
+                    "type_preset": "custom",
+                    "font": "var(--font-body--family)",
+                    "font_size": "1.125rem",
+                    "line_height": "loose",
+                    "letter_spacing": "loose",
+                    "case": "none",
+                    "wrap": "pretty",
+                    "color": "var(--color-foreground)",
+                    "background": false,
+                    "background_color": "#000000b5",
+                    "corner_radius": 14,
+                    "padding-block-start": 0,
+                    "padding-block-end": 0,
+                    "padding-inline-start": 0,
+                    "padding-inline-end": 0
+                  },
+                  "blocks": {}
+                },
+                "text_ErAnJn": {
+                  "type": "text",
+                  "name": "t:names.heading",
+                  "settings": {
+                    "text": "<h2><strong>讓您的北海道滑雪之旅更安心、更享受！</strong></h2>",
+                    "width": "fit-content",
+                    "max_width": "normal",
+                    "alignment": "left",
+                    "type_preset": "h4",
+                    "font": "var(--font-body--family)",
+                    "font_size": "1rem",
+                    "line_height": "normal",
+                    "letter_spacing": "normal",
+                    "case": "none",
+                    "wrap": "pretty",
+                    "color": "var(--color-foreground-heading)",
+                    "background": false,
+                    "background_color": "#000000b5",
+                    "corner_radius": 14,
+                    "padding-block-start": 0,
+                    "padding-block-end": 0,
+                    "padding-inline-start": 0,
+                    "padding-inline-end": 0
+                  },
+                  "blocks": {}
+                }
+              },
+              "block_order": [
+                "text_ffzwAN",
+                "text_ErAnJn"
+              ]
+            },
             "text_cr4WWM": {
               "type": "text",
               "name": "t:names.heading",
               "settings": {
-                "text": "<p>第一次滑雪，<br/>有教練陪伴，就是不一樣。</p>",
+                "text": "<h6>第一次滑雪，有教練陪伴，就是不一樣。</h6>",
                 "width": "100%",
                 "max_width": "normal",
                 "alignment": "left",
-                "type_preset": "h1",
+                "type_preset": "h5",
+                "font": "var(--font-accent--family)",
+                "font_size": "2rem",
+                "line_height": "loose",
+                "letter_spacing": "loose",
+                "case": "none",
+                "wrap": "pretty",
+                "color": "var(--color-foreground-heading)",
+                "background": false,
+                "background_color": "#000000b5",
+                "corner_radius": 14,
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "text_RNaj6H": {
+              "type": "text",
+              "name": "t:names.heading",
+              "disabled": true,
+              "settings": {
+                "text": "<h3>專業教練 × 小班教學 × 在地服務</h3>",
+                "width": "fit-content",
+                "max_width": "normal",
+                "alignment": "left",
+                "type_preset": "h4",
                 "font": "var(--font-body--family)",
                 "font_size": "1rem",
                 "line_height": "normal",
@@ -78,11 +203,12 @@
               },
               "blocks": {}
             },
-            "text_RNaj6H": {
+            "text_DyG4dq": {
               "type": "text",
               "name": "t:names.heading",
+              "disabled": true,
               "settings": {
-                "text": "<h2>專業教練 × 小班教學 × 在地服務<br/>讓您的北海道滑雪之旅更安心、更享受！</h2>",
+                "text": "<h2><strong>讓您的北海道滑雪之旅更安心、更享受！</strong></h2>",
                 "width": "fit-content",
                 "max_width": "normal",
                 "alignment": "left",
@@ -93,7 +219,7 @@
                 "letter_spacing": "normal",
                 "case": "none",
                 "wrap": "pretty",
-                "color": "var(--color-foreground)",
+                "color": "var(--color-foreground-heading)",
                 "background": false,
                 "background_color": "#000000b5",
                 "corner_radius": 14,
@@ -106,63 +232,11 @@
             }
           },
           "block_order": [
+            "group_NiqDF4",
             "text_cr4WWM",
-            "text_RNaj6H"
+            "text_RNaj6H",
+            "text_DyG4dq"
           ]
-        },
-        "text_YLPk4p": {
-          "type": "text",
-          "name": "t:names.heading",
-          "disabled": true,
-          "settings": {
-            "text": "<p>第一次滑雪，<br/>有教練陪伴，就是不一樣。</p>",
-            "width": "100%",
-            "max_width": "normal",
-            "alignment": "left",
-            "type_preset": "h1",
-            "font": "var(--font-body--family)",
-            "font_size": "1rem",
-            "line_height": "normal",
-            "letter_spacing": "normal",
-            "case": "none",
-            "wrap": "pretty",
-            "color": "var(--color-foreground-heading)",
-            "background": false,
-            "background_color": "#000000b5",
-            "corner_radius": 14,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {}
-        },
-        "text_iWPjMt": {
-          "type": "text",
-          "name": "t:names.heading",
-          "disabled": true,
-          "settings": {
-            "text": "<p>專業教練 × 小班教學 × 在地服務<br/>讓您的北海道滑雪之旅更安心、更享受！</p>",
-            "width": "fit-content",
-            "max_width": "normal",
-            "alignment": "left",
-            "type_preset": "h4",
-            "font": "var(--font-body--family)",
-            "font_size": "1rem",
-            "line_height": "normal",
-            "letter_spacing": "normal",
-            "case": "none",
-            "wrap": "pretty",
-            "color": "var(--color-foreground)",
-            "background": false,
-            "background_color": "#000000b5",
-            "corner_radius": 14,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {}
         },
         "group_GDU8eR": {
           "type": "group",
@@ -314,20 +388,21 @@
       },
       "block_order": [
         "group_RCBwUL",
-        "text_YLPk4p",
-        "text_iWPjMt",
         "group_GDU8eR",
         "group_CMWbVM"
       ],
       "name": "Hero Section",
       "settings": {
-        "media_type_1": "image",
+        "media_type_1": "video",
         "image_1": "shopify://shop_images/Gemini_Generated_Image_6w2blq6w2blq6w2b.png",
+        "video_1": "shopify://files/videos/HeroSectionIntro.mp4",
         "media_type_2": "image",
+        "video_2": "shopify://files/videos/HeroSectionIntro.mp4",
         "stack_media_on_mobile": false,
         "custom_mobile_media": false,
         "media_type_1_mobile": "image",
         "media_type_2_mobile": "image",
+        "enable_parallax": false,
         "link": "",
         "open_in_new_tab": false,
         "content_direction": "column",
@@ -1068,12 +1143,13 @@
         "background_media": "none",
         "video_position": "cover",
         "background_image_position": "cover",
+        "enable_parallax": false,
         "border": "none",
         "border_width": 1,
         "border_opacity": 100,
         "border_radius": 0,
         "toggle_overlay": false,
-        "overlay_color": "#00000026",
+        "overlay_color": "#000000B0",
         "overlay_style": "solid",
         "gradient_direction": "to top",
         "padding-block-start": 50,
@@ -1085,7 +1161,7 @@
       "blocks": {
         "group_LFz7T4": {
           "type": "group",
-          "name": "t:names.group",
+          "name": "品牌特色",
           "settings": {
             "content_direction": "row",
             "vertical_on_mobile": true,
@@ -1167,7 +1243,7 @@
                   "settings": {
                     "icon": "none",
                     "image_upload": "shopify://shop_images/indexA.png",
-                    "width": 50,
+                    "width": 70,
                     "link": "",
                     "open_in_new_tab": false
                   },
@@ -1331,7 +1407,7 @@
                   "settings": {
                     "icon": "none",
                     "image_upload": "shopify://shop_images/indexB.png",
-                    "width": 50,
+                    "width": 70,
                     "link": "",
                     "open_in_new_tab": false
                   },
@@ -1495,7 +1571,7 @@
                   "settings": {
                     "icon": "none",
                     "image_upload": "shopify://shop_images/indexC.png",
-                    "width": 50,
+                    "width": 70,
                     "link": "",
                     "open_in_new_tab": false
                   },
@@ -1659,7 +1735,7 @@
                   "settings": {
                     "icon": "none",
                     "image_upload": "shopify://shop_images/indexD.png",
-                    "width": 50,
+                    "width": 70,
                     "link": "",
                     "open_in_new_tab": false
                   },
@@ -2640,13 +2716,14 @@
         "background_media": "none",
         "video_position": "cover",
         "background_image_position": "cover",
+        "enable_parallax": false,
         "border": "none",
         "border_width": 1,
         "border_opacity": 100,
         "border_radius": 0,
-        "toggle_overlay": false,
-        "overlay_color": "#00000026",
-        "overlay_style": "solid",
+        "toggle_overlay": true,
+        "overlay_color": "#FFFFFF26",
+        "overlay_style": "gradient",
         "gradient_direction": "to top",
         "padding-block-start": 40,
         "padding-block-end": 40
@@ -2749,7 +2826,7 @@
                 "border_opacity": 100,
                 "border_radius": 20,
                 "toggle_overlay": true,
-                "overlay_color": "#ececec",
+                "overlay_color": "#fdfdfd",
                 "overlay_style": "solid",
                 "gradient_direction": "to top",
                 "link": "",
@@ -3479,6 +3556,7 @@
             "divider_JCUNrq": {
               "type": "_divider",
               "name": "t:names.divider",
+              "disabled": true,
               "settings": {
                 "thickness": 1,
                 "corner_radius": "square",
@@ -3546,8 +3624,8 @@
                     "custom_width_mobile": 100,
                     "height": "fit",
                     "custom_height": 100,
-                    "inherit_color_scheme": true,
-                    "color_scheme": "",
+                    "inherit_color_scheme": false,
+                    "color_scheme": "scheme-5",
                     "background_media": "none",
                     "video_position": "cover",
                     "background_image_position": "cover",
@@ -3556,7 +3634,7 @@
                     "border_opacity": 0,
                     "border_radius": 100,
                     "toggle_overlay": true,
-                    "overlay_color": "#7ab3d4",
+                    "overlay_color": "#1a2e4a",
                     "overlay_style": "solid",
                     "gradient_direction": "to top",
                     "link": "",
@@ -3594,7 +3672,7 @@
                         "letter_spacing": "normal",
                         "case": "none",
                         "wrap": "pretty",
-                        "color": "var(--color-foreground-heading)",
+                        "color": "var(--color-foreground)",
                         "background": false,
                         "background_color": "#e2c3c3",
                         "corner_radius": 50,
@@ -4844,6 +4922,7 @@
         "background_media": "none",
         "video_position": "cover",
         "background_image_position": "cover",
+        "enable_parallax": false,
         "border": "none",
         "border_width": 1,
         "border_opacity": 100,
@@ -4854,288 +4933,6 @@
         "gradient_direction": "to top",
         "padding-block-start": 40,
         "padding-block-end": 40
-      }
-    },
-    "collection_list_hbJh6n": {
-      "type": "collection-list",
-      "blocks": {
-        "group_VwUEqP": {
-          "type": "group",
-          "name": "課程選擇",
-          "settings": {
-            "content_direction": "column",
-            "vertical_on_mobile": true,
-            "horizontal_alignment": "flex-start",
-            "vertical_alignment": "center",
-            "align_baseline": false,
-            "horizontal_alignment_flex_direction_column": "flex-start",
-            "vertical_alignment_flex_direction_column": "center",
-            "gap": 12,
-            "width": "fill",
-            "custom_width": 100,
-            "width_mobile": "fill",
-            "custom_width_mobile": 100,
-            "height": "fit",
-            "custom_height": 100,
-            "inherit_color_scheme": true,
-            "color_scheme": "",
-            "background_media": "none",
-            "video_position": "cover",
-            "background_image_position": "cover",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "toggle_overlay": false,
-            "overlay_color": "#00000026",
-            "overlay_style": "solid",
-            "gradient_direction": "to top",
-            "link": "",
-            "open_in_new_tab": false,
-            "placeholder": "",
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "text_QQfbUh": {
-              "type": "text",
-              "name": "t:names.text",
-              "settings": {
-                "text": "<p><strong>課程選擇</strong></p>",
-                "width": "100%",
-                "max_width": "normal",
-                "alignment": "center",
-                "type_preset": "h2",
-                "font": "var(--font-body--family)",
-                "font_size": "1rem",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "color": "var(--color-foreground)",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 16,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            }
-          },
-          "block_order": [
-            "text_QQfbUh"
-          ]
-        },
-        "text_mDUU9D": {
-          "type": "text",
-          "name": "t:names.text",
-          "settings": {
-            "text": "<p><a href=\"/pages/course-introduction\" target=\"_blank\" title=\"課程介紹 Course Introduction\">課程內容詳細說明＞＞</a></p>",
-            "width": "100%",
-            "max_width": "normal",
-            "alignment": "left",
-            "type_preset": "rte",
-            "font": "var(--font-body--family)",
-            "font_size": "1rem",
-            "line_height": "normal",
-            "letter_spacing": "normal",
-            "case": "none",
-            "wrap": "pretty",
-            "color": "var(--color-foreground)",
-            "background": false,
-            "background_color": "#00000026",
-            "corner_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {}
-        },
-        "popup_link_AeAkHf": {
-          "type": "popup-link",
-          "name": "t:names.popup_link",
-          "disabled": true,
-          "settings": {
-            "behavior": "default",
-            "heading": "瞭解詳情",
-            "type_preset": "",
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "text_ripVAx": {
-              "type": "text",
-              "settings": {
-                "text": "<h2>退貨政策是什麼？</h2>",
-                "width": "fit-content",
-                "max_width": "normal",
-                "alignment": "left",
-                "type_preset": "rte",
-                "font": "var(--font-body--family)",
-                "font_size": "1rem",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "color": "var(--color-foreground)",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 16,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "text_6rVx7U": {
-              "type": "text",
-              "settings": {
-                "text": "<p>我們的目標是讓每位顧客對購買完全滿意。若未達成，請告知我們，我們會盡力協助您解決問題。</p>",
-                "width": "fit-content",
-                "max_width": "normal",
-                "alignment": "left",
-                "type_preset": "rte",
-                "font": "var(--font-body--family)",
-                "font_size": "1rem",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "color": "var(--color-foreground)",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            }
-          },
-          "block_order": [
-            "text_ripVAx",
-            "text_6rVx7U"
-          ]
-        },
-        "static-collection-card": {
-          "type": "_collection-card",
-          "name": "t:names.collection_card",
-          "static": true,
-          "settings": {
-            "placement": "on_image",
-            "horizontal_alignment": "flex-start",
-            "vertical_alignment": "flex-end",
-            "collection_card_gap": 20,
-            "inherit_color_scheme": true,
-            "color_scheme": "",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0
-          },
-          "blocks": {
-            "collection_title_M63jWg": {
-              "type": "collection-title",
-              "name": "t:names.collection_title",
-              "settings": {
-                "width": "fit-content",
-                "max_width": "normal",
-                "alignment": "left",
-                "type_preset": "rte",
-                "font": "var(--font-body--family)",
-                "font_size": "1rem",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "color": "var(--color-foreground)",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "button_8YHHzG": {
-              "type": "button",
-              "name": "t:names.button",
-              "settings": {
-                "label": "立即選購",
-                "link": "shopify://collections/all",
-                "open_in_new_tab": true,
-                "style_class": "button",
-                "width": "custom",
-                "custom_width": 100,
-                "width_mobile": "custom",
-                "custom_width_mobile": 100
-              },
-              "blocks": {}
-            },
-            "collection-card-image": {
-              "type": "_collection-card-image",
-              "name": "t:names.collection_card_image",
-              "static": true,
-              "settings": {
-                "image_ratio": "portrait",
-                "toggle_overlay": false,
-                "overlay_color": "#00000026",
-                "overlay_style": "solid",
-                "gradient_direction": "to top",
-                "border": "none",
-                "border_width": 1,
-                "border_opacity": 100,
-                "border_radius": 20
-              },
-              "blocks": {}
-            }
-          },
-          "block_order": [
-            "collection_title_M63jWg",
-            "button_8YHHzG"
-          ]
-        }
-      },
-      "block_order": [
-        "group_VwUEqP",
-        "text_mDUU9D",
-        "popup_link_AeAkHf"
-      ],
-      "disabled": true,
-      "name": "t:names.collections_carousel",
-      "settings": {
-        "collection_list": [
-          "北海道-富良野-神居-私人滑雪課程-全天-1",
-          "北海道-富良野-神居-私人滑雪課程-半天-1",
-          "frontpage"
-        ],
-        "layout_type": "grid",
-        "carousel_on_mobile": false,
-        "columns": 4,
-        "mobile_columns": "2",
-        "mobile_card_size": "60cqw",
-        "columns_gap": 20,
-        "bento_gap": 8,
-        "rows_gap": 8,
-        "max_collections": 4,
-        "icons_style": "chevron",
-        "icons_shape": "circle",
-        "section_width": "page-width",
-        "gap": 20,
-        "color_scheme": "scheme-1",
-        "padding-block-start": 48,
-        "padding-block-end": 48
       }
     },
     "carousel_aYDrTL": {
@@ -6112,861 +5909,6 @@
         "icons_shape": "circle",
         "padding-block-start": 50,
         "padding-block-end": 80
-      }
-    },
-    "product_list_qU3bEB": {
-      "type": "product-list",
-      "blocks": {
-        "static-header": {
-          "type": "_product-list-content",
-          "disabled": true,
-          "static": true,
-          "settings": {
-            "content_direction": "row",
-            "vertical_on_mobile": true,
-            "horizontal_alignment": "space-between",
-            "vertical_alignment": "center",
-            "align_baseline": false,
-            "horizontal_alignment_flex_direction_column": "flex-start",
-            "vertical_alignment_flex_direction_column": "center",
-            "gap": 12,
-            "width": "fill",
-            "custom_width": 100,
-            "width_mobile": "fill",
-            "custom_width_mobile": 100,
-            "height": "fit",
-            "custom_height": 100,
-            "inherit_color_scheme": true,
-            "color_scheme": "",
-            "background_media": "none",
-            "video_position": "cover",
-            "background_image_position": "cover",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "product_list_text_qLCTNF": {
-              "type": "_product-list-text",
-              "name": "t:names.collection_title",
-              "settings": {
-                "text": "<h3>{{ closest.collection.title }}</h3>",
-                "width": "fit-content",
-                "max_width": "normal",
-                "alignment": "left",
-                "type_preset": "rte",
-                "font": "var(--font-body--family)",
-                "font_size": "1rem",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "color": "var(--color-foreground)",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "product_list_button_N8pfAg": {
-              "type": "_product-list-button",
-              "name": "t:names.product_list_button",
-              "settings": {
-                "label": "View all",
-                "open_in_new_tab": false,
-                "style_class": "button-secondary",
-                "width": "fit-content",
-                "custom_width": 100,
-                "width_mobile": "fit-content",
-                "custom_width_mobile": 100
-              },
-              "blocks": {}
-            }
-          },
-          "block_order": [
-            "product_list_text_qLCTNF",
-            "product_list_button_N8pfAg"
-          ]
-        },
-        "static-product-card": {
-          "type": "_product-card",
-          "name": "t:names.product_card",
-          "static": true,
-          "settings": {
-            "product_card_gap": 10,
-            "inherit_color_scheme": true,
-            "color_scheme": "",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "product_card_gallery_JgqDGj": {
-              "type": "_product-card-gallery",
-              "name": "t:names.product_card_media",
-              "settings": {
-                "image_ratio": "adapt",
-                "border": "none",
-                "border_width": 1,
-                "border_opacity": 100,
-                "border_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "group_7VTJcC": {
-              "type": "_product-card-group",
-              "name": "t:names.group",
-              "settings": {
-                "content_direction": "column",
-                "vertical_on_mobile": true,
-                "horizontal_alignment": "flex-start",
-                "vertical_alignment": "center",
-                "align_baseline": false,
-                "horizontal_alignment_flex_direction_column": "flex-start",
-                "vertical_alignment_flex_direction_column": "center",
-                "gap": 4,
-                "width": "fill",
-                "custom_width": 100,
-                "width_mobile": "fill",
-                "custom_width_mobile": 100,
-                "height": "fit",
-                "custom_height": 100,
-                "inherit_color_scheme": true,
-                "color_scheme": "",
-                "background_media": "none",
-                "video_position": "cover",
-                "background_image_position": "cover",
-                "border": "none",
-                "border_width": 1,
-                "border_opacity": 100,
-                "border_radius": 0,
-                "toggle_overlay": false,
-                "overlay_color": "#00000026",
-                "overlay_style": "solid",
-                "gradient_direction": "to top",
-                "link": "",
-                "open_in_new_tab": false,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {
-                "product_title_dMgTDL": {
-                  "type": "product-title",
-                  "name": "t:names.product_title",
-                  "settings": {
-                    "width": "fit-content",
-                    "max_width": "normal",
-                    "alignment": "left",
-                    "type_preset": "h4",
-                    "font": "var(--font-body--family)",
-                    "font_size": "1rem",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "wrap": "pretty",
-                    "color": "var(--color-foreground)",
-                    "background": false,
-                    "background_color": "#00000026",
-                    "corner_radius": 0,
-                    "padding-block-start": 0,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "text_w4m8d4": {
-                  "type": "text",
-                  "name": "說明",
-                  "settings": {
-                    "text": "{{ closest.product.description }}",
-                    "width": "fit-content",
-                    "max_width": "normal",
-                    "alignment": "left",
-                    "type_preset": "rte",
-                    "font": "var(--font-body--family)",
-                    "font_size": "1rem",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "wrap": "pretty",
-                    "color": "var(--color-foreground)",
-                    "background": false,
-                    "background_color": "#00000026",
-                    "corner_radius": 0,
-                    "padding-block-start": 0,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "price_h6P4AF": {
-                  "type": "price",
-                  "name": "t:names.product_price",
-                  "settings": {
-                    "show_sale_price_first": true,
-                    "show_installments": false,
-                    "show_tax_info": false,
-                    "type_preset": "h4",
-                    "width": "100%",
-                    "alignment": "left",
-                    "font": "var(--font-body--family)",
-                    "font_size": "1rem",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "color": "var(--color-foreground)",
-                    "padding-block-start": 16,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "swatches_k9YMgz": {
-                  "type": "swatches",
-                  "name": "t:names.swatches",
-                  "settings": {
-                    "product_swatches_alignment": "flex-start",
-                    "product_swatches_alignment_mobile": "flex-start",
-                    "hide_padding": false,
-                    "product_swatches_padding_top": 4,
-                    "product_swatches_padding_bottom": 0,
-                    "product_swatches_padding_left": 0,
-                    "product_swatches_padding_right": 0
-                  },
-                  "blocks": {}
-                }
-              },
-              "block_order": [
-                "product_title_dMgTDL",
-                "text_w4m8d4",
-                "price_h6P4AF",
-                "swatches_k9YMgz"
-              ]
-            }
-          },
-          "block_order": [
-            "product_card_gallery_JgqDGj",
-            "group_7VTJcC"
-          ]
-        }
-      },
-      "disabled": true,
-      "name": "Collection1",
-      "settings": {
-        "collection": "北海道-富良野-神居-私人滑雪課程-全天-1",
-        "layout_type": "grid",
-        "carousel_on_mobile": false,
-        "max_products": 6,
-        "columns": 3,
-        "mobile_columns": "1",
-        "mobile_card_size": "60cqw",
-        "columns_gap": 12,
-        "rows_gap": 24,
-        "icons_style": "arrow",
-        "icons_shape": "none",
-        "section_width": "page-width",
-        "horizontal_alignment": "center",
-        "gap": 40,
-        "color_scheme": "scheme-1",
-        "padding-block-start": 48,
-        "padding-block-end": 96
-      }
-    },
-    "custom_liquid_C8HAxp": {
-      "type": "custom-liquid",
-      "disabled": true,
-      "name": "Collection_new",
-      "settings": {
-        "custom_liquid": "<style>\n.lcs-wrap{padding:48px 24px}\n.lcs-title{font-size:28px;font-weight:600;color:#042C53;margin-bottom:6px;text-align:center}\n.lcs-sub{font-size:14px;color:#888;text-align:center;margin-bottom:36px}\n.lcs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:1200px;margin:0 auto}\n@media(max-width:600px){.lcs-grid{grid-template-columns:1fr}}\n.lcs-card{background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;overflow:hidden;transition:transform .2s,box-shadow .2s}\n.lcs-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.1)}\n.lcs-img{width:100%;aspect-ratio:16/9;position:relative;overflow:hidden}\n.lcs-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}\n.lcs-card:hover .lcs-img img{transform:scale(1.04)}\n.lcs-badges{position:absolute;top:12px;left:12px;z-index:2}\n.lcs-early{background:#E85D24;color:#fff;font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;display:inline-block}\n.lcs-season{position:absolute;top:12px;right:12px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;z-index:2}\n.lcs-peak{background:#042C53;color:#B5D4F4}\n.lcs-off{background:#E1F5EE;color:#085041}\n.lcs-overlay{position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to top,rgba(4,44,83,0.4),transparent);z-index:1}\n.lcs-body{padding:20px 22px 22px}\n.lcs-name{font-size:20px;font-weight:600;color:#1a1a18;margin-bottom:4px}\n.lcs-desc{font-size:13px;color:#888;margin-bottom:6px}\n.lcs-season-range{font-size:12px;color:#185FA5;background:#E6F1FB;padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:14px}\n.lcs-hr{border:none;border-top:1px solid rgba(0,0,0,0.07);margin:0 0 14px}\n.lcs-price-table{width:100%;margin-bottom:14px;border-collapse:collapse}\n.lcs-price-table th{font-size:12px;color:#888;font-weight:400;text-align:left;padding:0 0 6px;border-bottom:1px solid rgba(0,0,0,0.06)}\n.lcs-price-table th:last-child{text-align:right}\n.lcs-price-table td{padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.04);vertical-align:middle}\n.lcs-price-table tr:last-child td{border-bottom:none}\n.lcs-pax{font-size:14px;color:#444}\n.lcs-pax-sub{font-size:11px;color:#aaa;display:block}\n.lcs-price-cell{text-align:right}\n.lcs-orig{font-size:12px;color:#bbb;text-decoration:line-through;display:block;line-height:1.2}\n.lcs-new{font-size:18px;font-weight:600;color:#042C53;line-height:1.4}\n.lcs-unit{font-size:11px;color:#888;font-weight:400}\n.lcs-dl{font-size:12px;color:#aaa;margin-bottom:16px}\n.lcs-dl b{color:#E85D24;font-weight:500}\n.lcs-btn{width:100%;padding:14px;border-radius:10px;border:none;font-size:15px;font-weight:500;cursor:pointer;background:#E85D24;color:#fff;letter-spacing:0.02em;transition:background .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}\n.lcs-btn:hover{background:#C04820;transform:scale(1.01)}\n.lcs-btn:active{transform:scale(0.97)}\n.lcs-arr{display:inline-block;transition:transform .2s}\n.lcs-btn:hover .lcs-arr{transform:translateX(4px)}\n</style>\n\n<div class=\"lcs-wrap\">\n  <div class=\"lcs-title\">課程預訂</div>\n  <div class=\"lcs-sub\">早鳥優惠進行中 · 優惠至 <b style=\"color:#E85D24\">2026/6/30</b> 止，享 85 折優惠</div>\n  <div class=\"lcs-grid\">\n\n    <div class=\"lcs-card\">\n      <div class=\"lcs-img\">\n        <img src=\"https://cdn.shopify.com/s/files/1/0651/9413/1539/files/IMG_2690.jpg?v=1777381828\" alt=\"教練在富良野纜車旁滑行\">\n        <div class=\"lcs-badges\"><span class=\"lcs-early\">早鳥優惠</span></div>\n        <span class=\"lcs-season lcs-peak\">旺季</span>\n        <div class=\"lcs-overlay\"></div>\n      </div>\n      <div class=\"lcs-body\">\n        <div class=\"lcs-name\">全天課（6 小時）</div>\n        <div class=\"lcs-desc\">富良野・神居・星野滑雪場　｜　含 1 小時午休</div>\n        <span class=\"lcs-season-range\">旺季：12/16 ～ 2/28</span>\n        <hr class=\"lcs-hr\">\n        <table class=\"lcs-price-table\">\n          <tr>\n            <th>人數</th>\n            <th>早鳥價</th>\n          </tr>\n          <tr>\n            <td class=\"lcs-pax\">1 對 1～2 人<span class=\"lcs-pax-sub\">每組</span></td>\n            <td class=\"lcs-price-cell\">\n              <span class=\"lcs-orig\">NT$15,500</span>\n              <span class=\"lcs-new\">NT$13,175 <span class=\"lcs-unit\">/ 組</span></span>\n            </td>\n          </tr>\n          <tr>\n            <td class=\"lcs-pax\">1 對 3～4 人<span class=\"lcs-pax-sub\">每組</span></td>\n            <td class=\"lcs-price-cell\">\n              <span class=\"lcs-orig\">NT$18,000</span>\n              <span class=\"lcs-new\">NT$15,300 <span class=\"lcs-unit\">/ 組</span></span>\n            </td>\n          </tr>\n        </table>\n        <div class=\"lcs-dl\">優惠至 <b>2026/6/30</b> 止</div>\n        <a class=\"lcs-btn\" href=\"https://lifechillsnow.com/products/fullday-class-peak-season?variant=42905801621587\">立即預訂 <span class=\"lcs-arr\">→</span></a>\n      </div>\n    </div>\n\n    <div class=\"lcs-card\">\n      <div class=\"lcs-img\">\n        <img src=\"https://cdn.shopify.com/s/files/1/0651/9413/1539/files/IMG_2616.jpg?v=1777989636\" alt=\"教練在富良野雪場建築前滑行\">\n        <div class=\"lcs-badges\"><span class=\"lcs-early\">早鳥優惠</span></div>\n        <span class=\"lcs-season lcs-off\">淡季</span>\n        <div class=\"lcs-overlay\"></div>\n      </div>\n      <div class=\"lcs-body\">\n        <div class=\"lcs-name\">全天課（6 小時）</div>\n        <div class=\"lcs-desc\">富良野・神居・星野滑雪場　｜　含 1 小時午休</div>\n        <span class=\"lcs-season-range\">淡季：12/5～12/15 & 3/1～4/30</span>\n        <hr class=\"lcs-hr\">\n        <table class=\"lcs-price-table\">\n          <tr>\n            <th>人數</th>\n            <th>早鳥價</th>\n          </tr>\n          <tr>\n            <td class=\"lcs-pax\">1 對 1～2 人<span class=\"lcs-pax-sub\">每組</span></td>\n            <td class=\"lcs-price-cell\">\n              <span class=\"lcs-orig\">NT$13,000</span>\n              <span class=\"lcs-new\">NT$11,050 <span class=\"lcs-unit\">/ 組</span></span>\n            </td>\n          </tr>\n          <tr>\n            <td class=\"lcs-pax\">1 對 3～4 人<span class=\"lcs-pax-sub\">每組</span></td>\n            <td class=\"lcs-price-cell\">\n              <span class=\"lcs-orig\">NT$15,500</span>\n              <span class=\"lcs-new\">NT$13,175 <span class=\"lcs-unit\">/ 組</span></span>\n            </td>\n          </tr>\n        </table>\n        <div class=\"lcs-dl\">優惠至 <b>2026/6/30</b> 止</div>\n        <a class=\"lcs-btn\" href=\"https://lifechillsnow.com/products/fullday-class-off-season?variant=42905801752659\">立即預訂 <span class=\"lcs-arr\">→</span></a>\n      </div>\n    </div>\n\n    <div class=\"lcs-card\">\n      <div class=\"lcs-img\">\n        <img src=\"https://cdn.shopify.com/s/files/1/0651/9413/1539/files/IMG_2664.jpg?v=1777989635\" alt=\"學員在椅式纜車下方滑行\">\n        <div class=\"lcs-badges\"><span class=\"lcs-early\">早鳥優惠</span></div>\n        <span class=\"lcs-season lcs-peak\">旺季</span>\n        <div class=\"lcs-overlay\"></div>\n      </div>\n      <div class=\"lcs-body\">\n        <div class=\"lcs-name\">半天課（3 小時）</div>\n        <div class=\"lcs-desc\">富良野・神居・星野滑雪場　｜　上午或下午</div>\n        <span class=\"lcs-season-range\">旺季：12/16 ～ 2/28</span>\n        <hr class=\"lcs-hr\">\n        <table class=\"lcs-price-table\">\n          <tr>\n            <th>人數</th>\n            <th>早鳥價</th>\n          </tr>\n          <tr>\n            <td class=\"lcs-pax\">1 對 1～2 人<span class=\"lcs-pax-sub\">每組</span></td>\n            <td class=\"lcs-price-cell\">\n              <span class=\"lcs-orig\">NT$11,000</span>\n              <span class=\"lcs-new\">NT$9,350 <span class=\"lcs-unit\">/ 組</span></span>\n            </td>\n          </tr>\n          <tr>\n            <td class=\"lcs-pax\">1 對 3～4 人<span class=\"lcs-pax-sub\">每組</span></td>\n            <td class=\"lcs-price-cell\">\n              <span class=\"lcs-orig\">NT$13,000</span>\n              <span class=\"lcs-new\">NT$11,050 <span class=\"lcs-unit\">/ 組</span></span>\n            </td>\n          </tr>\n        </table>\n        <div class=\"lcs-dl\">優惠至 <b>2026/6/30</b> 止</div>\n        <a class=\"lcs-btn\" href=\"https://lifechillsnow.com/products/halfday-class-peak-season?variant=42905801556051\">立即預訂 <span class=\"lcs-arr\">→</span></a>\n      </div>\n    </div>\n\n    <div class=\"lcs-card\">\n      <div class=\"lcs-img\">\n        <img src=\"https://cdn.shopify.com/s/files/1/0651/9413/1539/files/IMG_2572.jpg?v=1777989636\" alt=\"學員在雪坡上滑行\">\n        <div class=\"lcs-badges\"><span class=\"lcs-early\">早鳥優惠</span></div>\n        <span class=\"lcs-season lcs-off\">淡季</span>\n        <div class=\"lcs-overlay\"></div>\n      </div>\n      <div class=\"lcs-body\">\n        <div class=\"lcs-name\">半天課（3 小時）</div>\n        <div class=\"lcs-desc\">富良野・神居・星野滑雪場　｜　上午或下午</div>\n        <span class=\"lcs-season-range\">淡季：12/5～12/15 & 3/1～4/30</span>\n        <hr class=\"lcs-hr\">\n        <table class=\"lcs-price-table\">\n          <tr>\n            <th>人數</th>\n            <th>早鳥價</th>\n          </tr>\n          <tr>\n            <td class=\"lcs-pax\">1 對 1～2 人<span class=\"lcs-pax-sub\">每組</span></td>\n            <td class=\"lcs-price-cell\">\n              <span class=\"lcs-orig\">NT$9,000</span>\n              <span class=\"lcs-new\">NT$7,650 <span class=\"lcs-unit\">/ 組</span></span>\n            </td>\n          </tr>\n          <tr>\n            <td class=\"lcs-pax\">1 對 3～4 人<span class=\"lcs-pax-sub\">每組</span></td>\n            <td class=\"lcs-price-cell\">\n              <span class=\"lcs-orig\">NT$11,000</span>\n              <span class=\"lcs-new\">NT$9,350 <span class=\"lcs-unit\">/ 組</span></span>\n            </td>\n          </tr>\n        </table>\n        <div class=\"lcs-dl\">優惠至 <b>2026/6/30</b> 止</div>\n        <a class=\"lcs-btn\" href=\"https://lifechillsnow.com/products/halfday-class-off-season?variant=42905801687123\">立即預訂 <span class=\"lcs-arr\">→</span></a>\n      </div>\n    </div>\n\n  </div>\n</div>",
-        "color_scheme": "",
-        "section_width": "page-width",
-        "padding-block-start": 0,
-        "padding-block-end": 0
-      }
-    },
-    "product_list_ihmGtg": {
-      "type": "product-list",
-      "blocks": {
-        "static-header": {
-          "type": "_product-list-content",
-          "name": "t:names.header",
-          "static": true,
-          "settings": {
-            "content_direction": "row",
-            "vertical_on_mobile": false,
-            "horizontal_alignment": "space-between",
-            "vertical_alignment": "flex-end",
-            "align_baseline": true,
-            "horizontal_alignment_flex_direction_column": "flex-start",
-            "vertical_alignment_flex_direction_column": "center",
-            "gap": 12,
-            "width": "fill",
-            "custom_width": 100,
-            "width_mobile": "fill",
-            "custom_width_mobile": 100,
-            "height": "fit",
-            "custom_height": 100,
-            "inherit_color_scheme": true,
-            "color_scheme": "",
-            "background_media": "none",
-            "video_position": "cover",
-            "background_image_position": "cover",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "product_list_text_Df9G6E": {
-              "type": "_product-list-text",
-              "name": "t:names.collection_title",
-              "settings": {
-                "text": "<h3>{{ closest.collection.title }}</h3>",
-                "width": "fit-content",
-                "max_width": "normal",
-                "alignment": "left",
-                "type_preset": "rte",
-                "font": "var(--font-body--family)",
-                "font_size": "",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "color": "var(--color-foreground)",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "product_list_button_3nirnM": {
-              "type": "_product-list-button",
-              "name": "t:names.product_list_button",
-              "settings": {
-                "label": "View all",
-                "open_in_new_tab": false,
-                "style_class": "link",
-                "width": "fit-content",
-                "custom_width": 100,
-                "width_mobile": "fit-content",
-                "custom_width_mobile": 100
-              },
-              "blocks": {}
-            }
-          },
-          "block_order": [
-            "product_list_text_Df9G6E",
-            "product_list_button_3nirnM"
-          ]
-        },
-        "static-product-card": {
-          "type": "_product-card",
-          "name": "t:names.product_card",
-          "static": true,
-          "settings": {
-            "product_card_gap": 8,
-            "inherit_color_scheme": true,
-            "color_scheme": "",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "product_card_gallery_pyGjcF": {
-              "type": "_product-card-gallery",
-              "name": "t:names.product_card_media",
-              "settings": {
-                "image_ratio": "adapt",
-                "border": "none",
-                "border_width": 1,
-                "border_opacity": 100,
-                "border_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "product_card_group_3EQK3i": {
-              "type": "_product-card-group",
-              "name": "t:names.group",
-              "settings": {
-                "content_direction": "column",
-                "vertical_on_mobile": true,
-                "horizontal_alignment": "flex-start",
-                "vertical_alignment": "center",
-                "align_baseline": false,
-                "horizontal_alignment_flex_direction_column": "flex-start",
-                "vertical_alignment_flex_direction_column": "center",
-                "gap": 4,
-                "width": "fill",
-                "custom_width": 100,
-                "width_mobile": "fill",
-                "custom_width_mobile": 100,
-                "height": "fit",
-                "custom_height": 100,
-                "inherit_color_scheme": true,
-                "color_scheme": "",
-                "background_media": "none",
-                "video_position": "cover",
-                "background_image_position": "cover",
-                "border": "none",
-                "border_width": 1,
-                "border_opacity": 100,
-                "border_radius": 0,
-                "toggle_overlay": false,
-                "overlay_color": "#00000026",
-                "overlay_style": "solid",
-                "gradient_direction": "to top",
-                "link": "",
-                "open_in_new_tab": false,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {
-                "product_title_ea6etc": {
-                  "type": "product-title",
-                  "name": "t:names.title",
-                  "settings": {
-                    "width": "fit-content",
-                    "max_width": "normal",
-                    "alignment": "left",
-                    "type_preset": "h4",
-                    "font": "var(--font-body--family)",
-                    "font_size": "",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "wrap": "pretty",
-                    "color": "var(--color-foreground)",
-                    "background": false,
-                    "background_color": "#00000026",
-                    "corner_radius": 0,
-                    "padding-block-start": 0,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "text_QNFwk4": {
-                  "type": "text",
-                  "name": "t:names.text",
-                  "settings": {
-                    "text": "{{ closest.product.description }}",
-                    "width": "fit-content",
-                    "max_width": "normal",
-                    "alignment": "left",
-                    "type_preset": "rte",
-                    "font": "var(--font-body--family)",
-                    "font_size": "1rem",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "wrap": "pretty",
-                    "color": "var(--color-foreground)",
-                    "background": false,
-                    "background_color": "#00000026",
-                    "corner_radius": 0,
-                    "padding-block-start": 0,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "price_kGYJfB": {
-                  "type": "price",
-                  "name": "t:names.product_price",
-                  "settings": {
-                    "show_sale_price_first": true,
-                    "show_installments": false,
-                    "show_tax_info": false,
-                    "type_preset": "h4",
-                    "width": "100%",
-                    "alignment": "left",
-                    "font": "var(--font-body--family)",
-                    "font_size": "1rem",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "color": "var(--color-foreground)",
-                    "padding-block-start": 16,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "swatches_mj8a6E": {
-                  "type": "swatches",
-                  "name": "t:names.swatches",
-                  "settings": {
-                    "product_swatches_alignment": "flex-start",
-                    "product_swatches_alignment_mobile": "flex-start",
-                    "hide_padding": false,
-                    "product_swatches_padding_top": 4,
-                    "product_swatches_padding_bottom": 0,
-                    "product_swatches_padding_left": 0,
-                    "product_swatches_padding_right": 0
-                  },
-                  "blocks": {}
-                }
-              },
-              "block_order": [
-                "product_title_ea6etc",
-                "text_QNFwk4",
-                "price_kGYJfB",
-                "swatches_mj8a6E"
-              ]
-            }
-          },
-          "block_order": [
-            "product_card_gallery_pyGjcF",
-            "product_card_group_3EQK3i"
-          ]
-        }
-      },
-      "disabled": true,
-      "name": "Collection2",
-      "settings": {
-        "collection": "北海道-富良野-神居-私人滑雪課程-半天-1",
-        "layout_type": "grid",
-        "carousel_on_mobile": false,
-        "max_products": 6,
-        "columns": 3,
-        "mobile_columns": "1",
-        "mobile_card_size": "60cqw",
-        "columns_gap": 8,
-        "rows_gap": 36,
-        "icons_style": "arrow",
-        "icons_shape": "none",
-        "section_width": "page-width",
-        "horizontal_alignment": "flex-start",
-        "gap": 40,
-        "color_scheme": "scheme-1",
-        "padding-block-start": 48,
-        "padding-block-end": 48
-      }
-    },
-    "product_list_BTQBgM": {
-      "type": "product-list",
-      "blocks": {
-        "static-header": {
-          "type": "_product-list-content",
-          "name": "t:names.header",
-          "static": true,
-          "settings": {
-            "content_direction": "row",
-            "vertical_on_mobile": false,
-            "horizontal_alignment": "space-between",
-            "vertical_alignment": "flex-end",
-            "align_baseline": true,
-            "horizontal_alignment_flex_direction_column": "flex-start",
-            "vertical_alignment_flex_direction_column": "center",
-            "gap": 12,
-            "width": "fill",
-            "custom_width": 100,
-            "width_mobile": "fill",
-            "custom_width_mobile": 100,
-            "height": "fit",
-            "custom_height": 100,
-            "inherit_color_scheme": true,
-            "color_scheme": "",
-            "background_media": "none",
-            "video_position": "cover",
-            "background_image_position": "cover",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "product_list_text_FdVgDp": {
-              "type": "_product-list-text",
-              "name": "t:names.collection_title",
-              "settings": {
-                "text": "<h3>{{ closest.collection.title }}</h3>",
-                "width": "fit-content",
-                "max_width": "normal",
-                "alignment": "left",
-                "type_preset": "rte",
-                "font": "var(--font-body--family)",
-                "font_size": "",
-                "line_height": "normal",
-                "letter_spacing": "normal",
-                "case": "none",
-                "wrap": "pretty",
-                "color": "var(--color-foreground)",
-                "background": false,
-                "background_color": "#00000026",
-                "corner_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "product_list_button_cmzhti": {
-              "type": "_product-list-button",
-              "name": "t:names.product_list_button",
-              "settings": {
-                "label": "View all",
-                "open_in_new_tab": false,
-                "style_class": "link",
-                "width": "fit-content",
-                "custom_width": 100,
-                "width_mobile": "fit-content",
-                "custom_width_mobile": 100
-              },
-              "blocks": {}
-            }
-          },
-          "block_order": [
-            "product_list_text_FdVgDp",
-            "product_list_button_cmzhti"
-          ]
-        },
-        "static-product-card": {
-          "type": "_product-card",
-          "name": "t:names.product_card",
-          "static": true,
-          "settings": {
-            "product_card_gap": 8,
-            "inherit_color_scheme": true,
-            "color_scheme": "",
-            "border": "none",
-            "border_width": 1,
-            "border_opacity": 100,
-            "border_radius": 0,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
-          },
-          "blocks": {
-            "product_card_gallery_E4ML3H": {
-              "type": "_product-card-gallery",
-              "name": "t:names.product_card_media",
-              "settings": {
-                "image_ratio": "adapt",
-                "border": "none",
-                "border_width": 1,
-                "border_opacity": 100,
-                "border_radius": 0,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {}
-            },
-            "product_card_group_AtftJ3": {
-              "type": "_product-card-group",
-              "name": "t:names.group",
-              "settings": {
-                "content_direction": "column",
-                "vertical_on_mobile": true,
-                "horizontal_alignment": "flex-start",
-                "vertical_alignment": "center",
-                "align_baseline": false,
-                "horizontal_alignment_flex_direction_column": "flex-start",
-                "vertical_alignment_flex_direction_column": "center",
-                "gap": 4,
-                "width": "fill",
-                "custom_width": 100,
-                "width_mobile": "fill",
-                "custom_width_mobile": 100,
-                "height": "fit",
-                "custom_height": 100,
-                "inherit_color_scheme": true,
-                "color_scheme": "",
-                "background_media": "none",
-                "video_position": "cover",
-                "background_image_position": "cover",
-                "border": "none",
-                "border_width": 1,
-                "border_opacity": 100,
-                "border_radius": 0,
-                "toggle_overlay": false,
-                "overlay_color": "#00000026",
-                "overlay_style": "solid",
-                "gradient_direction": "to top",
-                "link": "",
-                "open_in_new_tab": false,
-                "padding-block-start": 0,
-                "padding-block-end": 0,
-                "padding-inline-start": 0,
-                "padding-inline-end": 0
-              },
-              "blocks": {
-                "product_title_qCcKxY": {
-                  "type": "product-title",
-                  "name": "t:names.title",
-                  "settings": {
-                    "width": "fit-content",
-                    "max_width": "normal",
-                    "alignment": "left",
-                    "type_preset": "h4",
-                    "font": "var(--font-body--family)",
-                    "font_size": "",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "wrap": "pretty",
-                    "color": "var(--color-foreground)",
-                    "background": false,
-                    "background_color": "#00000026",
-                    "corner_radius": 0,
-                    "padding-block-start": 0,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "text_9Y7cVg": {
-                  "type": "text",
-                  "name": "t:names.text",
-                  "settings": {
-                    "text": "{{ closest.product.description }}",
-                    "width": "fit-content",
-                    "max_width": "normal",
-                    "alignment": "left",
-                    "type_preset": "rte",
-                    "font": "var(--font-body--family)",
-                    "font_size": "1rem",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "wrap": "pretty",
-                    "color": "var(--color-foreground)",
-                    "background": false,
-                    "background_color": "#00000026",
-                    "corner_radius": 0,
-                    "padding-block-start": 0,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "price_tVJkFy": {
-                  "type": "price",
-                  "name": "t:names.product_price",
-                  "settings": {
-                    "show_sale_price_first": true,
-                    "show_installments": false,
-                    "show_tax_info": false,
-                    "type_preset": "h4",
-                    "width": "100%",
-                    "alignment": "left",
-                    "font": "var(--font-body--family)",
-                    "font_size": "1rem",
-                    "line_height": "normal",
-                    "letter_spacing": "normal",
-                    "case": "none",
-                    "color": "var(--color-foreground)",
-                    "padding-block-start": 16,
-                    "padding-block-end": 0,
-                    "padding-inline-start": 0,
-                    "padding-inline-end": 0
-                  },
-                  "blocks": {}
-                },
-                "swatches_wkKneY": {
-                  "type": "swatches",
-                  "name": "t:names.swatches",
-                  "settings": {
-                    "product_swatches_alignment": "flex-start",
-                    "product_swatches_alignment_mobile": "flex-start",
-                    "hide_padding": false,
-                    "product_swatches_padding_top": 4,
-                    "product_swatches_padding_bottom": 0,
-                    "product_swatches_padding_left": 0,
-                    "product_swatches_padding_right": 0
-                  },
-                  "blocks": {}
-                }
-              },
-              "block_order": [
-                "product_title_qCcKxY",
-                "text_9Y7cVg",
-                "price_tVJkFy",
-                "swatches_wkKneY"
-              ]
-            }
-          },
-          "block_order": [
-            "product_card_gallery_E4ML3H",
-            "product_card_group_AtftJ3"
-          ]
-        }
-      },
-      "disabled": true,
-      "name": "Gear Rental",
-      "settings": {
-        "collection": "滑雪裝備租賃",
-        "layout_type": "grid",
-        "carousel_on_mobile": false,
-        "max_products": 6,
-        "columns": 3,
-        "mobile_columns": "1",
-        "mobile_card_size": "60cqw",
-        "columns_gap": 8,
-        "rows_gap": 36,
-        "icons_style": "arrow",
-        "icons_shape": "none",
-        "section_width": "page-width",
-        "horizontal_alignment": "flex-start",
-        "gap": 40,
-        "color_scheme": "scheme-1",
-        "padding-block-start": 48,
-        "padding-block-end": 48
       }
     },
     "carousel_FftiTP": {
@@ -9276,7 +8218,7 @@
             "border_opacity": 100,
             "border_radius": 0,
             "toggle_overlay": true,
-            "overlay_color": "#e1edf5",
+            "overlay_color": "#fdfdfd",
             "overlay_style": "solid",
             "gradient_direction": "to top",
             "link": "",
@@ -9314,7 +8256,7 @@
                 "corner_styling": "round",
                 "header_text_color": "#1a2e4a",
                 "text_color": "#111111",
-                "card_color": "#f9f9f9",
+                "card_color": "#e8f4fa",
                 "stars_color": "",
                 "arrows_color": "#1a2e4a",
                 "transition_speed": 5,
@@ -9391,10 +8333,10 @@
         "border_opacity": 100,
         "border_radius": 0,
         "toggle_overlay": true,
-        "overlay_color": "#e1edf5",
+        "overlay_color": "#fdfdfd",
         "overlay_style": "solid",
         "gradient_direction": "to top",
-        "padding-block-start": 0,
+        "padding-block-start": 30,
         "padding-block-end": 50
       }
     },
@@ -9570,12 +8512,7 @@
     "section_fy6WXr",
     "section_qznQYV",
     "section_CJRChA",
-    "collection_list_hbJh6n",
     "carousel_aYDrTL",
-    "product_list_qU3bEB",
-    "custom_liquid_C8HAxp",
-    "product_list_ihmGtg",
-    "product_list_BTQBgM",
     "carousel_FftiTP",
     "178343181799faef2a",
     "collection_list_bQrBnB"

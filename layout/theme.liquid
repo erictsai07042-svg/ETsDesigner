@@ -487,6 +487,46 @@ if (topBtn) {
 </style>
 
 {% comment %}
+  【PROTOTYPE，僅首頁 Hero 這一組，尚未確認方向，未定案前不要擴大範圍】
+  Sticky Stack Scroll 評估原型：Hero 固定不動，下一個 Section（教練團隊／專業認證）
+  從下方滑上來覆蓋。純 CSS position:sticky + z-index 疊層，不需要 JS。
+  跟先前的「背景圖慢速位移」視差效果（enable_parallax）是兩套不同機制，
+  這組 Hero 目前已把 enable_parallax 設定關閉，避免兩種效果疊加。
+  業主確認方向後，才需要決定要不要保留、擴大到其他 Section、或整個移除這段。
+
+  【2026-09-18 修正破圖】實測發現 Hero 的 sticky「卡住」範圍其實涵蓋了整個
+  <main>（一路到 Judge.me 區塊結束才放開），不是只到「下一個 Section」為止。
+  一開始只給 Hero 跟緊接的 section_qznQYV 設 z-index，後面的 section_CJRChA、
+  Judge.me 都還是預設 z-index:auto（比 Hero 低），導致 Hero 捲動到後面時會
+  「穿透」蓋過這兩個區塊，就是業主截圖回報的破圖。修法：首頁在 Hero 之後的
+  每一個 Section 都要給遞增的 z-index，缺一個都可能露出 Hero。
+{% endcomment %}
+<style>
+  @media screen and (min-width: 750px) {
+    #shopify-section-template--20141438697555__hero_jVaWmY {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    #shopify-section-template--20141438697555__section_qznQYV {
+      position: relative;
+      z-index: 2;
+    }
+
+    #shopify-section-template--20141438697555__section_CJRChA {
+      position: relative;
+      z-index: 3;
+    }
+
+    #shopify-section-template--20141438697555__178343181799faef2a {
+      position: relative;
+      z-index: 4;
+    }
+  }
+</style>
+
+{% comment %}
   【來趣滑雪】本地端沙盒路由護盾 - 終極模糊比對版
   用途：不看特定的淡旺季字串，直接以「網域 ＋ 全天/半天關鍵字」進行全方位攔截，確保 100% 留在本地端
 {% endcomment %}

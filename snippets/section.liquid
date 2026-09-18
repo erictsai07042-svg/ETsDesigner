@@ -28,7 +28,7 @@
      {% endif %}
   "
 >
-  <div class="custom-section-background">
+  <div class="custom-section-background{% if section.settings.enable_parallax %} js-parallax-bg{% endif %}">
     {% render 'background-media',
       background_media: section.settings.background_media,
       background_video: section.settings.video,
@@ -37,6 +37,10 @@
       background_image_position: section.settings.background_image_position
     %}
   </div>
+
+  {% if section.settings.enable_parallax %}
+    <script src="{{ 'parallax-scroll.js' | asset_url }}" defer="defer"></script>
+  {% endif %}
 
   <div
     class="border-style custom-section-content"

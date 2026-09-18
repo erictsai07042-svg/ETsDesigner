@@ -301,6 +301,13 @@
       "visible_if": "{{ section.settings.background_media == 'image' }}"
     },
     {
+      "type": "checkbox",
+      "id": "enable_parallax",
+      "label": "啟用視差捲動（背景圖捲動速度較前景慢，桌機限定，會自動偵測「減少動態效果」設定並停用）",
+      "default": false,
+      "visible_if": "{{ section.settings.background_media == 'image' }}"
+    },
+    {
       "type": "select",
       "id": "border",
       "label": "t:settings.borders",

@@ -4342,17 +4342,23 @@ div[class*="shopify-app-block"] {
 }
 
 
-/* Hero 標題白色外光暈 */
+/* Hero 標題白色外光暈（2026-09-19 業主要求刷淡，數值大約砍半） */
 #Hero-template--20141438697555__hero_jVaWmY .text-block.h1,
 #Hero-template--20141438697555__hero_jVaWmY .text-block h1,
 #Hero-template--20141438697555__hero_jVaWmY .text-block h2 {
   text-shadow:
-    0 0 6px rgba(255, 255, 255, 1),
-    0 0 15px rgba(255, 255, 255, 0.8),
-    0 0 30px rgba(255, 255, 255, 0.6),
-    0 0 50px rgba(255, 255, 255, 0.4),
-    0 0 80px rgba(255, 255, 255, 0.2) !important;
+    0 0 4px rgba(255, 255, 255, 0.5),
+    0 0 10px rgba(255, 255, 255, 0.4),
+    0 0 18px rgba(255, 255, 255, 0.3),
+    0 0 25px rgba(255, 255, 255, 0.2),
+    0 0 40px rgba(255, 255, 255, 0.1) !important;
 
+}
+
+/* Hero「讓您的北海道滑雪之旅更安心、更享受！」字色改跳色（2026-09-19，業主選項一：品牌主色）
+   只鎖定這個文字block自己的唯一class（text_ErAnJn），不影響同一組裡的其他文字 */
+[class*="__text_ErAnJn"] h2 {
+  color: #3a7ab5 !important;
 }
 
 /* ================================================= */

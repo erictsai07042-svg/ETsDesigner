@@ -60,6 +60,9 @@
   endif
 
   assign media_wrapper_desktop_class = 'hero__media-wrapper hero__media-wrapper--desktop'
+  if section.settings.enable_parallax
+    assign media_wrapper_desktop_class = media_wrapper_desktop_class | append: ' js-parallax-bg'
+  endif
   assign media_wrapper_mobile_class = 'hero__media-wrapper hero__media-wrapper--mobile'
   # If there is no custom mobile media to show, we add the mobile class to the desktop classes so content is always shown on mobile.
   if section.settings.custom_mobile_media == false or section.settings.custom_mobile_media == true and media_count_mobile == 0
@@ -113,6 +116,10 @@
     assign fetch_priority = 'high'
   endif
 %}
+
+{% if section.settings.enable_parallax %}
+  <script src="{{ 'parallax-scroll.js' | asset_url }}" defer="defer"></script>
+{% endif %}
 
 {% capture media_slot_1 %}
   {%- if media_1 == 'image' and media_1_mobile == 'image' -%}
@@ -946,6 +953,16 @@
       "id": "video_2_mobile",
       "label": "t:settings.video",
       "visible_if": "{{ section.settings.custom_mobile_media and section.settings.media_type_2_mobile == 'video' }}"
+    },
+    {
+      "type": "header",
+      "content": "視差捲動效果"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_parallax",
+      "label": "啟用視差捲動（背景圖捲動速度較前景慢，桌機限定，會自動偵測「減少動態效果」設定並停用）",
+      "default": false
     },
     {
       "type": "header",
