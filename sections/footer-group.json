@@ -399,7 +399,7 @@
                       "type": "text",
                       "name": "t:names.text",
                       "settings": {
-                        "text": "<ul><li><a href=\"#\" target=\"_blank\" title=\"#\">課程介紹</a></li><li><a href=\"#\" target=\"_blank\" title=\"#\">關於我們</a></li><li><a href=\"#\" target=\"_blank\" title=\"#\">Q&A</a></li></ul>",
+                        "text": "<ul><li><a href=\"/pages/course-introduction\" title=\"課程介紹\">課程介紹</a></li><li><a href=\"/pages/about-us\" title=\"關於我們\">關於我們</a></li><li><a href=\"/pages/q-a\" title=\"Q&A\">Q&A</a></li></ul>",
                         "width": "100%",
                         "max_width": "narrow",
                         "alignment": "left",
