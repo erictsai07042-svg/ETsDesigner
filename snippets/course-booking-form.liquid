@@ -560,6 +560,42 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   box-shadow: 0 4px 14px rgba(6, 199, 85, 0.35);
 }
 
+/* 2026-10-02：BTA 日曆掛載前的 loading 提示，填補「等待期間畫面完全空白」造成的困惑。
+   純視覺提示，不影響任何偵測/逾時邏輯——iframe 真正掛載成功、或 12 秒逾時改顯示
+   LINE 備援畫面時，這個提示都會被移除，三者互斥、同一時間只會顯示其中一種狀態。 */
+.bta-calendar-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 48px 24px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+.bta-calendar-loading__spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #1A2E4A;
+  border-radius: 50%;
+  animation: bta-calendar-loading-spin 0.8s linear infinite;
+}
+@keyframes bta-calendar-loading-spin {
+  to { transform: rotate(360deg); }
+}
+.bta-calendar-loading__text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bta-calendar-loading__spinner {
+    animation: none;
+  }
+}
+
 /* 右欄：方案資訊卡片沿用 .info-block-card 既有樣式，這裡只補一個 grid 安全性設定，
    避免卡片內容（例如很長的英文網址/數字）把欄寬撐爆。 */
 .course-plan-summary-card {
@@ -1575,10 +1611,44 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     if (existing) existing.remove();
   };
 
+  /* 2026-10-02：12 秒逾時門檻本身是合理的（避免把正常載入中的日曆誤判成失敗），
+     但業主反饋空等 12 秒、畫面完全沒反應會讓人以為頁面壞掉。這段只負責「顯示中」
+     的視覺提示，不改動任何既有的偵測/逾時判斷邏輯——loading、真正日曆、LINE 備援
+     三者同一時間只會存在一種，切換時機完全沿用原本已經在跑的 checkAndReveal／
+     showCalendarFallback 時間點，沒有新增額外的計時器。 */
+  const removeCalendarLoading = () => {
+    const existing = document.getElementById('bta-calendar-loading');
+    if (existing) existing.remove();
+  };
+
+  const showCalendarLoading = () => {
+    const widget = document.getElementById('bta-product-widget');
+    if (widget && widget.querySelector('iframe')) return; // 已經掛載成功，不需要顯示中
+    if (document.getElementById('bta-calendar-loading')) return;
+    const mountTarget = widget || document.getElementById('booking-current-date-picker');
+    if (!mountTarget) return;
+
+    const loading = document.createElement('div');
+    loading.id = 'bta-calendar-loading';
+    loading.className = 'bta-calendar-loading';
+
+    const spinner = document.createElement('div');
+    spinner.className = 'bta-calendar-loading__spinner';
+
+    const text = document.createElement('p');
+    text.className = 'bta-calendar-loading__text';
+    text.textContent = '日曆載入中，請稍候...';
+
+    loading.appendChild(spinner);
+    loading.appendChild(text);
+    mountTarget.appendChild(loading);
+  };
+
   const showCalendarFallback = () => {
     const widget = document.getElementById('bta-product-widget');
     if (widget && widget.querySelector('iframe')) return; // 已經正常掛載，不需要備援
     if (document.getElementById('bta-calendar-fallback')) return;
+    removeCalendarLoading(); // 12 秒到、換成備援畫面，移除「載入中」提示避免兩者疊在一起
     /* 實測發現：崩潰有時發生在 BTA 把我們模板原本渲染的 #bta-product-widget 整個移除、
        但還沒來得及插入替代節點的中間狀態，這時 widget 是 null，不是「內容是空的」。
        這種情況改插進 #booking-current-date-picker（穩定父層，BTA 不會替換掉這個節點），
@@ -1627,6 +1697,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   const checkAndReveal = () => {
     const widget = document.getElementById('bta-product-widget');
     if (widget && widget.querySelector('iframe')) {
+      removeCalendarLoading();
       removeCalendarFallback();
       revealStepUI();
       positionWidgetOverlay();
@@ -1636,6 +1707,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     return false;
   };
   if (!checkAndReveal()) {
+    showCalendarLoading();
     const observer = new MutationObserver((mutations, obs) => {
       if (checkAndReveal()) {
         obs.disconnect();
