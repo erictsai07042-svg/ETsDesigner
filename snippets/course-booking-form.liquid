@@ -19,7 +19,45 @@
   reproduce，不能照抄舊資訊，這裡是實測結論）。variant.title 實測格式為「1 ~ 2 人」／
   「3 ~ 4 人」（數字 空格 波浪號 空格 數字 空格 人）。
 {% endcomment %}
+{% comment %}
+  2026-10-06：BTA 日曆 iframe 內的 54 個 JS/CSS 全部來自 cdn.bookthatapp.com，要等 bootstrap → widget 設定
+  XHR 都回來後才會開始連線。提早建立連線省掉 DNS/TCP/TLS 來回。module script 走 CORS、CSS 不走，
+  兩種連線各自獨立，所以 crossorigin 與非 crossorigin 各預連一條。只在課程頁輸出（這個 snippet 只有課程頁會渲染）。
+{% endcomment %}
+<link rel="preconnect" href="https://cdn.bookthatapp.com" crossorigin>
+<link rel="preconnect" href="https://cdn.bookthatapp.com">
+<link rel="dns-prefetch" href="https://cdn.bookthatapp.com">
+
 <script>
+/* 2026-10-06：BTA 注入的 CSS 會把 <form> 底下的 .product-form-buttons 整個隱藏（Hero、方案資訊、進度條、
+   載入提示全部在裡面），原本要等偵測到 BTA 的 iframe 才用 inline style 改回可見——中間整塊消失
+   （4G 約 1.5 秒、3G 可到 20 秒）。改成解析到這裡就先設好同一組 inline !important，BTA 的 CSS 之後
+   才注入也蓋不掉。BTA 只靠那條 CSS 規則隱藏，不會讀取這個元素的 display，實測不影響它掛載。 */
+(function () {
+  var pfb = document.currentScript && document.currentScript.closest('.product-form-buttons');
+  if (pfb) {
+    pfb.style.setProperty('display', 'flex', 'important');
+    pfb.style.setProperty('flex-direction', 'column', 'important');
+  }
+
+  /* BTA 確定失敗的訊號（腳本載入失敗、或它自己的程式拋錯），給下方主要邏輯判斷要顯示哪一種備援。
+     必須在 BTA 腳本執行前就掛上監聽，晚了會漏接。 */
+  window.__cbfBtaFailure = null;
+  var isBta = function (value) { return typeof value === 'string' && value.indexOf('bookthatapp') !== -1; };
+  window.addEventListener('error', function (event) {
+    var target = event.target;
+    if (target && target !== window && (isBta(target.src) || isBta(target.href))) {
+      window.__cbfBtaFailure = 'load';
+    } else if (isBta(event.filename)) {
+      window.__cbfBtaFailure = 'script';
+    }
+  }, true);
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event.reason;
+    if (reason && isBta(String(reason.stack || ''))) window.__cbfBtaFailure = 'script';
+  });
+})();
+
 window.Bta = window.Bta || {};
 window.Bta.callbacks = window.Bta.callbacks || {};
 window.Bta.callbacks.variantChanged = function(variant) {
@@ -515,8 +553,12 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
   gap: 10px;
+  box-sizing: border-box;
+  min-height: 512px;
+  max-width: 450px;
   padding: 48px 24px;
   background: #f8fafc;
   border: 1px dashed #cbd5e1;
@@ -567,8 +609,14 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
   gap: 14px;
+  /* 2026-10-06：BTA 日曆實測高度 512px（手機／平板／桌機一致）、內容寬度上限 450px。載入提示先佔住
+     同樣大小，日曆出現時下方內容不會被往下推。 */
+  box-sizing: border-box;
+  min-height: 512px;
+  max-width: 450px;
   padding: 48px 24px;
   background: #f8fafc;
   border: 1px dashed #cbd5e1;
@@ -798,6 +846,11 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
               BTA 會自己建立 #bta-product-widget，下方腳本一律用 getElementById 現查，不依賴這個節點。
               不要再加回來。
             {% endcomment %}
+            {% comment %} 2026-10-06：載入提示直接寫在 HTML 裡，第一次繪製就看得到；下方腳本用同一個 id 接手移除。 {% endcomment %}
+            <div id="bta-calendar-loading" class="bta-calendar-loading" role="status">
+              <div class="bta-calendar-loading__spinner"></div>
+              <p class="bta-calendar-loading__text">日曆載入中，請稍候...</p>
+            </div>
           </div>
         </div>
       </div> <!-- /course-calendar-column 結束 -->
@@ -971,6 +1024,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
          + widget 高度」，Grid/Flex 版面會自動根據這個高度正確保留空間，不需要再手動算
          margin-top、也不用再管「下面內容現在是誰」（跟目標元素解耦，更不容易再壞掉）。
      所有數字都不寫死，用 ResizeObserver 持續監聽，數字改變就即時重算。 */
+  let syncCalendarColumnHeight = null; // positionWidgetOverlay 設好後指向它內部的 updateColumnHeight，給 checkCalendar 在日曆就緒當下同步呼叫
   const BAR_TO_WIDGET_GAP = 4; // 必須跟 CSS 裡 .bta-step-progress-bar 的 margin-bottom 一致（項目三方案A，2026-08-19 由 16 改成 4）
   const positionWidgetOverlay = () => {
     const form = document.querySelector('form.shopify-product-form');
@@ -1052,9 +1106,17 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       const barHeight = progressBar ? progressBar.getBoundingClientRect().height : 0;
       const gap = progressBar ? BAR_TO_WIDGET_GAP : 0;
       const widgetHeight = widget.getBoundingClientRect().height;
+      /* 2026-10-06：iframe 標籤剛出現時 widget 還是 display:none、高度 0，這時把欄高寫死會讓整欄
+         縮到只剩進度條（44px），下方內容往上跳、蓋住還在顯示的載入提示，約 1 秒後日曆出來又彈回去。
+         widget 還沒有高度時不指定欄高，讓欄位照正常文件流被載入提示／備援撐開。 */
+      if (widgetHeight < 1) {
+        calendarColumn.style.removeProperty('height');
+        return;
+      }
       calendarColumn.style.setProperty('height', (barHeight + gap + widgetHeight) + 'px', 'important');
     };
     updateColumnHeight();
+    syncCalendarColumnHeight = updateColumnHeight;
     new ResizeObserver(updateColumnHeight).observe(widget);
     if (progressBar) new ResizeObserver(updateColumnHeight).observe(progressBar);
   };
@@ -1677,14 +1739,24 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     mountTarget.appendChild(loading);
   };
 
-  const showCalendarFallback = () => {
+  /* 2026-10-06：備援分兩種。
+       failed：確定 BTA 失敗（腳本載入失敗或拋錯）→ 維持原本「系統忙碌、請用 LINE」的說法。
+       slow  ：到了等待上限但沒有任何失敗訊號（慢速 3G 實測日曆要 45 秒以上）→ 保留轉圈，
+               改成「仍在載入，也可以用 LINE」的中性說法，不暗示故障。
+     兩種都會在日曆出現時自動撤下；slow 顯示後若又收到失敗訊號，會換成 failed。 */
+  const showCalendarFallback = (mode) => {
     const widget = document.getElementById('bta-product-widget');
     /* 判斷標準統一改成「內容真的就緒」，不是只看 <iframe> 標籤——避免「標籤出現但內容
        遲遲不來」這種邊界情況下，12 秒到了卻因為標籤已存在就被這裡擋下不顯示備援，
        結果留下的是沒有任何提示的空白，比顯示備援畫面更糟。 */
     if (calendarReady || hasRealIframeContent(widget)) return; // 已經正常掛載，不需要備援
-    if (document.getElementById('bta-calendar-fallback')) return;
-    removeCalendarLoading(); // 12 秒到、換成備援畫面，移除「載入中」提示避免兩者疊在一起
+    const isSlow = mode === 'slow';
+    const current = document.getElementById('bta-calendar-fallback');
+    if (current) {
+      if (current.dataset.mode === mode || isSlow) return; // 同一種已顯示；failed 不會被 slow 蓋掉
+      current.remove();
+    }
+    removeCalendarLoading(); // 換成備援畫面，移除「載入中」提示避免兩者疊在一起（slow 版自己帶轉圈）
     const mountTarget = getCalendarMountTarget(widget);
     if (!mountTarget) return; // 連穩定父層都不存在，代表這頁根本不是課程商品頁
     revealStepUI();
@@ -1694,14 +1766,23 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     const fallback = document.createElement('div');
     fallback.id = 'bta-calendar-fallback';
     fallback.className = 'bta-calendar-fallback';
+    fallback.dataset.mode = mode;
+
+    if (isSlow) {
+      const spinner = document.createElement('div');
+      spinner.className = 'bta-calendar-loading__spinner';
+      fallback.appendChild(spinner);
+    }
 
     const title = document.createElement('p');
     title.className = 'bta-calendar-fallback__title';
-    title.textContent = '目前預約系統忙碌中';
+    title.textContent = isSlow ? '日曆仍在載入中' : '目前預約系統忙碌中';
 
     const desc = document.createElement('p');
     desc.className = 'bta-calendar-fallback__desc';
-    desc.textContent = '請點擊下方按鈕，透過 LINE 聯繫我們協助您完成預約';
+    desc.textContent = isSlow
+      ? '網路較慢時會需要多一點時間，您可以再稍候，也可以透過 LINE 聯繫我們協助預約'
+      : '請點擊下方按鈕，透過 LINE 聯繫我們協助您完成預約';
 
     const btn = document.createElement('a');
     btn.href = LINE_CONTACT_URL;
@@ -1716,7 +1797,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     icon.height = 24;
 
     const label = document.createElement('span');
-    label.textContent = '加 LINE 聯繫預約';
+    label.textContent = isSlow ? '用 LINE 聯繫我們' : '加 LINE 聯繫預約';
 
     btn.appendChild(icon);
     btn.appendChild(label);
@@ -1731,8 +1812,7 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
      畫面永久空白。現在把「標籤出現」跟「內容就緒」拆成兩件事：
        - 標籤出現：只做一次性的 STEP UI 顯示／定位／內容增強掛載。
        - 內容就緒（calendarReady）：才移除 loading 與備援、停掉所有計時器與監聽。
-     備援觸發時機：12 秒時連 iframe 標籤都沒有（幽靈 widget 崩潰的特徵）才顯示；標籤已出現代表
-     BTA 還在正常載入，再多等到 CALENDAR_SLOW_LOAD_TIMEOUT_MS，避免載入慢但會成功時先閃出備援。
+     備援觸發時機見下方 decideFallback（2026-10-06 改版：確定失敗才提早顯示，否則等到上限顯示 slow 版）。
      備援顯示後仍持續偵測，日曆之後若載入成功會自動撤下備援，客人不用重新整理。 */
   const CALENDAR_SLOW_LOAD_TIMEOUT_MS = 25000;
   let stepUiRevealed = false;
@@ -1742,10 +1822,44 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   let fallbackTimer = null;
   let slowFallbackTimer = null;
 
+  /* 日曆本體的 JS/CSS 是在 iframe 自己的文件裡載入，外層 window 收不到它們的 error 事件。
+     iframe 是同源的 srcdoc，直接在它的 document 上用 capture 監聽；文件被整個換掉時重新掛一次。 */
+  let watchedIframeDoc = null;
+  let iframeAssetFailed = false;
+  const watchIframeAssetErrors = (iframe) => {
+    let doc;
+    try { doc = iframe.contentDocument; } catch (e) { doc = null; }
+    if (!doc || doc === watchedIframeDoc) return;
+    watchedIframeDoc = doc;
+    doc.addEventListener('error', (event) => {
+      const target = event.target;
+      if (target && (target.src || target.href)) iframeAssetFailed = true;
+    }, true);
+  };
+  /* error 事件可能在上面的監聽掛上之前就發生（資源一請求就失敗時），補一個不靠事件的判斷：
+     iframe 的 srcdoc 文件已經 complete（所有 JS/CSS 不是載完就是失敗），過了一段時間裡面仍然
+     什麼都沒畫出來，就是載入失敗。還在下載中的文件不會是 complete，慢網路不會被誤判。 */
+  const IFRAME_EMPTY_GRACE_MS = 8000;
+  let iframeCompleteEmptySince = 0;
+  const checkIframeLoadedButEmpty = (iframe) => {
+    let doc;
+    try { doc = iframe.contentDocument; } catch (e) { doc = null; }
+    const loadedButEmpty = !!doc && doc.URL === 'about:srcdoc' && doc.readyState === 'complete' &&
+      !(doc.body && doc.body.textContent.trim());
+    if (!loadedButEmpty) { iframeCompleteEmptySince = 0; return; }
+    if (!iframeCompleteEmptySince) iframeCompleteEmptySince = Date.now();
+    else if (Date.now() - iframeCompleteEmptySince > IFRAME_EMPTY_GRACE_MS) iframeAssetFailed = true;
+  };
+  const btaFailed = () => !!window.__cbfBtaFailure || iframeAssetFailed;
+
   const checkCalendar = () => {
     if (calendarReady) return true;
     const widget = document.getElementById('bta-product-widget');
     const iframe = widget && widget.querySelector('iframe');
+    if (iframe) {
+      watchIframeAssetErrors(iframe);
+      checkIframeLoadedButEmpty(iframe);
+    }
     if (iframe && !stepUiRevealed) {
       stepUiRevealed = true;
       revealStepUI();
@@ -1756,6 +1870,9 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     if (!hasRealIframeContent(widget)) return false;
 
     calendarReady = true;
+    /* 先把欄高同步成日曆的實際高度，再移除載入提示——ResizeObserver 是非同步的，不先同步的話
+       載入提示一拿掉、欄高還沒寫入的那一兩個畫面，整欄會縮到只剩進度條。 */
+    if (syncCalendarColumnHeight) syncCalendarColumnHeight();
     removeCalendarLoading();
     removeCalendarFallback();
     if (observer) observer.disconnect();
@@ -1784,30 +1901,28 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
       }
     }, 150);
 
-    /* BTA 的腳本還在下載（網路慢）時，沒有 iframe 不代表崩潰，不能顯示備援；要等 BTA 所有
-       <script> 都載入完成、且靜止一段時間後仍然沒有 iframe，才判定為崩潰。讀不到 Resource Timing
-       （例如緩衝區滿了）時一律當成還在載入，最晚由 CALENDAR_SLOW_LOAD_TIMEOUT_MS 接手。 */
-    const BTA_IDLE_GRACE_MS = 6000;
-    const btaScriptsSettled = () => {
-      const entries = performance.getEntriesByType('resource').filter((entry) => /bookthatapp/.test(entry.name));
-      if (!entries.length) return false;
-      const finished = new Set(entries.map((entry) => entry.name));
-      const scripts = Array.from(document.querySelectorAll('script[src*="bookthatapp"]'));
-      if (scripts.some((script) => !finished.has(script.src))) return false;
-      const lastActivity = Math.max(...entries.map((entry) => entry.responseEnd));
-      return performance.now() - lastActivity > BTA_IDLE_GRACE_MS;
-    };
+    /* 2026-10-06：原本「沒有 iframe 且 BTA 腳本靜止 6 秒」的推測規則在慢速 3G 誤觸發過（16.9 秒、
+       其實沒有崩潰），已移除。現在 CALENDAR_FALLBACK_TIMEOUT_MS 之後只有收到確定失敗的訊號才顯示
+       failed 備援；沒有訊號就繼續等到 CALENDAR_SLOW_LOAD_TIMEOUT_MS，顯示 slow 版。 */
     const decideFallback = () => {
       if (calendarReady) return;
-      const widget = document.getElementById('bta-product-widget');
-      if (!(widget && widget.querySelector('iframe')) && btaScriptsSettled()) {
-        showCalendarFallback();
+      if (btaFailed()) {
+        showCalendarFallback('failed');
         return;
       }
-      fallbackTimer = setTimeout(decideFallback, 1000);
+      fallbackTimer = setTimeout(decideFallback, 500);
     };
     fallbackTimer = setTimeout(decideFallback, CALENDAR_FALLBACK_TIMEOUT_MS);
-    slowFallbackTimer = setTimeout(showCalendarFallback, CALENDAR_SLOW_LOAD_TIMEOUT_MS);
+    /* 到上限時 BTA 連執行的跡象都沒有（它一執行就會注入自己的 CSS 與 .widget-loading-indicator），
+       代表 bootstrap 腳本根本沒載到——它在 <head> 裡，失敗的 error 事件早於本檔案的監聽，收不到，
+       只能用這個方式補判。這種情況不是「還在載入」，照確定失敗處理。 */
+    const btaStarted = () =>
+      !!document.querySelector('.widget-loading-indicator, #bta-product-widget') ||
+      Array.from(document.querySelectorAll('style')).some((style) => style.textContent.indexOf('widget-loading-indicator') !== -1);
+    slowFallbackTimer = setTimeout(
+      () => showCalendarFallback(btaFailed() || !btaStarted() ? 'failed' : 'slow'),
+      CALENDAR_SLOW_LOAD_TIMEOUT_MS
+    );
   }
 })();
 </script>

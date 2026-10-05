@@ -4,7 +4,7 @@
     {
       "name": "shopify-theme-dev",
       "runtimeExecutable": "shopify",
-      "runtimeArgs": ["theme", "dev", "--theme", "147355926611"],
+      "runtimeArgs": ["theme", "dev", "--theme", "188842377299"],
       "port": 9292,
       "autoPort": true
     }
