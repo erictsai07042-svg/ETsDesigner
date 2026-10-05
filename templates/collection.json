@@ -14,6 +14,7 @@
       "blocks": {
         "text_yMa3yE": {
           "type": "text",
+          "disabled": true,
           "settings": {
             "text": "<h2>新品上市</h2>",
             "width": "fit-content",
@@ -39,6 +40,7 @@
         },
         "text_PjejkV": {
           "type": "text",
+          "disabled": true,
           "settings": {
             "text": "<p>精心製作，深受顧客喜愛。</p>",
             "width": "fit-content",
@@ -65,6 +67,7 @@
         "button_zBhHbm": {
           "type": "button",
           "name": "t:names.button",
+          "disabled": true,
           "settings": {
             "label": "立即選購",
             "link": "shopify://collections/all",
@@ -86,11 +89,13 @@
       "name": "t:names.hero",
       "settings": {
         "media_type_1": "image",
+        "image_1": "shopify://shop_images/Snowboard_equipment_in_snowy_Hok__2K_202609072136.png",
         "media_type_2": "image",
         "stack_media_on_mobile": false,
         "custom_mobile_media": false,
         "media_type_1_mobile": "image",
         "media_type_2_mobile": "image",
+        "enable_parallax": false,
         "link": "",
         "open_in_new_tab": false,
         "content_direction": "column",
@@ -183,7 +188,8 @@
           "name": "ER Style (visual only)",
           "settings": {
             "custom_liquid": "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap\" rel=\"stylesheet\">\n<style>\n/* 2026-09-05：/collections/all（跟其他共用 templates/collection.json 的 collection 頁）\n   卡片視覺比照 /pages/equipment-rental 風格。範圍用 main[data-template=\"collection\"]\n   限定在 collection 模板頁面，不會外溢到商品頁推薦區塊、購物車頁「You may also like」\n   等其他地方共用的同一批 .product-card/.card-gallery class。只加樣式，完全沒有動到\n   main-collection 原生的 filters（篩選/排序）、無限捲動分頁的任何邏輯或標記，也沒有動\n   collection 本身的商品收錄邏輯（星野商品已排除的結果不受影響）。 */\nmain[data-template=\"collection\"] {\n  --er-navy: #1A2E4A;\n  --er-navy-hover: #2D5F8A;\n  --er-frost-bg: #E8F4FA;\n  --er-frost-border: #B8D9ED;\n}\nmain[data-template=\"collection\"] .product-card {\n  font-family: 'Inter', 'Noto Sans TC', sans-serif;\n  background: var(--er-frost-bg) !important;\n  border: 1px solid var(--er-frost-border) !important;\n  border-radius: 16px !important;\n  overflow: hidden;\n  box-shadow: 0 2px 8px rgba(26, 46, 74, 0.06);\n  transition: transform 0.2s ease, box-shadow 0.2s ease;\n}\nmain[data-template=\"collection\"] .product-card:hover {\n  transform: translateY(-4px);\n  box-shadow: 0 10px 28px rgba(26, 46, 74, 0.12);\n}\nmain[data-template=\"collection\"] .product-card .card-gallery {\n  --gallery-aspect-ratio: 4 / 3 !important;\n  aspect-ratio: 4 / 3 !important;\n}\nmain[data-template=\"collection\"] .product-card .card-gallery img {\n  transition: transform 0.4s ease;\n}\nmain[data-template=\"collection\"] .product-card:hover .card-gallery img {\n  transform: scale(1.04);\n}\nmain[data-template=\"collection\"] .product-card > :last-child {\n  background: #ffffff;\n  padding: 20px 22px 24px;\n}\nmain[data-template=\"collection\"] .product-card a.contents {\n  font-size: 17px;\n  font-weight: 600;\n  color: #111111;\n}\nmain[data-template=\"collection\"] .product-card product-price {\n  margin-top: 8px;\n  display: block;\n}\nmain[data-template=\"collection\"] .product-card product-price .price {\n  font-family: 'Inter', sans-serif;\n  font-size: 22px;\n  font-weight: 700;\n  color: var(--er-navy);\n}\nmain[data-template=\"collection\"] .product-card product-price .compare-at-price {\n  font-size: 14px;\n  color: #5A6A78;\n}\nmain[data-template=\"collection\"] .product-card .ntv-cta-wrap {\n  margin-top: 16px;\n  padding-top: 16px;\n  border-top: 1px solid var(--er-frost-border);\n}\nmain[data-template=\"collection\"] .product-card .ntv-cta-btn {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 8px;\n  width: 100%;\n  padding: 13px;\n  border-radius: 16px;\n  border: none;\n  font-family: 'Inter', 'Noto Sans TC', sans-serif;\n  font-size: 15px;\n  font-weight: 500;\n  cursor: pointer;\n  background: var(--er-navy);\n  color: #E8F4FA;\n  letter-spacing: 0.02em;\n  text-decoration: none;\n  transition: all 0.3s ease;\n}\nmain[data-template=\"collection\"] .product-card .ntv-cta-btn:hover {\n  background: var(--er-navy-hover);\n  transform: translateY(-1px);\n  box-shadow: 0 4px 12px rgba(26, 46, 74, 0.2);\n}\nmain[data-template=\"collection\"] .product-card .ntv-cta-arr {\n  display: inline-block;\n  transition: transform 0.2s ease;\n}\nmain[data-template=\"collection\"] .product-card .ntv-cta-btn:hover .ntv-cta-arr {\n  transform: translateX(4px);\n}\n@media (max-width: 749px) {\n  main[data-template=\"collection\"] .product-card > :last-child {\n    padding: 14px 16px 18px;\n  }\n}\n</style>"
-          }
+          },
+          "blocks": {}
         }
       },
       "block_order": [
@@ -208,6 +214,7 @@
         "background_media": "none",
         "video_position": "cover",
         "background_image_position": "cover",
+        "enable_parallax": false,
         "border": "none",
         "border_width": 1,
         "border_opacity": 100,
@@ -382,7 +389,8 @@
                   "name": "CTA Button (visual only)",
                   "settings": {
                     "custom_liquid": "{% if closest.product %}<div class=\"ntv-cta-wrap\"><a class=\"ntv-cta-btn\" href=\"{{ closest.product.url }}\">立即預訂 <span class=\"ntv-cta-arr\">→</span></a></div>{% endif %}"
-                  }
+                  },
+                  "blocks": {}
                 }
               },
               "block_order": [

@@ -580,5 +580,28 @@ if (topBtn) {
   });
 </script>
 
+{% if request.path == '/collections/all' %}
+  {% comment %}
+    「/collections/all」是Shopify自動產生的虛擬集合，後台完全查不到、也沒有可編輯的
+    Collection資料（用Admin GraphQL API查過，全店只有9個真實collection，都沒有
+    handle為"all"的），標題「商品」是Shopify系統層級的預設字串，不是theme或Admin
+    可以直接改的資料欄位。collection.json裡的Collection title文字block本身用的是
+    「text」設定型別，不允許放Liquid條件判斷（{% if %}），只能放白名單內的
+    動態來源token，所以沒辦法在該處直接判斷handle做例外處理。
+    改用純前端DOM文字替換，只在這個網址生效，不影響其他真實collection頁面。
+  {% endcomment %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var heading = document.querySelector('h2');
+      if (heading && heading.textContent.trim() === '商品') {
+        heading.textContent = '所有商品';
+      }
+      if (document.title.indexOf('商品') === 0) {
+        document.title = document.title.replace(/^商品/, '所有商品');
+      }
+    });
+  </script>
+{% endif %}
+
   </body>
 </html>

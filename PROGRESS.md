@@ -1,6 +1,36 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-09-17
+最後更新：2026-10-01
+
+## 📌 2026-10-01 收尾彙整：12/22、12/23名額事件、BTA容量架構、今日已完成項目
+
+### 12/22、12/23名額事件（根因與處置）
+- **舊版商品（無星號，widget 111783）**：實測BTA widget原始資料，`capacity.type:0`（Product-Based，固定3）、`resources:[]`（完全沒指派教練）。全天、半天舊商品結果一致。**舊版訂單在資料結構上無法佔用教練容量池，BTA後台Resource下拉選單是空的屬正常現象，不是故障**，業主無法用UI補指派，只能人工記住這些舊訂單佔用的人力。舊商品目前Shopify狀態為ARCHIVED（無公開網址）。
+- **新版商品（星號，widget 124456）**：`capacity.type:2`（Resource-Based）、`quantity:4`，Resources為阿哲/Angus/Kris/Una（OR邏輯，4位教練共用）。
+- **Cally的3筆12/23新訂單**（業主回報）：系統分派Kris/Una/阿哲，BTA防呆不允許改成同一位教練。
+- **12/22 Blackout（#18252619）**：業主已建立（Start/Finish 2026-12-22、Scope: Start Date、全天旺季+半天旺季、All Variants），**已實測驗證生效**：API `available_slot_count`與`timeslots[0].available`皆歸零（status 2），前台日曆12/22 `disabled:true`，12/21、12/23當下未受影響。**封鎖前API兩欄位曾互相矛盾**（`available_slot_count:1` vs `timeslots[0].available:3`，12/23同期兩欄位一致為1），顯示12/22當天計算本身不穩定。（驗證提醒：舊分頁會讀到舊快取，須重新整理頁面再查。）
+- **12/23 Blackout**：業主回報已設定，**實測已生效**（API兩欄位皆0、半天旺季日曆12/22+12/23皆`disabled:true`、12/21與12/24未受影響）；**Blackout編號與細部設定未經我方核對，編號待確認**。
+- **歷史訂單Resource空白**：我方無BTA訂單明細的API權限（BTA後台2FA不繞過、Shopify訂單read scope未授權），無法列出「Confirmed但Resource空白」清單；需業主在BTA後台依Created at排序自行核對（含9月以後新單是否也有空白）。
+
+### 合併訂單（Cally 12/23 三筆 #1139/#1136/#1134）
+**尚未執行。** 查證結論：BTA官方文件對「刪除/取消booking是否連動Shopify訂單（退款/取消）」完全沒寫；BTA確有「客人自助取消時是否自動退款」的可設定選項，但admin端刪除是否走同一條路徑查不到保證。**需先問BTA客服確認，再操作。** 建議順序：先在保留的訂單加Guest List（可逆）→ 確認指派1位教練無驗證錯誤 → 查Cancellation Configuration自動退款設定 → 最後才刪另外2筆 → 立刻檢查對應Shopify訂單狀態。Guest List與數量欄位在BTA資料模型中是分開欄位；我們自訂的「實際參加人數」是Shopify line item properties，不會隨BTA合併自動更新。
+
+### BTA取消/改期設定
+客人自助取消與改期皆為disabled（業主回報）。
+
+### 待查（指令已擬好，尚未回報）
+BTA Resource容量是否判斷全天/半天**時段重疊**，還是只數人頭。
+
+### 今日其他完成項目
+- **BTA日曆loading提示**（`snippets/course-booking-form.liquid`）：等待掛載期間顯示旋轉loading；iframe標籤出現≠內容就緒，已統一改用「iframe內部真的有文字內容」判斷顯示/收起loading與LINE備援（12秒逾時門檻不變）。第一版 `b7b78e7` 已commit；兩次追修（內容就緒判斷、補顯示loading空窗）已上線，隨本次收尾commit。業主確認loading有看到。
+- **`/collections/all` 標題「商品」→「所有商品」**：該頁是Shopify自動虛擬集合（Admin API查全店9個collection皆無handle `all`），後台無法編輯；`collection.json` 的text設定不允許Liquid邏輯，改用`layout/theme.liquid`內僅限該網址的DOM文字替換（含分頁標題）。
+- **BTA日曆掛載不穩定**：近期commit皆未碰課程商品頁，判斷為既有已知現象（BTA幽靈widget `querySelectorAll` crash），無法證明是否惡化，需業主提供更具體重現頻率。
+- **首頁已完成項目與commit**：Hero Sticky Stack Scroll＋關於我們banner背景位移＋Hero標題視覺調整（`02b0cff`）、Footer快速連結3個空連結修復（`c7185ca`）、Judge.me評論輪播撐滿寬度（`6aa91d8`）。
+- **暫緩**：首頁「滑雪日誌／滑雪攻略」混合文章區塊（評估為低～中複雜度、純Liquid新增自訂section；原生`featured-blog-posts`僅能單選一個Blog；目前文章僅1+2篇）。
+
+---
+
+## 📋 以下為2026-09-17記錄
 
 ## ✅ 2026-09-17：首頁「學員五星好評」Judge.me輪播撐滿容器寬度——本機已修復並驗證通過，尚未push上正式站
 

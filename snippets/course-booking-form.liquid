@@ -1621,9 +1621,57 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     if (existing) existing.remove();
   };
 
+  /* 2026-10-02（追修）：業主反饋 loading 消失後、真正日曆出現前，還是會有約 1~2 秒空白。
+     根因：<iframe> 標籤本身出現，不代表裡面的 srcdoc 內容已經載入完成——跟上面
+     setupBtaContentEnhancements 的 tryAttach 踩過同一個坑（已實機驗證 contentDocument
+     同源可讀，第一次偵測到的 document 常常還是瀏覽器自動產生的空白佔位文件，真正內容
+     是之後整個被換掉，不是同一個物件）。統一改用「iframe 內部真的有文字內容」當唯一的
+     判斷依據，不是只看 <iframe> 標籤存不存在。 */
+  const hasRealIframeContent = (widget) => {
+    const iframe = widget && widget.querySelector('iframe');
+    if (!iframe) return false;
+    let doc;
+    try { doc = iframe.contentDocument; } catch (e) { doc = null; }
+    return !!(doc && doc.body && doc.body.textContent.trim());
+  };
+
+  /* 2026-10-02（追修二）：上面那版只處理了「checkAndReveal 第一次就判斷 iframe 已存在」
+     這條路徑的收尾（內容還沒好時延後移除 loading），卻忘了回頭檢查「顯示 loading」
+     那端——showCalendarLoading 原本的防呆條件只看 <iframe> 標籤存不存在，一旦 iframe
+     標籤比內容早出現、checkAndReveal 第一次執行就直接判定「成功」，根本不會進入
+     `if (!checkAndReveal())` 這個顯示 loading 的分支，導致整段等待期間畫面完全空白、
+     連 loading 都沒有出現過（比原本「1~2 秒小縫隙」更明顯的破圖）。這次把 showCalendarLoading
+     自己的防呆條件也改成看「內容是否真的就緒」，並且在 checkAndReveal 判定 iframe 標籤
+     已出現、但內容還沒就緒時，主動補叫一次 showCalendarLoading，確保不管哪條時序路徑，
+     只要內容還沒真的就緒，loading 畫面一定有顯示，不會出現空窗。 */
+  const hideLoadingWhenContentReady = (widget) => {
+    if (hasRealIframeContent(widget)) { removeCalendarLoading(); return; }
+    const iframe = widget.querySelector('iframe');
+    if (!iframe) { removeCalendarLoading(); return; }
+    let done = false;
+    const tryRemove = () => {
+      if (done) return true;
+      if (hasRealIframeContent(widget)) {
+        done = true;
+        removeCalendarLoading();
+        return true;
+      }
+      return false;
+    };
+    iframe.addEventListener('load', tryRemove);
+    let attempts = 0;
+    const pollId = setInterval(() => {
+      attempts++;
+      if (tryRemove() || attempts > 40) {
+        clearInterval(pollId);
+        if (!done) removeCalendarLoading(); // 6 秒保底逾時，直接放手
+      }
+    }, 150);
+  };
+
   const showCalendarLoading = () => {
     const widget = document.getElementById('bta-product-widget');
-    if (widget && widget.querySelector('iframe')) return; // 已經掛載成功，不需要顯示中
+    if (hasRealIframeContent(widget)) return; // 內容真的就緒才不顯示，不是標籤存在就不顯示
     if (document.getElementById('bta-calendar-loading')) return;
     const mountTarget = widget || document.getElementById('booking-current-date-picker');
     if (!mountTarget) return;
@@ -1646,7 +1694,10 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
 
   const showCalendarFallback = () => {
     const widget = document.getElementById('bta-product-widget');
-    if (widget && widget.querySelector('iframe')) return; // 已經正常掛載，不需要備援
+    /* 判斷標準統一改成「內容真的就緒」，不是只看 <iframe> 標籤——避免「標籤出現但內容
+       遲遲不來」這種邊界情況下，12 秒到了卻因為標籤已存在就被這裡擋下不顯示備援，
+       結果留下的是沒有任何提示的空白，比顯示備援畫面更糟。 */
+    if (hasRealIframeContent(widget)) return; // 已經正常掛載，不需要備援
     if (document.getElementById('bta-calendar-fallback')) return;
     removeCalendarLoading(); // 12 秒到、換成備援畫面，移除「載入中」提示避免兩者疊在一起
     /* 實測發現：崩潰有時發生在 BTA 把我們模板原本渲染的 #bta-product-widget 整個移除、
@@ -1697,7 +1748,8 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
   const checkAndReveal = () => {
     const widget = document.getElementById('bta-product-widget');
     if (widget && widget.querySelector('iframe')) {
-      removeCalendarLoading();
+      if (!hasRealIframeContent(widget)) showCalendarLoading(); // 標籤已出現、內容還沒就緒：確保 loading 有顯示，不留空窗
+      hideLoadingWhenContentReady(widget);
       removeCalendarFallback();
       revealStepUI();
       positionWidgetOverlay();
