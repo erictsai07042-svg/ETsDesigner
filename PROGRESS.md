@@ -1,6 +1,53 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-10-01
+最後更新：2026-10-06
+
+## 📌 2026-10-05～06：iPhone 課程頁日曆空白事件——根因、處置、載入體驗優化
+
+**現象**：業主與 Eric 在 iPhone Safari 穩定重現課程頁日曆區塊空白，LINE 備援也沒出現。
+
+### 根因（先前稱為「幽靈 widget」的問題，其實是我們模板造成的）
+- `snippets/course-booking-form.liquid` 原本預先渲染了一個 `<div id="bta-product-widget">`。BTA 產品 widget 的建構式開頭是「頁面上已有 `#bta-product-widget` 就直接 return」，之後 `safeRender` 用到沒初始化的物件而失敗，進入 `rollback`，`rollback` 再對 undefined 呼叫 `querySelectorAll` 崩潰，並把該元素設成 `display:none`。
+- BTA 另有一段程式會先移除那個元素，搶得贏就正常、慢了就崩潰，所以慢的裝置（iPhone）幾乎必中，桌機偶發。`/apps/bookthatapp/widgets/null` 那支請求在成功與失敗時都會出現，不是原因。
+- **對照實驗**（Playwright WebKit、iPhone 14 模擬、8 頁同時載入）：保留該元素 8/8 崩潰；移除後 16/16 成功，日曆位置與尺寸不變。
+- 備援沒出現的原因：備援與 loading 被插進已被隱藏的 widget 裡（存在於 DOM、尺寸 0×0）；另外只要 `<iframe>` 標籤一出現就取消備援計時器，內容沒載進來時畫面永久空白。
+
+### 處置
+| 階段 | 內容 | commit |
+|---|---|---|
+| 止血版 | 備援與 loading 改掛到可見的 `#booking-current-date-picker`；計時器改成日曆真的可見才取消；`predictive-search.js` 補 `requestIdleCallback` 匯入（Safari 無原生 API） | `a59c59d` |
+| 根治版 | 刪除預先渲染的 `<div id="bta-product-widget">`，改由 BTA 自行建立（**不要再加回來**） | `a59c59d` |
+| 三項優化 | (1) 對 `cdn.bookthatapp.com` 加 `preconnect`／`dns-prefetch`；(2) 預約區塊一開頁就可見、載入提示靜態寫在 HTML 並固定為日曆高度 512px，同時修掉「日曆欄縮成 44px 再彈回」的版面跳動；(3) 備援分成「確定失敗」（原文案）與「只是慢」（中性文案＋保留轉圈）兩種，12 秒規則改成只在收到確定失敗訊號時觸發，移除在慢速 3G 誤觸發過的「腳本靜止 6 秒」推測，上限仍為 25 秒 | `2b1d0ba` |
+
+三個版本皆已在正式站（Designer_Eric #147355926611）上線；Eric 於 2026-10-06 以 iPhone 實測確認改善明顯。`theme pull` 比對正式站、development 主題與本機的 `course-booking-form.liquid` 三者一致。
+
+### 量測結論
+- **實際速度沒有變快**：根治版與優化只是不再失敗、不再空白。4G 下日曆可點選約 5～11 秒（中位數約 7～8 秒），慢速 3G 約 43～61 秒。
+- 這是 BTA 第三方載入架構的限制，我們無法控制：bootstrap → 等頁面解析 → 程式區塊 → `widgets/124456` XHR（4G 約 1.1 秒）→ 建立 iframe → `cdn.bookthatapp.com` 54 個未打包檔案（約 269 KB）→ 繪製，全程串列。
+- 我們自己的腳本沒有任何固定等待；日曆可見與 BTA 內容就緒是同一時間點。
+- 優化後的差異在感受面：4G 下原本載入回饋出現後整塊會再消失 1.2～1.4 秒（最長約 3 秒）、3G 約 8～11 秒，現在為 0；版面跳動消除。`preconnect` 的效益在模擬節流下量不到，估計 4G 省 0.3～0.7 秒。
+- 量測方法限制：Playwright WebKit 無內建節流，以攔截請求模擬延遲與頻寬；非真機、未模擬 iPhone CPU；優化前後對照那一輪因同時跑多組而雜訊偏大。
+
+### 驗證（development 主題 188842377299 → 正式站）
+- 8 頁同時載入（全天旺季、半天旺季）：皆 8/8 出現日曆、無崩潰。
+- 備援回歸：封鎖 BTA CDN（約 12.7 秒）、封鎖 bootstrap（25.4 秒）、模擬 BTA 腳本崩潰（約 12.7 秒）皆顯示「確定失敗」備援且可見；延遲後成功的情況不誤觸發，超過 25 秒時顯示中性文案並在日曆出現後自動撤下。
+- 桌機 Chromium：日曆正常、兩欄版面不變。
+- 完整預約流程（選日期 → Stage 2 → 購物車 → Stage 3 彈窗 → `/cart.js` properties）：根治版全天旺季、半天旺季各通過一次；優化版的中間版本全天旺季通過一次。
+
+### 未完成／待辦
+- **優化最終版的完整預約流程尚未由我方驗證**：自動化測試量太大，Shopify 對測試機 IP 的 `/cart/add.js`、`/cart/update.js` 回 429（Too many attempts），等待約 20 分鐘未解除。**待 Eric 實測補上（走完一次預約到購物車）。**
+- **待評估：Google 追蹤碼（`gtag/js`）在課程頁重複載入 5 次（約 785 KB）**，加上 Facebook Pixel 約 200 KB，與 BTA 搶頻寬。來源是 Shopify 應用程式／像素，不在主題程式碼內，可請業主確認是否能整併。
+- Header 背景半透明（`scheme-1` 背景為 `#ffffffe3`）造成手機捲動時內容從 Header 底下透出，方案待 Eric 決定（只改 Header 底色，或改 `scheme-1` 本身）。
+- `theme check` 對 `course-booking-form.liquid` 回報一個 `LiquidHTMLSyntaxError`（主要 `<script>` 區塊），在 `9fb760f` 就已存在，不影響運作，未處理。
+- 測試期間於 2027/2/23、2/24、2/25、2/28 產生過 BTA 暫時保留（帳號/ID `test_cc_verify_1005`），10/06 查詢這四天皆顯示 4/4 可訂，無殘留。
+
+### 流程教訓
+- **`shopify theme dev --theme <live id>` 會把本機存檔即時同步上正式站**。這次止血版就是在驗證前被同步上線的。`.claude/launch.json` 已改指向 development 主題 188842377299；之後一律先推 development 主題驗證，正式站由 Eric 以 `shopify theme push --only …` 推送。
+- 驗證「備援是否出現」不能只看 DOM 是否存在，要看實際尺寸（`getClientRects`）；先前桌機 Chrome 的查證因此漏掉。
+- iOS 問題要用 WebKit 引擎並加上併發或節流才重現得出來，單頁桌機載入多半正常。
+- 大量自動化載入會觸發 Shopify 對購物車 API 的 IP 限流，量測與流程測試要分開、控制次數。
+
+---
 
 ## 📌 2026-10-01 收尾彙整：12/22、12/23名額事件、BTA容量架構、今日已完成項目
 
