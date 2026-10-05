@@ -789,7 +789,15 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
                 <div class="step-item" data-step="3"><span class="step-dot">3</span><span>加購</span></div>
               </div>
             </div>
-            <div id="bta-product-widget" class="bta-calendar-picker-canvas"></div>
+            {% comment %}
+              2026-10-05：這裡原本預先渲染了一個 #bta-product-widget。BTA 產品 widget 的建構式一開頭就是
+              「頁面上已經有 #bta-product-widget 就直接 return」，接著 safeRender 用到沒初始化的物件、
+              進 rollback 再對 undefined 呼叫 querySelectorAll 而崩潰（先前稱為「幽靈 widget」的問題），
+              rollback 還會把這個元素設成 display:none。BTA 另有一段程式會先移除它，搶得贏就正常、
+              慢的裝置（iPhone）幾乎必輸。WebKit 8 頁同時載入：保留 8/8 崩潰、拿掉 16/16 成功。
+              BTA 會自己建立 #bta-product-widget，下方腳本一律用 getElementById 現查，不依賴這個節點。
+              不要再加回來。
+            {% endcomment %}
           </div>
         </div>
       </div> <!-- /course-calendar-column 結束 -->
@@ -1606,6 +1614,8 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
      一併誤判，備援訊息閃一下又被真正日曆蓋掉，反而更困惑。 */
   const CALENDAR_FALLBACK_TIMEOUT_MS = 12000;
 
+  let calendarReady = false;
+
   const removeCalendarFallback = () => {
     const existing = document.getElementById('bta-calendar-fallback');
     if (existing) existing.remove();
@@ -1632,48 +1642,23 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     if (!iframe) return false;
     let doc;
     try { doc = iframe.contentDocument; } catch (e) { doc = null; }
-    return !!(doc && doc.body && doc.body.textContent.trim());
+    /* 2026-10-05：iframe 有內容但 widget 本身還被 BTA 設成 display:none 時，客人一樣看不到，
+       不能算「就緒」——加上 getClientRects 確認 iframe 真的有被畫出來。 */
+    return !!(doc && doc.body && doc.body.textContent.trim()) && iframe.getClientRects().length > 0;
   };
 
-  /* 2026-10-02（追修二）：上面那版只處理了「checkAndReveal 第一次就判斷 iframe 已存在」
-     這條路徑的收尾（內容還沒好時延後移除 loading），卻忘了回頭檢查「顯示 loading」
-     那端——showCalendarLoading 原本的防呆條件只看 <iframe> 標籤存不存在，一旦 iframe
-     標籤比內容早出現、checkAndReveal 第一次執行就直接判定「成功」，根本不會進入
-     `if (!checkAndReveal())` 這個顯示 loading 的分支，導致整段等待期間畫面完全空白、
-     連 loading 都沒有出現過（比原本「1~2 秒小縫隙」更明顯的破圖）。這次把 showCalendarLoading
-     自己的防呆條件也改成看「內容是否真的就緒」，並且在 checkAndReveal 判定 iframe 標籤
-     已出現、但內容還沒就緒時，主動補叫一次 showCalendarLoading，確保不管哪條時序路徑，
-     只要內容還沒真的就緒，loading 畫面一定有顯示，不會出現空窗。 */
-  const hideLoadingWhenContentReady = (widget) => {
-    if (hasRealIframeContent(widget)) { removeCalendarLoading(); return; }
-    const iframe = widget.querySelector('iframe');
-    if (!iframe) { removeCalendarLoading(); return; }
-    let done = false;
-    const tryRemove = () => {
-      if (done) return true;
-      if (hasRealIframeContent(widget)) {
-        done = true;
-        removeCalendarLoading();
-        return true;
-      }
-      return false;
-    };
-    iframe.addEventListener('load', tryRemove);
-    let attempts = 0;
-    const pollId = setInterval(() => {
-      attempts++;
-      if (tryRemove() || attempts > 40) {
-        clearInterval(pollId);
-        if (!done) removeCalendarLoading(); // 6 秒保底逾時，直接放手
-      }
-    }, 150);
-  };
+  /* 2026-10-05：loading／LINE 備援一律掛在 #booking-current-date-picker（穩定且可見的父層），
+     當 widget 的兄弟節點，不再放進 #bta-product-widget 裡面。WebKit 實測：BTA 幽靈 widget
+     崩潰後 #bta-product-widget 還留在頁面上，但被 BTA 設成 display:none !important，
+     插在裡面的備援訊息存在於 DOM、尺寸卻是 0×0，客人看到的就是整塊空白（iPhone 穩定重現）。 */
+  const getCalendarMountTarget = (widget) =>
+    document.getElementById('booking-current-date-picker') || (widget && widget.parentElement);
 
   const showCalendarLoading = () => {
     const widget = document.getElementById('bta-product-widget');
     if (hasRealIframeContent(widget)) return; // 內容真的就緒才不顯示，不是標籤存在就不顯示
     if (document.getElementById('bta-calendar-loading')) return;
-    const mountTarget = widget || document.getElementById('booking-current-date-picker');
+    const mountTarget = getCalendarMountTarget(widget);
     if (!mountTarget) return;
 
     const loading = document.createElement('div');
@@ -1697,14 +1682,10 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     /* 判斷標準統一改成「內容真的就緒」，不是只看 <iframe> 標籤——避免「標籤出現但內容
        遲遲不來」這種邊界情況下，12 秒到了卻因為標籤已存在就被這裡擋下不顯示備援，
        結果留下的是沒有任何提示的空白，比顯示備援畫面更糟。 */
-    if (hasRealIframeContent(widget)) return; // 已經正常掛載，不需要備援
+    if (calendarReady || hasRealIframeContent(widget)) return; // 已經正常掛載，不需要備援
     if (document.getElementById('bta-calendar-fallback')) return;
     removeCalendarLoading(); // 12 秒到、換成備援畫面，移除「載入中」提示避免兩者疊在一起
-    /* 實測發現：崩潰有時發生在 BTA 把我們模板原本渲染的 #bta-product-widget 整個移除、
-       但還沒來得及插入替代節點的中間狀態，這時 widget 是 null，不是「內容是空的」。
-       這種情況改插進 #booking-current-date-picker（穩定父層，BTA 不會替換掉這個節點），
-       避免因為找不到 widget 就整段放棄、讓客人看到的還是空白。 */
-    const mountTarget = widget || document.getElementById('booking-current-date-picker');
+    const mountTarget = getCalendarMountTarget(widget);
     if (!mountTarget) return; // 連穩定父層都不存在，代表這頁根本不是課程商品頁
     revealStepUI();
     /* 用 DOM API 逐一組裝節點，不用 innerHTML 塞一整串 HTML 字串——避免這段字串裡的
@@ -1745,45 +1726,88 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
     mountTarget.appendChild(fallback);
   };
 
-  const checkAndReveal = () => {
+  /* 2026-10-05：偵測流程重寫。原本只要 <iframe> 標籤一出現就判定成功、取消 12 秒備援計時器，
+     之後內容若沒載進來（WebKit 封鎖 BTA CDN 可重現），loading 6 秒後自動移除、備援也不會再出現，
+     畫面永久空白。現在把「標籤出現」跟「內容就緒」拆成兩件事：
+       - 標籤出現：只做一次性的 STEP UI 顯示／定位／內容增強掛載。
+       - 內容就緒（calendarReady）：才移除 loading 與備援、停掉所有計時器與監聽。
+     備援觸發時機：12 秒時連 iframe 標籤都沒有（幽靈 widget 崩潰的特徵）才顯示；標籤已出現代表
+     BTA 還在正常載入，再多等到 CALENDAR_SLOW_LOAD_TIMEOUT_MS，避免載入慢但會成功時先閃出備援。
+     備援顯示後仍持續偵測，日曆之後若載入成功會自動撤下備援，客人不用重新整理。 */
+  const CALENDAR_SLOW_LOAD_TIMEOUT_MS = 25000;
+  let stepUiRevealed = false;
+  let observer = null;
+  let fastPollId = null;
+  let slowPollId = null;
+  let fallbackTimer = null;
+  let slowFallbackTimer = null;
+
+  const checkCalendar = () => {
+    if (calendarReady) return true;
     const widget = document.getElementById('bta-product-widget');
-    if (widget && widget.querySelector('iframe')) {
-      if (!hasRealIframeContent(widget)) showCalendarLoading(); // 標籤已出現、內容還沒就緒：確保 loading 有顯示，不留空窗
-      hideLoadingWhenContentReady(widget);
-      removeCalendarFallback();
+    const iframe = widget && widget.querySelector('iframe');
+    if (iframe && !stepUiRevealed) {
+      stepUiRevealed = true;
       revealStepUI();
       positionWidgetOverlay();
       setupBtaContentEnhancements(widget);
-      return true;
+      iframe.addEventListener('load', checkCalendar);
     }
-    return false;
+    if (!hasRealIframeContent(widget)) return false;
+
+    calendarReady = true;
+    removeCalendarLoading();
+    removeCalendarFallback();
+    if (observer) observer.disconnect();
+    clearInterval(fastPollId);
+    clearInterval(slowPollId);
+    clearTimeout(fallbackTimer);
+    clearTimeout(slowFallbackTimer);
+    return true;
   };
-  if (!checkAndReveal()) {
+
+  if (!checkCalendar()) {
     showCalendarLoading();
-    const observer = new MutationObserver((mutations, obs) => {
-      if (checkAndReveal()) {
-        obs.disconnect();
-        clearInterval(pollId);
-        clearTimeout(fallbackTimer);
-      }
-    });
+    observer = new MutationObserver(checkCalendar);
     observer.observe(watchContainer, { childList: true, subtree: true });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    /* 保底輪詢：MutationObserver 可能因為 BTA 特殊的 DOM 操作方式而沒被觸發，
-       用輪詢確保無論如何都能在 iframe 出現後盡快抓到，15 秒後放棄避免無限跑。
-       ⚠️ 這裡「放棄」只停掉輪詢本身，不 disconnect 上面的 MutationObserver——
-       萬一 BTA 之後真的補上 iframe（幽靈 widget 問題時好時壞），還是能自動偵測到、
-       撤下備援訊息、換回真正的日曆，客人不需要手動重新整理頁面。 */
+    /* 保底輪詢：MutationObserver 看不到 iframe 內部文件的變化，也可能因為 BTA 特殊的 DOM 操作
+       方式沒被觸發。前 30 秒密集輪詢，之後降成每 0.5 秒一次持續到日曆就緒為止（備援已顯示時，
+       靠它偵測日曆後來才載入成功並撤下備援）。 */
     let pollAttempts = 0;
-    const pollId = setInterval(() => {
+    fastPollId = setInterval(() => {
       pollAttempts++;
-      if (checkAndReveal() || pollAttempts > 100) {
-        clearInterval(pollId);
+      if (checkCalendar() || pollAttempts > 200) {
+        clearInterval(fastPollId);
+        if (!calendarReady) slowPollId = setInterval(checkCalendar, 500);
       }
     }, 150);
 
-    const fallbackTimer = setTimeout(showCalendarFallback, CALENDAR_FALLBACK_TIMEOUT_MS);
+    /* BTA 的腳本還在下載（網路慢）時，沒有 iframe 不代表崩潰，不能顯示備援；要等 BTA 所有
+       <script> 都載入完成、且靜止一段時間後仍然沒有 iframe，才判定為崩潰。讀不到 Resource Timing
+       （例如緩衝區滿了）時一律當成還在載入，最晚由 CALENDAR_SLOW_LOAD_TIMEOUT_MS 接手。 */
+    const BTA_IDLE_GRACE_MS = 6000;
+    const btaScriptsSettled = () => {
+      const entries = performance.getEntriesByType('resource').filter((entry) => /bookthatapp/.test(entry.name));
+      if (!entries.length) return false;
+      const finished = new Set(entries.map((entry) => entry.name));
+      const scripts = Array.from(document.querySelectorAll('script[src*="bookthatapp"]'));
+      if (scripts.some((script) => !finished.has(script.src))) return false;
+      const lastActivity = Math.max(...entries.map((entry) => entry.responseEnd));
+      return performance.now() - lastActivity > BTA_IDLE_GRACE_MS;
+    };
+    const decideFallback = () => {
+      if (calendarReady) return;
+      const widget = document.getElementById('bta-product-widget');
+      if (!(widget && widget.querySelector('iframe')) && btaScriptsSettled()) {
+        showCalendarFallback();
+        return;
+      }
+      fallbackTimer = setTimeout(decideFallback, 1000);
+    };
+    fallbackTimer = setTimeout(decideFallback, CALENDAR_FALLBACK_TIMEOUT_MS);
+    slowFallbackTimer = setTimeout(showCalendarFallback, CALENDAR_SLOW_LOAD_TIMEOUT_MS);
   }
 })();
 </script>
