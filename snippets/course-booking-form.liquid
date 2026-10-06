@@ -703,11 +703,14 @@ sticky-add-to-cart, .product-sticky-bar, .shopify-section--sticky-add-to-cart {
    ========================================================================== */
 {% assign cbf_tags_string = product.tags | join: ',' %}
 {% if product.type == 'Course' or cbf_tags_string contains 'halfday' or cbf_tags_string contains 'fullday' %}
-  .product__description,
-  .product-single__description,
-  .product-description,
-  .rt,
-  .rte {
+  /* 2026-10-06：原本的選擇器沒有限定範圍，.rte 是主題所有富文字區塊共用的 class，連頁尾的標語
+     （「專業教練團隊・在地服務・中文小班教學…」）也一起被隱藏，課程頁頁尾因此少一段。
+     限定在 <main> 內，隱藏對象維持原樣（商品資訊區的四段說明、推薦商品標題），不再波及頁首頁尾。 */
+  #MainContent .product__description,
+  #MainContent .product-single__description,
+  #MainContent .product-description,
+  #MainContent .rt,
+  #MainContent .rte {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;

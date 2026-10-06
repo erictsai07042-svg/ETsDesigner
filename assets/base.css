@@ -3810,6 +3810,15 @@ fly-to-cart.fly-to-cart--sticky {
   flex-basis: var(--size-style-width);
 }
 
+/* 2026-10-06：手機版 .mobile-column 會把這個容器改成直排，上面的 flex-basis（自訂「寬度」百分比）
+   就變成作用在「高度」上，群組被壓得比內容矮、內容溢出蓋到下一個區塊（頁尾「精彩動態」被分隔線
+   穿過、「追蹤我們」貼著「滑雪日誌」）。直排時改回依內容決定高度。 */
+@media screen and (max-width: 749px) {
+  .layout-panel-flex--row.mobile-column>.group-block--width-custom {
+    flex-basis: auto;
+  }
+}
+
 /* Dimension utilities - Height */
 .group-block--height-fit {
   height: auto;
