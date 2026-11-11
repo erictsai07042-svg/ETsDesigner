@@ -236,6 +236,8 @@
     "media_type_info": "Features are populated from your menu links"
   },
   "names": {
+    "lcs_resort_cards": "Resort cards",
+    "lcs_resort": "Resort",
     "lcs_value_band": "Value band",
     "lcs_stat": "Stat",
     "lcs_persona_cards": "Persona cards",
@@ -754,6 +756,7 @@
     "below_media": "Below media"
   },
   "settings": {
+    "lcs_tag": "Area tag",
     "lcs_eyebrow": "Eyebrow",
     "lcs_heading": "Heading",
     "lcs_subheading": "Subheading",

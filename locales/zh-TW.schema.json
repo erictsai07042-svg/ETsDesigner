@@ -9,6 +9,8 @@
  */
 {
   "names": {
+    "lcs_resort_cards": "雪場卡",
+    "lcs_resort": "雪場",
     "lcs_value_band": "價值句與數字",
     "lcs_stat": "數字項目",
     "lcs_persona_cards": "旅客分流卡",
@@ -205,6 +207,7 @@
     "layered_slideshow": "分層輪播"
   },
   "settings": {
+    "lcs_tag": "區域標籤",
     "lcs_eyebrow": "小標",
     "lcs_heading": "標題",
     "lcs_subheading": "副標",

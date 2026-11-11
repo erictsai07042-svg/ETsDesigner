@@ -2713,7 +2713,7 @@
         "section_width": "page-width",
         "section_height": "small",
         "section_height_custom": 100,
-        "color_scheme": "",
+        "color_scheme": "scheme-d70d8720-967f-4c55-a89c-374169ac554f",
         "background_media": "none",
         "video_position": "cover",
         "background_image_position": "cover",
@@ -8325,7 +8325,7 @@
         "section_width": "page-width",
         "section_height": "",
         "section_height_custom": 50,
-        "color_scheme": "scheme-1",
+        "color_scheme": "scheme-2",
         "background_media": "none",
         "video_position": "cover",
         "background_image_position": "cover",
@@ -8614,19 +8614,72 @@
         "secondary_label": "LINE 問問題",
         "secondary_link": "https://line.me/R/ti/p/@455lfqzf"
       }
+    },
+    "lcs_resort_cards_1": {
+      "type": "lcs-resort-cards",
+      "blocks": {
+        "resort_teine": {
+          "type": "resort",
+          "settings": {
+            "name": "札幌手稻",
+            "tag": "SAPPORO TEINE",
+            "text": "從札幌市區搭 JR 加巴士約 45 分鐘就到，當天來回很方便。",
+            "link": "/pages/course-introduction"
+          }
+        },
+        "resort_kamui": {
+          "type": "resort",
+          "settings": {
+            "name": "旭川神居",
+            "tag": "ASAHIKAWA KAMUI",
+            "text": "離旭川市中心開車約 30 分鐘，雪道偏技術型，有樹林雪道。",
+            "link": "/pages/course-introduction"
+          }
+        },
+        "resort_furano": {
+          "type": "resort",
+          "settings": {
+            "name": "富良野",
+            "tag": "FURANO",
+            "text": "分成富良野區和北之峰區兩個雪區。",
+            "link": "/pages/course-introduction"
+          }
+        },
+        "resort_sahoro": {
+          "type": "resort",
+          "settings": {
+            "name": "佐幌",
+            "tag": "SAHORO",
+            "text": "在十勝內陸，雪質乾又輕，有不壓雪的自然雪道。",
+            "link": "/pages/course-introduction"
+          }
+        }
+      },
+      "block_order": [
+        "resort_teine",
+        "resort_kamui",
+        "resort_furano",
+        "resort_sahoro"
+      ],
+      "settings": {
+        "eyebrow": "",
+        "heading": "四個雪場",
+        "text": "去哪一個，訂單完成後跟教練確認。"
+      }
     }
   },
   "order": [
     "hero_jVaWmY",
     "lcs_value_band_1",
     "lcs_persona_cards_1",
-    "section_fy6WXr",
-    "section_qznQYV",
     "section_CJRChA",
-    "carousel_aYDrTL",
-    "carousel_FftiTP",
+    "section_qznQYV",
+    "lcs_resort_cards_1",
     "178343181799faef2a",
     "lcs_final_cta_1",
+    "section_fy6WXr",
+    "carousel_aYDrTL",
+    "carousel_FftiTP",
     "collection_list_bQrBnB"
   ]
 }

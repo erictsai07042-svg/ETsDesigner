@@ -74,6 +74,12 @@
   text-wrap: balance;
 }
 
+/* 首頁「教練介紹」區塊：外層改深色底，但內部是一塊淺色面板，面板內文字固定深藍。
+   以 ID 後綴比對（不綁主題編號）；:not(#id) 補回 ID 等級的優先權以壓過區塊內嵌的 --color。 */
+[id^="shopify-section-template--"][id$="__section_qznQYV"]:not(#lcs-id-specificity) :is(h1, h2, h3, h4, h5, h6, p, li, strong, span) {
+  color: var(--lcs-navy) !important;
+}
+
 /* 子句不可斷行（由 snippets/lcs-clauses.liquid 輸出）；極窄螢幕才放行，避免橫向溢出 */
 .lcs-nb {
   white-space: nowrap;
