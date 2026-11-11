@@ -1,0 +1,181 @@
+/* ==========================================================================
+   LCS 首頁區塊改版基礎樣式（方向 C：深淺交替 + 旅客分流）
+   只使用品牌色票；新增 class 一律 lcs- 前綴。
+   base.css 末段已有 navy/mountain/ice/white 四個變數，值相同，這裡補齊完整組。
+   ========================================================================== */
+:root {
+  --lcs-navy: #1a2e4a;
+  --lcs-mountain: #2d5f8a;
+  --lcs-sky: #3a7ab5;
+  --lcs-ice: #7ab3d4;
+  --lcs-frost: #b8d9ed;
+  --lcs-snow: #e8f4fa;
+  --lcs-ink: #111111;
+  --lcs-stone: #5a6a78;
+  --lcs-white: #ffffff;
+}
+
+/* ---- 區塊底色（一律不透明：Hero 固定在後面，透明會透出來） ---- */
+.lcs-band {
+  position: relative;
+  isolation: isolate;
+  padding-block: clamp(3rem, 8vw, 6rem);
+  padding-inline: var(--page-margin, 1.25rem);
+}
+
+.lcs-band--dark {
+  background-color: var(--lcs-navy);
+  color: var(--lcs-snow);
+}
+
+.lcs-band--dark h1,
+.lcs-band--dark h2,
+.lcs-band--dark h3,
+.lcs-band--dark h4,
+.lcs-band--dark .lcs-display {
+  color: var(--lcs-white);
+}
+
+.lcs-band--dark .lcs-eyebrow {
+  color: var(--lcs-ice);
+}
+
+.lcs-band--light {
+  background-color: var(--lcs-white);
+  color: var(--lcs-navy);
+}
+
+.lcs-band--light .lcs-eyebrow {
+  color: var(--lcs-sky);
+}
+
+.lcs-band--ice {
+  background-color: var(--lcs-snow);
+  color: var(--lcs-navy);
+  border-block: 1px solid var(--lcs-frost);
+}
+
+.lcs-band--ice .lcs-eyebrow {
+  color: var(--lcs-mountain);
+}
+
+/* ---- 區塊內層容器與標題（lcs-value-band / lcs-persona-cards / lcs-final-cta 共用） ---- */
+.lcs-inner {
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+.lcs-band .lcs-home-title {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 3rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+/* 子句不可斷行（由 snippets/lcs-clauses.liquid 輸出）；極窄螢幕才放行，避免橫向溢出 */
+.lcs-nb {
+  white-space: nowrap;
+}
+
+@media (max-width: 340px) {
+  .lcs-nb {
+    white-space: normal;
+  }
+}
+
+/* ---- 排版 helper ---- */
+.lcs-eyebrow {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.lcs-display {
+  margin: 0;
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 按鈕 helper（沿用 AGENTS.md 提交按鈕規範） ---- */
+.lcs-home-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--lcs-white);
+  background-color: var(--lcs-navy);
+  border: 1px solid var(--lcs-navy);
+  border-radius: var(--style-border-radius-buttons-primary, 8px);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.lcs-home-btn:hover {
+  color: var(--lcs-white);
+  background-color: var(--lcs-mountain);
+  border-color: var(--lcs-mountain);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 46, 74, 0.2);
+}
+
+.lcs-home-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.lcs-home-btn:focus-visible {
+  outline: 2px solid var(--lcs-sky);
+  outline-offset: 2px;
+}
+
+/* 深底版本：反白按鈕，避免 Deep Navy 按鈕融入 Deep Navy 底 */
+.lcs-band--dark .lcs-home-btn {
+  color: var(--lcs-navy);
+  background-color: var(--lcs-white);
+  border-color: var(--lcs-white);
+}
+
+.lcs-band--dark .lcs-home-btn:hover {
+  color: var(--lcs-white);
+  background-color: var(--lcs-sky);
+  border-color: var(--lcs-sky);
+}
+
+.lcs-band--dark .lcs-home-btn:focus-visible {
+  outline-color: var(--lcs-ice);
+}
+
+/* ---- 進場動畫（只在 JS 加上 .lcs-motion 後才隱藏；JS 沒載入內容預設可見） ---- */
+.lcs-motion [data-lcs-reveal]:not(.is-revealed) {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+.lcs-motion [data-lcs-reveal] {
+  transition: opacity 0.7s ease, transform 0.7s ease;
+  transition-delay: var(--lcs-reveal-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lcs-motion [data-lcs-reveal]:not(.is-revealed) {
+    opacity: 1;
+    transform: none;
+  }
+
+  .lcs-motion [data-lcs-reveal] {
+    transition: none;
+  }
+}

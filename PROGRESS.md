@@ -2,6 +2,18 @@
 
 最後更新：2026-11-11
 
+## 📌 2026-11-11：首頁改版方向 C 第一版——區塊 2、3、8（僅副本主題 190500634707，未提交、未上正式站）
+
+- **需求**：Hero 以下版面單調；採方向 C（深淺交替 + 旅客分流）。本次先做不依賴新照片的三個區塊，文案經 Eric 確認、已去 AI 味。
+- **做法**：
+  - 新增 `sections/lcs-value-band.liquid`（深色價值句 + 四個數字）、`lcs-persona-cards.liquid`（旅客分流卡，連到課程頁 `#halfday`／`#fullday`）、`lcs-final-cta.liquid`（深色最終 CTA，LINE 沿用既有連結）；圖片欄位預留，之後放 Flow／Eric 設計的圖。
+  - `templates/index.json`：新增三個區塊，**停用**（未刪除）舊信任列 `group_LFz7T4`，可隨時復原。
+  - 基礎（Lane A）：`theme.liquid` 的 Hero 疊層改成一條通用規則（Hero 之後所有區塊 z-index 2）；新增 `assets/lcs-home.css`、`lcs-home.js`（淡入、數字滾動；手機與 reduced-motion 不動畫）。
+  - `snippets/lcs-clauses.liquid`：文字只在「，」「・」後換行，避免「旭川神 / 居」「人。」孤字。
+- **踩到的坑**：課程頁的內嵌樣式已經在用 `.lcs-btn`、`.lcs-title`，新樣式一律改用 `lcs-home-btn`、`lcs-home-title`，避免波及課程頁。locale key 補進全部 47 個語系檔，否則 theme check 會多出 425 筆 MatchingTranslations。
+- **已知限制**：「5.00、15 則評價」目前是手動填在編輯器（Judge.me 評價變多時要手動改），沒有接外掛即時數字。教練區與 Judge.me 區塊背景仍是半透明（0.89），Hero 會透出來——屬區塊 5、7 的後續工作。
+- **驗證**（副本預覽網址）：桌機 1440 與手機 390 無橫向捲動；Hero 仍 sticky、其餘區塊蓋上去；數字滾動到 5.00／4／6；手機文字皆只在子句處換行；CTA 按鈕 45px 高；`shopify theme check` 本次檔案 0 項新違規。
+
 ## 📌 2026-11-11：首頁視覺優化第一批（分支 `lcs/homepage-batch1`，尚未提交、未上正式站）
 
 > **本地預覽 Hero 不固定的修正**：`layout/theme.liquid` 的 sticky 規則與 `base.css` 的 Hero 光暈規則寫死線上主題的 template 編號（`template--20141438697555__…`），開發主題編號不同所以失效。改為 `[id^="shopify-section-template--"][id$="__hero_jVaWmY"]:not(#lcs-id-specificity)`（`:not(#…)` 只為保留原 ID 選擇器的優先權；先前不加時 sticky 輸給既有規則變成 relative）。驗證：開發主題 position／top／z-index（sticky／0／1–4）與標題光暈計算值，和線上 Designer_Eric 完全一致；捲動 0／400／800／1200 時 Hero 維持 top:0、信任列從下方滑上覆蓋。

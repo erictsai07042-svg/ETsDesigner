@@ -129,6 +129,7 @@
     "zoom_media": "Ampliar {{ index }} multimedia"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "reseñas",
     "language": "Idioma",
     "localization_region_and_language": "Región e idioma",

@@ -127,6 +127,7 @@
     "zoom_media": "ズームメディア {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "レビュー",
     "language": "言語",
     "localization_region_and_language": "地域と言語",

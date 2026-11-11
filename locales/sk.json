@@ -131,6 +131,7 @@
     "zoom_media": "Nástroj na priblíženie {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "recenz.",
     "no_results_found": "Nenašli sa žiadne výsledky",
     "language": "Jazyk",

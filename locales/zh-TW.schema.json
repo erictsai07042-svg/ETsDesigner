@@ -9,6 +9,11 @@
  */
 {
   "names": {
+    "lcs_value_band": "價值句與數字",
+    "lcs_stat": "數字項目",
+    "lcs_persona_cards": "旅客分流卡",
+    "lcs_persona": "分流卡",
+    "lcs_final_cta": "最終 CTA",
     "404": "404",
     "borders": "邊框",
     "collapsible_row": "可摺疊列",
@@ -200,6 +205,23 @@
     "layered_slideshow": "分層輪播"
   },
   "settings": {
+    "lcs_eyebrow": "小標",
+    "lcs_heading": "標題",
+    "lcs_subheading": "副標",
+    "lcs_value": "數字或文字",
+    "lcs_count_up": "進場時數字滾動",
+    "lcs_decimals": "小數位數",
+    "lcs_unit": "單位",
+    "lcs_caption": "說明",
+    "lcs_card_title": "卡片標題",
+    "lcs_card_text": "卡片內文",
+    "lcs_button_label": "按鈕文字",
+    "lcs_link": "連結",
+    "lcs_image": "圖片",
+    "lcs_primary_label": "主要按鈕文字",
+    "lcs_primary_link": "主要按鈕連結",
+    "lcs_secondary_label": "次要按鈕文字",
+    "lcs_secondary_link": "次要按鈕連結",
     "alignment": "對齊",
     "autoplay": "自動播放",
     "background": "背景",

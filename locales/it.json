@@ -129,6 +129,7 @@
     "zoom_media": "Zoom media {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "recensioni",
     "no_results_found": "Nessun risultato trovato",
     "language": "Lingua",

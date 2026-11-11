@@ -131,6 +131,7 @@
     "zoom_media": "Padidinti mediją {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "apžvalgos (-ų; -a)",
     "language": "Kalba",
     "localization_region_and_language": "Regionas ir kalba",

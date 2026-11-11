@@ -131,6 +131,7 @@
     "zoom_media": "Powiększenie multimediów {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "recenzje",
     "language": "Język",
     "localization_region_and_language": "Region i język",

@@ -127,6 +127,7 @@
     "zoom_media": "Thu phóng nội dung {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "đánh giá",
     "language": "Ngôn ngữ",
     "localization_region_and_language": "Khu vực và ngôn ngữ",

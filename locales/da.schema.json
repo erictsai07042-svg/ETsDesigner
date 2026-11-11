@@ -9,6 +9,11 @@
  */
 {
   "names": {
+    "lcs_value_band": "Value band",
+    "lcs_stat": "Stat",
+    "lcs_persona_cards": "Persona cards",
+    "lcs_persona": "Persona card",
+    "lcs_final_cta": "Final CTA",
     "404": "404",
     "borders": "Kanter",
     "collapsible_row": "Række, der kan skjules",
@@ -200,6 +205,23 @@
     "layered_slideshow": "Diasshow i lag"
   },
   "settings": {
+    "lcs_eyebrow": "Eyebrow",
+    "lcs_heading": "Heading",
+    "lcs_subheading": "Subheading",
+    "lcs_value": "Number or text",
+    "lcs_count_up": "Count up on scroll",
+    "lcs_decimals": "Decimal places",
+    "lcs_unit": "Unit",
+    "lcs_caption": "Caption",
+    "lcs_card_title": "Card title",
+    "lcs_card_text": "Card text",
+    "lcs_button_label": "Button label",
+    "lcs_link": "Link",
+    "lcs_image": "Image",
+    "lcs_primary_label": "Primary button label",
+    "lcs_primary_link": "Primary button link",
+    "lcs_secondary_label": "Secondary button label",
+    "lcs_secondary_link": "Secondary button link",
     "alignment": "Justering",
     "autoplay": "Automatisk afspilning",
     "background": "Baggrund",

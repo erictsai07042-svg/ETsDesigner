@@ -129,6 +129,7 @@
     "zoom_media": "Zoom medijskog sadržaja {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "recenzije",
     "no_results_found": "Nema pronađenih rezultata",
     "language": "Jezik",

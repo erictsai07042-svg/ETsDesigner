@@ -119,6 +119,7 @@
 
 </style>
  
+    <script src="{{ 'lcs-home.js' | asset_url }}" defer="defer"></script>
   </head>
 
   <body class="page-width-{{ settings.page_width }} card-hover-effect-{{ settings.card_hover_effect }}{% if template.suffix %} template-{{ template.suffix }}{% endif %}">
@@ -509,19 +510,12 @@ if (topBtn) {
       z-index: 1;
     }
 
-    [id^="shopify-section-template--"][id$="__section_qznQYV"]:not(#lcs-id-specificity) {
+    /* 通用規則：Hero 之後的所有同層 Section 一律 relative + z-index 2，
+       彼此的堆疊順序交給 DOM 順序，新增區塊不必再補規則。
+       :not(#lcs-id-specificity) 把優先權補回 ID 等級，不可移除。 */
+    [id^="shopify-section-template--"][id$="__hero_jVaWmY"]:not(#lcs-id-specificity) ~ [id^="shopify-section-"] {
       position: relative;
       z-index: 2;
-    }
-
-    [id^="shopify-section-template--"][id$="__section_CJRChA"]:not(#lcs-id-specificity) {
-      position: relative;
-      z-index: 3;
-    }
-
-    [id^="shopify-section-template--"][id$="__178343181799faef2a"]:not(#lcs-id-specificity) {
-      position: relative;
-      z-index: 4;
     }
   }
 </style>

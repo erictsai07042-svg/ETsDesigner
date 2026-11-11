@@ -127,6 +127,7 @@
     "zoom_media": "缩放媒体文件 {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "评价",
     "no_results_found": "未找到结果",
     "language": "语言",

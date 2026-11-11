@@ -1,0 +1,210 @@
+<div class="lcs-band lcs-band--light lcs-persona" {{ section.shopify_attributes }}>
+  <div class="lcs-inner">
+    {%- if section.settings.eyebrow != blank -%}
+      <p class="lcs-eyebrow" data-lcs-reveal>{{ section.settings.eyebrow | escape }}</p>
+    {%- endif -%}
+    {%- if section.settings.heading != blank -%}
+      <h2 class="lcs-home-title" data-lcs-reveal>{% render 'lcs-clauses', text: section.settings.heading, sep: '，' %}</h2>
+    {%- endif -%}
+
+    <ul class="lcs-persona__list" role="list">
+      {%- for block in section.blocks -%}
+        {%- liquid
+          assign tag = 'div'
+          if block.settings.link != blank
+            assign tag = 'a'
+          endif
+        -%}
+        <li class="lcs-persona__item" data-lcs-reveal data-lcs-reveal-delay="{{ forloop.index0 | times: 90 }}" {{ block.shopify_attributes }}>
+          <{{ tag }} class="lcs-persona__card"{% if tag == 'a' %} href="{{ block.settings.link }}"{% endif %}>
+            {%- if block.settings.image != blank -%}
+              <span class="lcs-persona__media">
+                {{ block.settings.image | image_url: width: 800 | image_tag: loading: 'lazy', sizes: '(min-width: 750px) 30vw, 90vw', alt: block.settings.title }}
+              </span>
+            {%- endif -%}
+            <span class="lcs-persona__index" aria-hidden="true">{{ forloop.index | prepend: '0' }}</span>
+            <h3 class="lcs-persona__title">{{ block.settings.title | escape }}</h3>
+            {%- if block.settings.text != blank -%}
+              <p class="lcs-persona__text">{% render 'lcs-clauses', text: block.settings.text, sep: '，' %}</p>
+            {%- endif -%}
+            {%- if block.settings.button_label != blank -%}
+              <span class="lcs-persona__cta">{{ block.settings.button_label | escape }}<span aria-hidden="true"> →</span></span>
+            {%- endif -%}
+          </{{ tag }}>
+        </li>
+      {%- endfor -%}
+    </ul>
+  </div>
+</div>
+
+{% stylesheet %}
+  .lcs-persona__list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin: clamp(2rem, 5vw, 3rem) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lcs-persona__item {
+    display: flex;
+  }
+
+  .lcs-persona__card {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0.75rem;
+    padding: clamp(1.25rem, 3vw, 1.75rem);
+    color: var(--lcs-navy);
+    text-decoration: none;
+    background-color: var(--lcs-snow);
+    border: 1px solid var(--lcs-frost);
+    border-radius: 16px;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+
+  a.lcs-persona__card:hover {
+    background-color: var(--lcs-white);
+    border-color: var(--lcs-ice);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(26, 46, 74, 0.12);
+  }
+
+  a.lcs-persona__card:focus-visible {
+    outline: 2px solid var(--lcs-sky);
+    outline-offset: 3px;
+  }
+
+  .lcs-persona__media {
+    display: block;
+    margin: calc(clamp(1.25rem, 3vw, 1.75rem) * -1) calc(clamp(1.25rem, 3vw, 1.75rem) * -1) 0.25rem;
+    overflow: hidden;
+    border-radius: 15px 15px 0 0;
+  }
+
+  .lcs-persona__media img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  .lcs-persona__index {
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--lcs-sky);
+  }
+
+  .lcs-persona__card .lcs-persona__title {
+    margin: 0;
+    font-size: clamp(1.25rem, 2.2vw, 1.5rem) !important;
+    font-weight: 700 !important;
+    line-height: 1.35 !important;
+    color: var(--lcs-navy);
+  }
+
+  .lcs-persona__text {
+    flex: 1;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--lcs-stone);
+    text-wrap: balance;
+  }
+
+  .lcs-persona__cta {
+    align-self: flex-start;
+    margin-top: 0.5rem;
+    padding: 0.625rem 1.125rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--lcs-white);
+    background-color: var(--lcs-navy);
+    border-radius: var(--style-border-radius-buttons-primary, 8px);
+    transition: background-color 0.2s ease;
+  }
+
+  a.lcs-persona__card:hover .lcs-persona__cta {
+    background-color: var(--lcs-mountain);
+  }
+
+  @media screen and (min-width: 750px) {
+    .lcs-persona__list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.25rem;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.lcs_persona_cards",
+  "class": "section-wrapper",
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "t:settings.lcs_eyebrow"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "t:settings.lcs_heading",
+      "default": "你屬於哪一種？"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "persona",
+      "name": "t:names.lcs_persona",
+      "settings": [
+        {
+          "type": "text",
+          "id": "title",
+          "label": "t:settings.lcs_card_title",
+          "default": "第一次滑雪"
+        },
+        {
+          "type": "textarea",
+          "id": "text",
+          "label": "t:settings.lcs_card_text"
+        },
+        {
+          "type": "text",
+          "id": "button_label",
+          "label": "t:settings.lcs_button_label"
+        },
+        {
+          "type": "url",
+          "id": "link",
+          "label": "t:settings.lcs_link"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "t:settings.lcs_image"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 4,
+  "presets": [
+    {
+      "name": "t:names.lcs_persona_cards",
+      "blocks": [
+        { "type": "persona" },
+        { "type": "persona" },
+        { "type": "persona" }
+      ]
+    }
+  ]
+}
+{% endschema %}

@@ -127,6 +127,7 @@
     "zoom_media": "ซูมสื่อ {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "รีวิว",
     "language": "ภาษา",
     "localization_region_and_language": "ภูมิภาคและภาษา",

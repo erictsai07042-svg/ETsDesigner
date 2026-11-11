@@ -127,6 +127,7 @@
     "zoom_media": "Zoom medie {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "anmeldelser",
     "language": "Sprog",
     "localization_region_and_language": "Område og sprog",

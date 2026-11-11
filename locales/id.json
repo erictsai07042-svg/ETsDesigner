@@ -127,6 +127,7 @@
     "zoom_media": "Perbesar media {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "ulasan",
     "language": "Bahasa",
     "localization_region_and_language": "Wilayah dan bahasa",

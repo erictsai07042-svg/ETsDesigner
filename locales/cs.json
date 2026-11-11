@@ -131,6 +131,7 @@
     "zoom_media": "Přiblížit média {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "recen.",
     "language": "Jazyk",
     "localization_region_and_language": "Oblast a jazyk",

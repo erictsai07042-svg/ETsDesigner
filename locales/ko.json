@@ -127,6 +127,7 @@
     "zoom_media": "{{ index }} 미디어 확대/축소"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "리뷰",
     "language": "언어",
     "localization_region_and_language": "지역 및 언어",

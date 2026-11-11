@@ -127,6 +127,7 @@
     "zoom_media": "Увеличаване на мултимедия {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "мнения",
     "language": "Език",
     "localization_region_and_language": "Регион и език",

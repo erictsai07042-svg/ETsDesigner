@@ -127,6 +127,7 @@
     "zoom_media": "Lähennä mediasisältö: {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "arvostelua",
     "language": "Kieli",
     "localization_region_and_language": "Alue ja kieli",

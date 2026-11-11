@@ -129,6 +129,7 @@
     "zoom_media": "Fă zoom pe elementul media {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "recenzii",
     "language": "Limba",
     "localization_region_and_language": "Regiunea și limba",

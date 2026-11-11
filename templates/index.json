@@ -1852,7 +1852,8 @@
             "group_tgpkh4",
             "divider_Vn9dae",
             "group_GFC74L"
-          ]
+          ],
+          "disabled": true
         },
         "group_htGjKw": {
           "type": "group",
@@ -8505,16 +8506,127 @@
         "padding-block-start": 48,
         "padding-block-end": 48
       }
+    },
+    "lcs_value_band_1": {
+      "type": "lcs-value-band",
+      "blocks": {
+        "stat_rating": {
+          "type": "stat",
+          "settings": {
+            "value": "5.00",
+            "count_up": true,
+            "decimals": 2,
+            "unit": "",
+            "caption": "學員評分，15 則評價"
+          }
+        },
+        "stat_group": {
+          "type": "stat",
+          "settings": {
+            "value": "1~4",
+            "count_up": false,
+            "decimals": 0,
+            "unit": "人",
+            "caption": "一組的人數"
+          }
+        },
+        "stat_resorts": {
+          "type": "stat",
+          "settings": {
+            "value": "4",
+            "count_up": true,
+            "decimals": 0,
+            "unit": "個雪場",
+            "caption": "札幌手稻・旭川神居・富良野・佐幌"
+          }
+        },
+        "stat_age": {
+          "type": "stat",
+          "settings": {
+            "value": "6",
+            "count_up": true,
+            "decimals": 0,
+            "unit": "歲",
+            "caption": "小孩的最低年齡，要有一位大人陪同"
+          }
+        }
+      },
+      "block_order": [
+        "stat_rating",
+        "stat_group",
+        "stat_resorts",
+        "stat_age"
+      ],
+      "settings": {
+        "eyebrow": "",
+        "heading": "教練講中文，一組最多四個人。"
+      }
+    },
+    "lcs_persona_cards_1": {
+      "type": "lcs-persona-cards",
+      "blocks": {
+        "persona_first": {
+          "type": "persona",
+          "settings": {
+            "title": "第一次滑雪",
+            "text": "從穿雪板、站穩開始教，第一天滑下初級雪道。",
+            "button_label": "看半天課（3 小時）",
+            "link": "/pages/course-introduction#halfday"
+          }
+        },
+        "persona_improve": {
+          "type": "persona",
+          "settings": {
+            "title": "滑過幾次，想改進",
+            "text": "轉彎、煞車哪裡卡住，教練現場看、現場改。",
+            "button_label": "看全天課（6 小時）",
+            "link": "/pages/course-introduction#fullday"
+          }
+        },
+        "persona_family": {
+          "type": "persona",
+          "settings": {
+            "title": "帶小孩一起",
+            "text": "6 歲以上可以報名，要有一位大人陪同。",
+            "button_label": "看課程與規定",
+            "link": "/pages/course-introduction#halfday"
+          }
+        }
+      },
+      "block_order": [
+        "persona_first",
+        "persona_improve",
+        "persona_family"
+      ],
+      "settings": {
+        "eyebrow": "",
+        "heading": "你屬於哪一種？"
+      }
+    },
+    "lcs_final_cta_1": {
+      "type": "lcs-final-cta",
+      "settings": {
+        "eyebrow": "",
+        "heading": "要訂課，或先問問題。",
+        "text": "訂單完成後，教練會跟你確認集合地點，上課前一週拉群組。",
+        "primary_label": "看課程與預約",
+        "primary_link": "/pages/course-introduction",
+        "secondary_label": "LINE 問問題",
+        "secondary_link": "https://line.me/R/ti/p/@455lfqzf"
+      }
     }
   },
   "order": [
     "hero_jVaWmY",
+    "lcs_value_band_1",
+    "lcs_persona_cards_1",
     "section_fy6WXr",
     "section_qznQYV",
     "section_CJRChA",
     "carousel_aYDrTL",
     "carousel_FftiTP",
     "178343181799faef2a",
+    "lcs_final_cta_1",
     "collection_list_bQrBnB"
   ]
 }

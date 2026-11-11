@@ -1,0 +1,18 @@
+{% doc %}
+  把一段文字依分隔符切成子句，每個子句不可斷行，只允許在分隔符之後換行。
+  用於中文標題與說明，避免字詞被拆在兩行（例如地名或「一組」）。
+
+  @param {string} text - 要輸出的文字
+  @param {string} [sep] - 分隔符，預設「，」
+
+  @example
+  {% render 'lcs-clauses', text: section.settings.heading, sep: '，' %}
+{% enddoc %}
+{%- liquid
+  assign lcs_sep = sep | default: '，'
+  assign lcs_parts = text | split: lcs_sep
+-%}
+{%- for part in lcs_parts -%}
+  <span class="lcs-nb">{{ part | escape }}</span>
+  {%- unless forloop.last -%}{{ lcs_sep }}{%- endunless -%}
+{%- endfor -%}

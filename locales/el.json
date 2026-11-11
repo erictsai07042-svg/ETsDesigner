@@ -127,6 +127,7 @@
     "zoom_media": "Μεγέθυνση πολυμέσου {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "κριτικές",
     "no_results_found": "Δεν βρέθηκαν αποτελέσματα",
     "language": "Γλώσσα",

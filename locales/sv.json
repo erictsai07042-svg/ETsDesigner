@@ -127,6 +127,7 @@
     "zoom_media": "Zooma media {{ index }}"
   },
   "content": {
+    "lcs_book_now": "Book now",
     "reviews": "recensioner",
     "language": "Språk",
     "localization_region_and_language": "Region och språk",
