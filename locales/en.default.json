@@ -160,6 +160,7 @@
     }
   },
   "content": {
+    "lcs_book_now": "Book now",
     "cancel": "Cancel",
     "discount": "Discount",
     "account_title": "Account",

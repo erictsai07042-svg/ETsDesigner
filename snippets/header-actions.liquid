@@ -63,6 +63,8 @@
   {% endif %}
   {{- block.shopify_attributes -}}
 >
+  <a class="lcs-header-cta" href="/pages/course-introduction">{{ 'content.lcs_book_now' | t }}</a>
+
   {% if shop.customer_accounts_enabled %}
     {% liquid
       assign account_actions_style = ''

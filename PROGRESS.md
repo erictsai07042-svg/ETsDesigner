@@ -1,6 +1,23 @@
 # BTA 課程預約表單 — 進度文件
 
-最後更新：2026-10-06
+最後更新：2026-11-11
+
+## 📌 2026-11-11：首頁視覺優化第一批（分支 `lcs/homepage-batch1`，尚未提交、未上正式站）
+
+> **本地預覽 Hero 不固定的修正**：`layout/theme.liquid` 的 sticky 規則與 `base.css` 的 Hero 光暈規則寫死線上主題的 template 編號（`template--20141438697555__…`），開發主題編號不同所以失效。改為 `[id^="shopify-section-template--"][id$="__hero_jVaWmY"]:not(#lcs-id-specificity)`（`:not(#…)` 只為保留原 ID 選擇器的優先權；先前不加時 sticky 輸給既有規則變成 relative）。驗證：開發主題 position／top／z-index（sticky／0／1–4）與標題光暈計算值，和線上 Designer_Eric 完全一致；捲動 0／400／800／1200 時 Hero 維持 top:0、信任列從下方滑上覆蓋。
+
+> **範圍更新**：Eric 看過預覽後決定只保留 **A（立即預約）與 C（星星 Mountain Blue）**；B、D、E 已還原（下方內容保留作為嘗試紀錄）。
+
+- **現象／需求**：導覽列缺預約入口、首屏主標偏小、評價星星為 Ice Blue 對比不足、信任列「札幌手稻・旭川神居・富良野・佐幌」可能孤字折行、頁尾無 LINE 按鈕。
+- **根因**：星星顏色來自 Judge.me 後台（`--jdgm-star-color: #7AB3D4`），主題 CSS 沒有任何規則；首屏 h2 被 `base.css` 全站 `h2 { font-size: var(--brand-h2-size) !important }` 壓成約 30px；信任列沒有任何折行控制。
+- **修法**：
+  - A：`snippets/header-actions.liquid` 加 `.lcs-header-cta`（連 `/pages/course-introduction`），僅 ≥750px 顯示；手機由首屏按鈕與抽屜選單負責。
+  - B：`base.css` 以 `.hero-wrapper [class*='__text_ErAnJn'] h2` 覆寫為 clamp(32px, 4vw, 48px)／700／1.2／Deep Navy。
+  - C：`templates/index.json` 首頁 Judge.me 輪播 `stars_color` 設 `#2D5F8A`（只影響首頁輪播）。
+  - D：信任列 `p` 加 `text-wrap: balance; word-break: keep-all; line-break: strict`。
+  - E：新增 `blocks/lcs-line-button.liquid`（沿用既有 `https://line.me/R/ti/p/@455lfqzf`），加進 `footer-group.json`「追蹤我們」群組；頁尾底色為 Deep Navy，按鈕用 Sky Blue 底白字。
+  - 色彩集中在 `base.css` 末段 `:root` 的 `--lcs-*` 變數；文案走 locale key（`content.lcs_book_now`、`content.lcs_line_consult`）。
+- **驗證**（development 主題 190496702547，預覽網址，非 127.0.0.1）：1440／1100／768／390 寬度量測，無橫向捲動；信任列各寬度皆不出現單獨「佐幌」；手機 CTA `display:none`；頁尾按鈕 117×40；星星計算色 rgb(45,95,138)。`shopify theme check` 對本次檔案無新增違規（既有 113 項不變）。
 
 ## 📌 2026-10-06：課程頁頁尾標語消失、手機版頁尾重疊——兩個既有問題，已修復上線
 

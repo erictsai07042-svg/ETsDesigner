@@ -4352,9 +4352,9 @@ div[class*="shopify-app-block"] {
 
 
 /* Hero 標題白色外光暈（2026-09-19 業主要求刷淡，數值大約砍半） */
-#Hero-template--20141438697555__hero_jVaWmY .text-block.h1,
-#Hero-template--20141438697555__hero_jVaWmY .text-block h1,
-#Hero-template--20141438697555__hero_jVaWmY .text-block h2 {
+[id^="Hero-template--"][id$="__hero_jVaWmY"] .text-block.h1,
+[id^="Hero-template--"][id$="__hero_jVaWmY"] .text-block h1,
+[id^="Hero-template--"][id$="__hero_jVaWmY"] .text-block h2 {
   text-shadow:
     0 0 4px rgba(255, 255, 255, 0.5),
     0 0 10px rgba(255, 255, 255, 0.4),
@@ -4770,4 +4770,52 @@ h3, .h3 {
   font-size: var(--brand-label-size) !important;
   font-weight: var(--brand-label-weight) !important;
   letter-spacing: var(--brand-label-ls) !important;
+}
+
+
+/* ==========================================================================
+   LCS 首頁視覺優化 第一批（lcs- 前綴，色彩集中於下列變數，只用品牌色票）
+   ========================================================================== */
+:root {
+  --lcs-navy: #1a2e4a;
+  --lcs-mountain: #2d5f8a;
+  --lcs-ice: #7ab3d4;
+  --lcs-white: #ffffff;
+}
+
+/* A. 導覽列右側「立即預約」（桌機；手機由首屏按鈕與抽屜選單負責） */
+.lcs-header-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  white-space: nowrap;
+  margin-inline-end: var(--margin-sm, 0.5rem);
+  padding: 0.5rem 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--lcs-white);
+  background-color: var(--lcs-navy);
+  border: 1px solid var(--lcs-navy);
+  border-radius: var(--style-border-radius-buttons-primary, 8px);
+  text-decoration: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.lcs-header-cta:hover {
+  color: var(--lcs-white);
+  background-color: var(--lcs-mountain);
+  border-color: var(--lcs-mountain);
+}
+
+.lcs-header-cta:focus-visible {
+  outline: 2px solid var(--lcs-ice);
+  outline-offset: 2px;
+}
+
+@media (max-width: 749px) {
+  .lcs-header-cta {
+    display: none;
+  }
 }
