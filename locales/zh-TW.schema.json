@@ -207,6 +207,7 @@
     "layered_slideshow": "分層輪播"
   },
   "settings": {
+    "lcs_image_asset": "主題素材檔名（備援）",
     "lcs_tag": "區域標籤",
     "lcs_eyebrow": "小標",
     "lcs_heading": "標題",

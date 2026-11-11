@@ -756,6 +756,7 @@
     "below_media": "Below media"
   },
   "settings": {
+    "lcs_image_asset": "Theme asset filename (fallback)",
     "lcs_tag": "Area tag",
     "lcs_eyebrow": "Eyebrow",
     "lcs_heading": "Heading",

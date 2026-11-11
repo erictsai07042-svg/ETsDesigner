@@ -1,7 +1,13 @@
-<div class="lcs-band lcs-band--dark lcs-cta{% if section.settings.image != blank %} lcs-cta--has-image{% endif %}" {{ section.shopify_attributes }}>
-  {%- if section.settings.image != blank -%}
-    <div class="lcs-cta__bg" aria-hidden="true">
-      {{ section.settings.image | image_url: width: 2400 | image_tag: loading: 'lazy', sizes: '100vw', alt: '' }}
+{%- liquid
+  assign has_image = false
+  if section.settings.image != blank or section.settings.image_asset != blank
+    assign has_image = true
+  endif
+-%}
+<div class="lcs-band lcs-band--dark lcs-cta{% if has_image %} lcs-cta--has-image{% endif %}" {{ section.shopify_attributes }}>
+  {%- if has_image -%}
+    <div class="lcs-bg" style="--lcs-bg-overlay: 0.7;" aria-hidden="true">
+      {% render 'lcs-image', image: section.settings.image, asset: section.settings.image_asset, alt: '', sizes: '100vw', width: 2400 %}
     </div>
   {%- endif -%}
   <div class="lcs-inner lcs-cta__inner">
@@ -34,27 +40,6 @@
   .lcs-cta {
     overflow: hidden;
     padding-block: clamp(4rem, 10vw, 8rem);
-  }
-
-  .lcs-cta__bg {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-  }
-
-  .lcs-cta__bg::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-color: var(--lcs-navy);
-    opacity: 0.72;
-  }
-
-  .lcs-cta__bg img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
 
   .lcs-cta__inner {
@@ -145,6 +130,11 @@
       "type": "image_picker",
       "id": "image",
       "label": "t:settings.lcs_image"
+    },
+    {
+      "type": "text",
+      "id": "image_asset",
+      "label": "t:settings.lcs_image_asset"
     }
   ],
   "presets": [

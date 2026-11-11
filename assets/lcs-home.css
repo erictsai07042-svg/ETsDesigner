@@ -91,6 +91,29 @@
   }
 }
 
+/* ---- 區塊背景圖（附深藍遮罩；遮罩濃度用 --lcs-bg-overlay 調整） ---- */
+.lcs-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.lcs-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: var(--lcs-navy);
+  opacity: var(--lcs-bg-overlay, 0.6);
+}
+
+.lcs-bg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* ---- 排版 helper ---- */
 .lcs-eyebrow {
   margin: 0 0 0.75rem;

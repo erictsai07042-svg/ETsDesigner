@@ -1,0 +1,23 @@
+{% doc %}
+  輸出區塊圖片：優先使用編輯器選的圖片；沒有選時，退而使用主題素材檔（assets/ 內的檔名）。
+  兩者都沒有則不輸出任何內容。
+
+  @param {image} [image] - 編輯器的 image_picker 值
+  @param {string} [asset] - 主題素材檔名，例如 lcs-cta-bg.jpg
+  @param {string} [alt] - 替代文字，裝飾圖請傳空字串
+  @param {string} [sizes] - img 的 sizes 屬性
+  @param {number} [width] - image_url 的寬度，預設 1600；備援素材檔的 width 屬性也用這個值
+  @param {number} [height] - 備援素材檔的 height 屬性（只作比例提示，實際尺寸由 CSS 決定），預設 900
+
+  @example
+  {% render 'lcs-image', image: section.settings.image, asset: section.settings.image_asset, alt: '', sizes: '100vw', width: 2400 %}
+{% enddoc %}
+{%- liquid
+  assign lcs_w = width | default: 1600
+  assign lcs_h = height | default: 900
+-%}
+{%- if image != blank -%}
+  {{ image | image_url: width: lcs_w | image_tag: loading: 'lazy', sizes: sizes, alt: alt }}
+{%- elsif asset != blank -%}
+  <img src="{{ asset | asset_url }}" alt="{{ alt | escape }}" width="{{ lcs_w }}" height="{{ lcs_h }}" loading="lazy" decoding="async"{% if sizes != blank %} sizes="{{ sizes }}"{% endif %}>
+{%- endif -%}

@@ -1,4 +1,15 @@
-<div class="lcs-band lcs-band--dark lcs-value" {{ section.shopify_attributes }}>
+{%- liquid
+  assign has_image = false
+  if section.settings.image != blank or section.settings.image_asset != blank
+    assign has_image = true
+  endif
+-%}
+<div class="lcs-band lcs-band--dark lcs-value{% if has_image %} lcs-value--has-image{% endif %}" {{ section.shopify_attributes }}>
+  {%- if has_image -%}
+    <div class="lcs-bg" style="--lcs-bg-overlay: 0.5;" aria-hidden="true">
+      {% render 'lcs-image', image: section.settings.image, asset: section.settings.image_asset, alt: '', sizes: '100vw', width: 2400 %}
+    </div>
+  {%- endif -%}
   <div class="lcs-inner">
     {%- if section.settings.eyebrow != blank -%}
       <p class="lcs-eyebrow" data-lcs-reveal>{{ section.settings.eyebrow | escape }}</p>
@@ -103,6 +114,16 @@
       "id": "heading",
       "label": "t:settings.lcs_heading",
       "default": "教練講中文，一組最多四個人。"
+    },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "t:settings.lcs_image"
+    },
+    {
+      "type": "text",
+      "id": "image_asset",
+      "label": "t:settings.lcs_image_asset"
     }
   ],
   "blocks": [

@@ -8559,7 +8559,8 @@
       ],
       "settings": {
         "eyebrow": "",
-        "heading": "教練講中文，一組最多四個人。"
+        "heading": "教練講中文，一組最多四個人。",
+        "image_asset": "lcs-bg-dark.jpg"
       }
     },
     "lcs_persona_cards_1": {
@@ -8571,7 +8572,8 @@
             "title": "第一次滑雪",
             "text": "從穿雪板、站穩開始教，第一天滑下初級雪道。",
             "button_label": "看半天課（3 小時）",
-            "link": "/pages/course-introduction#halfday"
+            "link": "/pages/course-introduction#halfday",
+            "image_asset": "lcs-persona-first.jpg"
           }
         },
         "persona_improve": {
@@ -8580,7 +8582,8 @@
             "title": "滑過幾次，想改進",
             "text": "轉彎、煞車哪裡卡住，教練現場看、現場改。",
             "button_label": "看全天課（6 小時）",
-            "link": "/pages/course-introduction#fullday"
+            "link": "/pages/course-introduction#fullday",
+            "image_asset": "lcs-persona-improve.jpg"
           }
         },
         "persona_family": {
@@ -8589,7 +8592,8 @@
             "title": "帶小孩一起",
             "text": "6 歲以上可以報名，要有一位大人陪同。",
             "button_label": "看課程與規定",
-            "link": "/pages/course-introduction#halfday"
+            "link": "/pages/course-introduction#halfday",
+            "image_asset": "lcs-persona-family.jpg"
           }
         }
       },
@@ -8612,7 +8616,8 @@
         "primary_label": "看課程與預約",
         "primary_link": "/pages/course-introduction",
         "secondary_label": "LINE 問問題",
-        "secondary_link": "https://line.me/R/ti/p/@455lfqzf"
+        "secondary_link": "https://line.me/R/ti/p/@455lfqzf",
+        "image_asset": "lcs-cta-bg.jpg"
       }
     },
     "lcs_resort_cards_1": {
