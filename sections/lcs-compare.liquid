@@ -1,0 +1,333 @@
+<div class="lcs-band lcs-band--ice lcs-compare" {{ section.shopify_attributes }}>
+  <div class="lcs-inner">
+    {%- if section.settings.heading != blank -%}
+      <h2 class="lcs-home-title" data-lcs-reveal>{% render 'lcs-clauses', text: section.settings.heading, sep: '，' %}</h2>
+    {%- endif -%}
+
+    <div class="lcs-compare__head" aria-hidden="false">
+      <p class="lcs-compare__label lcs-compare__label--without">{{ section.settings.without_label | escape }}</p>
+      <p class="lcs-compare__label lcs-compare__label--with">{{ section.settings.with_label | escape }}</p>
+    </div>
+
+    <ol class="lcs-compare__list" role="list">
+      {%- for block in section.blocks -%}
+        <li class="lcs-compare__row" data-lcs-reveal data-lcs-reveal-delay="{{ forloop.index0 | times: 90 }}" {{ block.shopify_attributes }}>
+          <p class="lcs-compare__day">{{ block.settings.day | escape }}</p>
+          <div class="lcs-compare__pair">
+            <article class="lcs-compare__card lcs-compare__card--without">
+              {%- if block.settings.without_image != blank -%}
+                <span class="lcs-compare__media">
+                  {% render 'lcs-image', image: block.settings.without_image, alt: '', sizes: '(min-width: 1024px) 18vw, (min-width: 750px) 40vw, 90vw', width: 700 %}
+                </span>
+              {%- endif -%}
+              <div class="lcs-compare__body">
+                <p class="lcs-compare__tag">{{ section.settings.without_label | escape }}</p>
+                <h3 class="lcs-compare__title">{{ block.settings.without_title | escape }}</h3>
+                <p class="lcs-compare__text">{% render 'lcs-clauses', text: block.settings.without_text, sep: '，' %}</p>
+              </div>
+            </article>
+            <article class="lcs-compare__card lcs-compare__card--with">
+              {%- if block.settings.with_image != blank -%}
+                <span class="lcs-compare__media">
+                  {% render 'lcs-image', image: block.settings.with_image, alt: '', sizes: '(min-width: 1024px) 18vw, (min-width: 750px) 40vw, 90vw', width: 700 %}
+                </span>
+              {%- endif -%}
+              <div class="lcs-compare__body">
+                <p class="lcs-compare__tag">{{ section.settings.with_label | escape }}</p>
+                <h3 class="lcs-compare__title">{{ block.settings.with_title | escape }}</h3>
+                <p class="lcs-compare__text">{% render 'lcs-clauses', text: block.settings.with_text, sep: '，' %}</p>
+              </div>
+            </article>
+          </div>
+        </li>
+      {%- endfor -%}
+    </ol>
+  </div>
+</div>
+
+{% stylesheet %}
+  .lcs-compare__head {
+    display: none;
+  }
+
+  .lcs-compare__list {
+    display: grid;
+    gap: clamp(1.5rem, 4vw, 2.25rem);
+    margin: clamp(2rem, 5vw, 3rem) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lcs-compare__day {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--lcs-mountain);
+  }
+
+  .lcs-compare__day::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: var(--lcs-frost);
+  }
+
+  .lcs-compare__pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  /* 手機：圖在左、文字在右，一張卡約 160px 高；750px 以上改上圖下文，1024px 以上再改左右 */
+  .lcs-compare__card {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    border-radius: 16px;
+  }
+
+  .lcs-compare__card--without {
+    color: var(--lcs-stone);
+    background-color: var(--lcs-white);
+    border: 1px solid var(--lcs-frost);
+  }
+
+  .lcs-compare__card--with {
+    color: var(--lcs-snow);
+    background-color: var(--lcs-navy);
+    border: 1px solid var(--lcs-navy);
+  }
+
+  .lcs-compare__media {
+    display: block;
+    flex: 0 0 36%;
+  }
+
+  .lcs-compare__media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 9rem;
+    object-fit: cover;
+    object-position: center 40%;
+  }
+
+  @media screen and (max-width: 359px) {
+    .lcs-compare__card {
+      flex-direction: column;
+    }
+
+    .lcs-compare__media {
+      flex: none;
+    }
+
+    .lcs-compare__media img {
+      height: auto;
+      min-height: 0;
+      aspect-ratio: 2 / 1;
+    }
+  }
+
+  .lcs-compare__card--without .lcs-compare__media img {
+    filter: saturate(0.55);
+  }
+
+  .lcs-compare__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-width: 0;
+    padding: clamp(0.875rem, 2.5vw, 1.5rem);
+  }
+
+  .lcs-compare__tag,
+  .lcs-compare__label {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  .lcs-compare__card--without .lcs-compare__tag {
+    color: var(--lcs-stone);
+  }
+
+  .lcs-compare__card--with .lcs-compare__tag {
+    color: var(--lcs-ice);
+  }
+
+  .lcs-compare__card .lcs-compare__title {
+    margin: 0;
+    font-size: clamp(1.125rem, 2vw, 1.25rem) !important;
+    font-weight: 700 !important;
+    line-height: 1.4 !important;
+  }
+
+  .lcs-compare__card--without .lcs-compare__title {
+    color: var(--lcs-navy);
+  }
+
+  .lcs-compare__card--with .lcs-compare__title {
+    color: var(--lcs-white);
+  }
+
+  .lcs-compare__text {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.7;
+    text-wrap: balance;
+  }
+
+  @media screen and (min-width: 750px) {
+    .lcs-compare__head {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-top: clamp(2rem, 5vw, 3rem);
+    }
+
+    .lcs-compare__label--without {
+      color: var(--lcs-stone);
+    }
+
+    .lcs-compare__label--with {
+      color: var(--lcs-mountain);
+    }
+
+    .lcs-compare__label {
+      font-size: 1rem;
+    }
+
+    .lcs-compare__list {
+      margin-top: 1rem;
+    }
+
+    .lcs-compare__tag {
+      display: none;
+    }
+
+    .lcs-compare__pair {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .lcs-compare__card {
+      flex-direction: column;
+    }
+
+    .lcs-compare__media {
+      flex: none;
+    }
+
+    .lcs-compare__media img {
+      height: auto;
+      min-height: 0;
+      aspect-ratio: 16 / 9;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    .lcs-compare__card {
+      flex-direction: row;
+    }
+
+    .lcs-compare__media {
+      flex: 0 0 40%;
+    }
+
+    .lcs-compare__media img {
+      height: 100%;
+      aspect-ratio: auto;
+      min-height: 11rem;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.lcs_compare",
+  "class": "section-wrapper",
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "t:settings.lcs_heading",
+      "default": "自己摸索和有教練帶，三天差在哪裡"
+    },
+    {
+      "type": "text",
+      "id": "without_label",
+      "label": "t:settings.lcs_without_label",
+      "default": "沒有教練陪同"
+    },
+    {
+      "type": "text",
+      "id": "with_label",
+      "label": "t:settings.lcs_with_label",
+      "default": "來趣滑雪教練陪同"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "day",
+      "name": "t:names.lcs_compare_day",
+      "settings": [
+        {
+          "type": "text",
+          "id": "day",
+          "label": "t:settings.lcs_day",
+          "default": "DAY1"
+        },
+        {
+          "type": "text",
+          "id": "without_title",
+          "label": "t:settings.lcs_without_title"
+        },
+        {
+          "type": "textarea",
+          "id": "without_text",
+          "label": "t:settings.lcs_without_text"
+        },
+        {
+          "type": "image_picker",
+          "id": "without_image",
+          "label": "t:settings.lcs_without_image"
+        },
+        {
+          "type": "text",
+          "id": "with_title",
+          "label": "t:settings.lcs_with_title"
+        },
+        {
+          "type": "textarea",
+          "id": "with_text",
+          "label": "t:settings.lcs_with_text"
+        },
+        {
+          "type": "image_picker",
+          "id": "with_image",
+          "label": "t:settings.lcs_with_image"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 5,
+  "presets": [
+    {
+      "name": "t:names.lcs_compare",
+      "blocks": [
+        { "type": "day", "settings": { "day": "DAY1" } },
+        { "type": "day", "settings": { "day": "DAY2" } },
+        { "type": "day", "settings": { "day": "DAY3" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

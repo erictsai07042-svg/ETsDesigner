@@ -80,15 +80,27 @@
   color: var(--lcs-navy) !important;
 }
 
-/* 子句不可斷行（由 snippets/lcs-clauses.liquid 輸出）；極窄螢幕才放行，避免橫向溢出 */
-.lcs-nb {
-  white-space: nowrap;
+/* 首頁「學員評價」（Judge.me 外掛）：只調整外框的標題字級與上方間距，與其他 lcs- 區塊一致；
+   外掛內部排版不動。以 ID 後綴比對，:not(#id) 補回 ID 等級的優先權。 */
+[id^="shopify-section-template--"][id$="__178343181799faef2a"]:not(#lcs-id-specificity) {
+  padding-block-start: 1.5rem;
 }
 
-@media (max-width: 340px) {
-  .lcs-nb {
-    white-space: normal;
-  }
+[id^="shopify-section-template--"][id$="__178343181799faef2a"]:not(#lcs-id-specificity) .jdgm-title {
+  font-size: clamp(1.75rem, 4vw, 3rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0.01em;
+  color: var(--lcs-navy);
+}
+
+/* 子句不可在中間斷行（由 snippets/lcs-clauses.liquid 輸出）。
+   inline-block + max-width:100%：放得下就維持一行，比容器還寬時才在容器內換行，
+   所以不論文案多長、螢幕多窄，都不會溢出或貼到容器邊緣。 */
+.lcs-nb {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
 }
 
 /* ---- 區塊背景圖（附深藍遮罩；遮罩濃度用 --lcs-bg-overlay 調整） ---- */

@@ -1,6 +1,8 @@
 {% doc %}
-  把一段文字依分隔符切成子句，每個子句不可斷行，只允許在分隔符之後換行。
+  把一段文字依分隔符切成子句，每個子句不可斷行，只允許在子句之間換行。
   用於中文標題與說明，避免字詞被拆在兩行（例如地名或「一組」）。
+  除了傳入的分隔符，句號「。」與頓號「、」也一律視為子句邊界，標點留在前一個子句內。
+  子句若比容器還寬，CSS（.lcs-nb）會讓它在容器內換行，不會溢出。
 
   @param {string} text - 要輸出的文字
   @param {string} [sep] - 分隔符，預設「，」
@@ -10,9 +12,13 @@
 {% enddoc %}
 {%- liquid
   assign lcs_sep = sep | default: '，'
-  assign lcs_parts = text | split: lcs_sep
+  assign lcs_mark = '‖'
+  assign lcs_sep_marked = lcs_sep | append: lcs_mark
+  assign lcs_marked = text | replace: lcs_sep, lcs_sep_marked | replace: '。', '。‖' | replace: '、', '、‖'
+  assign lcs_parts = lcs_marked | split: lcs_mark
 -%}
 {%- for part in lcs_parts -%}
-  <span class="lcs-nb">{{ part | escape }}</span>
-  {%- unless forloop.last -%}{{ lcs_sep }}{%- endunless -%}
+  {%- if part != blank -%}
+    <span class="lcs-nb">{{ part | escape }}</span>
+  {%- endif -%}
 {%- endfor -%}
