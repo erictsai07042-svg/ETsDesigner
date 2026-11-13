@@ -18,3 +18,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Flow 生成圖原始檔（本機來源，不進 git）
+design-src/
