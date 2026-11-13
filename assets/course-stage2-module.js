@@ -274,6 +274,10 @@ import { CartUpdateEvent } from '@theme/events';
       '.toggle-switch input:disabled + .toggle-slider { opacity: 0.4; cursor: not-allowed; }',
       '.accordion-content { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease; padding: 0 18px; }',
       '.accordion-content.is-expanded { max-height: 3000px; padding: 18px; border-top: 1px solid #e4ecf3; opacity: 1; }',
+      /* 2026-10-06：3000px 只是給展開動畫用的終點，不能當成內容高度上限——裝備區塊每位學員各有
+         一份尺寸對照表，2 位學員勾雪服帽鏡組就超過 3000px（4 位全勾實測 13761px），超出的部分
+         被 overflow:hidden 直接切掉。展開動畫結束後由 wireAccordionToggle 加上 is-settled 解除上限。 */
+      '.accordion-content.is-expanded.is-settled { max-height: none; }',
       '.hotel-placeholder-box { padding: 24px 20px; text-align: center; font-size: 13px; color: #5A6A78; line-height: 1.7; }',
       '.hotel-placeholder-box .hotel-badge { display: inline-block; background: #1A2E4A; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; margin-bottom: 10px; }',
 
@@ -505,7 +509,28 @@ import { CartUpdateEvent } from '@theme/events';
     return '' +
       '<div class="cs2-size-reference-table-scroll">' +
         '<table class="cs2-legal-table"><thead><tr>' + headHtml + '</tr></thead><tbody>' + bodyHtml + '</tbody></table>' +
-      '</div>';
+      '</div>' +
+      '<p class="cs2-legal-note" data-size-scroll-hint hidden>← 可左右滑動查看 →</p>';
+  }
+
+  /** 對照表下方的「左右滑動」提示：只在表格真的比容器寬、需要橫向捲動時顯示。iOS 不顯示
+   * 捲軸，沒有提示的話客人會以為右邊欄位不見了。用 ResizeObserver 是因為容器在 <details>
+   * 收合、裝備未勾選時寬度是 0，要等它真的顯示出來（或視窗寬度改變）才量得到。 */
+  function wireSizeScrollHints(root) {
+    function sync(scroller) {
+      var hint = scroller.nextElementSibling;
+      if (!hint || !hint.hasAttribute('data-size-scroll-hint')) return;
+      hint.hidden = !(scroller.scrollWidth > scroller.clientWidth + 1);
+    }
+    var scrollers = root.querySelectorAll('.cs2-size-reference-table-scroll');
+    if (!window.ResizeObserver) {
+      scrollers.forEach(function (scroller) { scroller.nextElementSibling.hidden = false; });
+      return;
+    }
+    var observer = new ResizeObserver(function (entries) {
+      entries.forEach(function (entry) { sync(entry.target); });
+    });
+    scrollers.forEach(function (scroller) { observer.observe(scroller); });
   }
 
   /* data-gender-table 屬性給 wireSizeReferenceGenderToggle() 用，依客人當下選的性別
@@ -686,6 +711,7 @@ import { CartUpdateEvent } from '@theme/events';
       html += '</div></div>';
     }
     container.innerHTML = html;
+    wireSizeScrollHints(container);
 
     container.querySelectorAll('[data-attendee-group]').forEach(function (groupBox) {
       var genderSelect = groupBox.querySelector('[data-attendee-gender-input]');
@@ -767,11 +793,37 @@ import { CartUpdateEvent } from '@theme/events';
     };
   }
 
+  /* 比展開動畫（0.4s）略長。transitionend 不一定會來——背景分頁、使用者開了「減少動態效果」、
+     或動畫被打斷時都可能收不到——所以一律另外排這個計時器當保底，不能只靠事件。 */
+  var ACCORDION_SETTLE_FALLBACK_MS = 600;
+
   function wireAccordionToggle(toggleInput, contentEl) {
     var cardEl = toggleInput.closest('.accordion-card');
+    var settleTimer = null;
+
+    // 只有「目前確實是展開狀態」才解除上限：展開途中又被收合時，遲到的事件或計時器不會把它卡在展開樣式。
+    function settle() {
+      clearTimeout(settleTimer);
+      settleTimer = null;
+      if (contentEl.classList.contains('is-expanded')) contentEl.classList.add('is-settled');
+    }
+
+    contentEl.addEventListener('transitionend', function (event) {
+      if (event.target === contentEl && event.propertyName === 'max-height') settle();
+    });
+
     toggleInput.addEventListener('change', function () {
+      clearTimeout(settleTimer);
+      settleTimer = null;
+      if (contentEl.classList.contains('is-settled')) {
+        /* 收合：max-height 從 none 沒辦法做動畫，先拿掉 is-settled 回到 3000px 並強制重排一次，
+           下面移除 is-expanded 時才會從 3000px 動畫到 0。 */
+        contentEl.classList.remove('is-settled');
+        void contentEl.offsetHeight;
+      }
       contentEl.classList.toggle('is-expanded', toggleInput.checked);
       if (cardEl) cardEl.classList.toggle('is-expanded', toggleInput.checked);
+      if (toggleInput.checked) settleTimer = setTimeout(settle, ACCORDION_SETTLE_FALLBACK_MS);
     });
   }
 
