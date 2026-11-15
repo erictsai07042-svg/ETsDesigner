@@ -1,0 +1,254 @@
+<div class="lcs-band lcs-band--dark lcs-coach" {{ section.shopify_attributes }}>
+  <div class="lcs-inner">
+    {%- if section.settings.eyebrow != blank -%}
+      <p class="lcs-eyebrow" data-lcs-reveal>{{ section.settings.eyebrow | escape }}</p>
+    {%- endif -%}
+    {%- if section.settings.heading != blank -%}
+      <h2 class="lcs-home-title" data-lcs-reveal>{% render 'lcs-clauses', text: section.settings.heading, sep: '，' %}</h2>
+    {%- endif -%}
+    {%- if section.settings.tagline != blank -%}
+      <p class="lcs-coach__tagline" data-lcs-reveal>{{ section.settings.tagline | escape }}</p>
+    {%- endif -%}
+    {%- if section.settings.lede != blank -%}
+      <p class="lcs-coach__lede" data-lcs-reveal>{{ section.settings.lede | escape }}</p>
+    {%- endif -%}
+
+    <ul class="lcs-coach__list" role="list" tabindex="0" aria-label="{{ section.settings.heading | escape }}">
+      {%- for block in section.blocks -%}
+        <li class="lcs-coach__item" data-lcs-reveal data-lcs-reveal-delay="{{ forloop.index0 | times: 90 }}" {{ block.shopify_attributes }}>
+          <article class="lcs-coach__card">
+            {%- if block.settings.image != blank -%}
+              <span class="lcs-coach__media">
+                {% render 'lcs-image', image: block.settings.image, alt: block.settings.name, sizes: '(min-width: 1024px) 22vw, (min-width: 750px) 44vw, 80vw', width: 640 %}
+              </span>
+            {%- endif -%}
+            <div class="lcs-coach__body">
+              <h3 class="lcs-coach__name">{{ block.settings.name | escape }}</h3>
+              {%- if block.settings.languages != blank -%}
+                <p class="lcs-coach__lang"><span class="lcs-coach__lang-label">{{ section.settings.language_label | escape }}</span>{{ block.settings.languages | escape }}</p>
+              {%- endif -%}
+              {%- if block.settings.bio != blank -%}
+                <p class="lcs-coach__bio">{{ block.settings.bio | escape }}</p>
+              {%- endif -%}
+            </div>
+          </article>
+        </li>
+      {%- endfor -%}
+    </ul>
+  </div>
+</div>
+
+{% stylesheet %}
+  /* 手機：橫向滑動，露出下一張的邊緣提示可以滑；750px 以上 2×2；1024px 以上四欄 */
+  .lcs-coach__list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: min(80%, 20rem);
+    gap: 1rem;
+    margin: clamp(2rem, 5vw, 3rem) calc(var(--page-margin, 1.25rem) * -1) 0;
+    padding: 0 var(--page-margin, 1.25rem) 1rem;
+    overflow-x: auto;
+    list-style: none;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--page-margin, 1.25rem);
+    scrollbar-width: thin;
+    scrollbar-color: var(--lcs-ice) transparent;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lcs-coach .lcs-coach__tagline {
+    margin: 1rem 0 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0.08em;
+    color: var(--lcs-ice);
+  }
+
+  .lcs-coach .lcs-coach__lede {
+    max-width: 44rem;
+    margin: 0.5rem 0 0;
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--lcs-snow);
+  }
+
+  .lcs-coach__list:focus-visible {
+    outline: 2px solid var(--lcs-ice);
+    outline-offset: 2px;
+  }
+
+  .lcs-coach__item {
+    display: flex;
+    scroll-snap-align: start;
+  }
+
+  .lcs-coach__card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--lcs-navy);
+    background-color: var(--lcs-snow);
+    border: 1px solid var(--lcs-frost);
+    border-radius: 16px;
+  }
+
+  .lcs-coach__media {
+    display: block;
+  }
+
+  .lcs-coach__media img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center 30%;
+  }
+
+  .lcs-coach__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.125rem 1.25rem 1.375rem;
+  }
+
+  .lcs-coach__card .lcs-coach__name {
+    margin: 0;
+    font-size: 1.375rem !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    color: var(--lcs-navy);
+  }
+
+  .lcs-coach__lang {
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--lcs-mountain);
+  }
+
+  .lcs-coach__lang-label {
+    margin-inline-end: 0.5rem;
+    font-weight: 700;
+    color: var(--lcs-stone);
+  }
+
+  .lcs-coach__bio {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--lcs-navy);
+  }
+
+  @media screen and (min-width: 750px) {
+    .lcs-coach__list {
+      grid-auto-flow: row;
+      grid-auto-columns: auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-inline: 0;
+      padding: 0;
+      overflow: visible;
+      scroll-snap-type: none;
+    }
+
+    .lcs-coach__media img {
+      aspect-ratio: 4 / 3;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    .lcs-coach__list {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1.25rem;
+    }
+
+    .lcs-coach__media img {
+      aspect-ratio: 1 / 1;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.lcs_coaches",
+  "class": "section-wrapper",
+  "disabled_on": {
+    "groups": ["header", "footer"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "eyebrow",
+      "label": "t:settings.lcs_eyebrow",
+      "default": "教練團隊"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "t:settings.lcs_heading",
+      "default": "北海道滑雪教練團隊，中文、英文都能教學"
+    },
+    {
+      "type": "text",
+      "id": "tagline",
+      "label": "t:settings.lcs_tagline",
+      "default": "專業 × 熱情 × 用心"
+    },
+    {
+      "type": "textarea",
+      "id": "lede",
+      "label": "t:settings.lcs_lede",
+      "default": "我們的教練不只是教你滑雪，更希望帶你感受北海道的美好！LifeChillsnow 的滑雪課程在札幌手稻、旭川神居、富良野、佐幌四個雪場進行，教練中文和英文都能教學。"
+    },
+    {
+      "type": "text",
+      "id": "language_label",
+      "label": "t:settings.lcs_language_label",
+      "default": "語言"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "coach",
+      "name": "t:names.lcs_coach",
+      "settings": [
+        {
+          "type": "text",
+          "id": "name",
+          "label": "t:settings.lcs_name"
+        },
+        {
+          "type": "text",
+          "id": "languages",
+          "label": "t:settings.lcs_languages"
+        },
+        {
+          "type": "textarea",
+          "id": "bio",
+          "label": "t:settings.lcs_bio"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "t:settings.lcs_image"
+        }
+      ]
+    }
+  ],
+  "max_blocks": 8,
+  "presets": [
+    {
+      "name": "t:names.lcs_coaches",
+      "blocks": [
+        { "type": "coach" },
+        { "type": "coach" },
+        { "type": "coach" },
+        { "type": "coach" }
+      ]
+    }
+  ]
+}
+{% endschema %}

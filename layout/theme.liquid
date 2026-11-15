@@ -497,7 +497,7 @@ if (topBtn) {
 
   【2026-09-18 修正破圖】實測發現 Hero 的 sticky「卡住」範圍其實涵蓋了整個
   <main>（一路到 Judge.me 區塊結束才放開），不是只到「下一個 Section」為止。
-  一開始只給 Hero 跟緊接的 section_qznQYV 設 z-index，後面的 section_CJRChA、
+  一開始只給 Hero 跟緊接的 section_qznQYV（已於 2026-11-14 改為 lcs_coaches_1）設 z-index，後面的 section_CJRChA（已改為 lcs_compare_1）、
   Judge.me 都還是預設 z-index:auto（比 Hero 低），導致 Hero 捲動到後面時會
   「穿透」蓋過這兩個區塊，就是業主截圖回報的破圖。修法：首頁在 Hero 之後的
   每一個 Section 都要給遞增的 z-index，缺一個都可能露出 Hero。
