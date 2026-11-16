@@ -8,12 +8,18 @@
 |------|------|-----|------|
 | Primary | Deep Navy | `#1A2E4A` | 標題、按鈕背景、主文字 |
 | Secondary | Mountain Blue | `#2D5F8A` | Hover 強調色 |
-| Accent | Sky Blue | `#3A7AB5` | Focus 邊框、裝飾線、CTA |
+| Accent | Sky Blue | `#3A7AB5` | Focus 邊框、表單標題裝飾線 |
 | Highlight | Ice Blue | `#7AB3D4` | Hover 邊框輔助 |
 | Frost | Frost | `#B8D9ED` | 靜態輸入框邊框、分隔線 |
 | Snow White | Snow White | `#E8F4FA` | 輸入框背景、卡片底色 |
 | Black | Slope Black | `#111111` | 主文字/LOGO |
 | Neutral | Stone Gray | `#5A6A78` | Placeholder、備註文字 |
+| CTA | Bright Sky | `#0077E6` | 全站 CTA 與提交按鈕背景（白字）、首頁區塊標題短線、Hero 主標 |
+| CTA Hover | Bright Sky Dark | `#0062BF` | CTA 與提交按鈕 Hover |
+
+> 2026-11-17 Eric 指定：CTA 改用 `#0077E6`，不再用 Deep Navy 或 Sky Blue 當按鈕底色。
+> 白字在 `#0077E6` 上的對比約 4.4:1，略低於 WCAG AA 的 4.5:1，所以按鈕文字用粗體（700），不要用在小字內文。
+> CSS 變數集中定義在 `assets/lcs-home.css` 的 `:root`（`--lcs-cta`、`--lcs-cta-hover`），全站載入。
 
 ---
 
@@ -62,18 +68,18 @@ margin-bottom: var(--margin-lg, 1.5rem);
 
 ## 提交按鈕設計規範
 
-所有表單的提交按鈕統一使用：
+所有表單的提交按鈕與全站 CTA 按鈕（頁首「預約課程」、首頁各段按鈕、課程預約流程的「下一頁／立即預訂／確認加購」、結帳）統一使用：
 
 ```css
 /* 靜態 */
-background-color: #1A2E4A;  /* Deep Navy */
+background-color: #0077E6;  /* CTA Bright Sky，var(--lcs-cta) */
 color: #ffffff;
-border-color: #1A2E4A;
+border-color: #0077E6;
 transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
 
 /* Hover */
-background-color: #2D5F8A;  /* Mountain Blue */
-border-color: #2D5F8A;
+background-color: #0062BF;  /* var(--lcs-cta-hover) */
+border-color: #0062BF;
 transform: translateY(-1px);
 box-shadow: 0 4px 12px rgba(26, 46, 74, 0.2);
 
@@ -135,4 +141,6 @@ color: #991B1B;
 --brand-frost:         #B8D9ED;
 --brand-snow:          #E8F4FA;
 --brand-stone-gray:    #5A6A78;
+--lcs-cta:             #0077E6;  /* 已在 assets/lcs-home.css :root 全站定義，元件內直接用 var(--lcs-cta) */
+--lcs-cta-hover:       #0062BF;
 ```

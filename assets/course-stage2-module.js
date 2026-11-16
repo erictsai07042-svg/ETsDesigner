@@ -395,10 +395,10 @@ import { CartUpdateEvent } from '@theme/events';
       '.cs2-summary-consent { font-size: 13px; font-weight: 700; color: #1A2E4A; background: #E8F4FA; border: 1px solid #B8D9ED; border-radius: 8px; padding: 10px 14px; margin-top: 6px; }',
 
       '.cs2-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }',
-      '.cs2-btn-primary { background: #1A2E4A; color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }',
-      '.cs2-btn-primary:hover { background: #2D5F8A; }',
-      '.cs2-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; background: #1A2E4A; }',
-      '.cs2-btn-primary:disabled:hover { background: #1A2E4A; }',
+      '.cs2-btn-primary { background: #0077E6; color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }',
+      '.cs2-btn-primary:hover { background: #0062BF; }',
+      '.cs2-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; background: #0077E6; }',
+      '.cs2-btn-primary:disabled:hover { background: #0077E6; }',
       '.cs2-btn-skip { background: none; border: none; color: #5A6A78; font-size: 14px; cursor: pointer; text-decoration: underline; }',
 
       /* 裝備尺寸對照表：沿用原生 <details>/<summary>（比照 snippets/cart-products.liquid

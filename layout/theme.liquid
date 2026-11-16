@@ -259,7 +259,7 @@
 
   <!-- Go Top 按鈕 -->
   <button class="float-btn top-btn" id="goTopBtn" aria-label="回到頂部" onclick="window.scrollTo({top:0,behavior:'smooth'})">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <polyline points="18 15 12 9 6 15"/>
     </svg>
   </button>
@@ -349,12 +349,17 @@
   font: inherit;
   width: 60px;
   height: 60px;
-  background-color: #1A2E4A;
+  /* 2026-11-17：與 CTA 同色（--lcs-cta 定義在 assets/lcs-home.css） */
+  background-color: var(--lcs-cta, #0077e6);
 }
 
 /* Go Top */
 .top-btn {
-  background-color: #333;
+  /* 2026-11-17：原本 #333 在 Deep Navy 頁尾上幾乎看不到。改白底＋CTA 藍外框與箭頭，
+     在白、Snow White、深藍三種底色上都看得清楚。 */
+  background-color: #fff;
+  border: 2px solid var(--lcs-cta, #0077e6);
+  color: var(--lcs-cta, #0077e6);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;

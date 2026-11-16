@@ -4367,7 +4367,8 @@ div[class*="shopify-app-block"] {
 /* Hero「讓您的北海道滑雪之旅更安心、更享受！」字色改跳色（2026-09-19，業主選項一：品牌主色）
    只鎖定這個文字block自己的唯一class（text_ErAnJn），不影響同一組裡的其他文字 */
 [class*="__text_ErAnJn"] h2 {
-  color: #3a7ab5 !important;
+  /* 2026-11-17：Eric 指定改為 CTA 藍（原為 Sky Blue #3a7ab5） */
+  color: var(--lcs-cta, #0077e6) !important;
 }
 
 /* ================================================= */
@@ -4793,11 +4794,12 @@ h3, .h3 {
   margin-inline-end: var(--margin-sm, 0.5rem);
   padding: 0.5rem 1.125rem;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   color: var(--lcs-white);
-  background-color: var(--lcs-navy);
-  border: 1px solid var(--lcs-navy);
+  /* --lcs-cta 定義在 lcs-home.css（全站載入）；後備值相同 */
+  background-color: var(--lcs-cta, #0077e6);
+  border: 1px solid var(--lcs-cta, #0077e6);
   border-radius: var(--style-border-radius-buttons-primary, 8px);
   text-decoration: none;
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
@@ -4805,8 +4807,8 @@ h3, .h3 {
 
 .lcs-header-cta:hover {
   color: var(--lcs-white);
-  background-color: var(--lcs-mountain);
-  border-color: var(--lcs-mountain);
+  background-color: var(--lcs-cta-hover, #0062bf);
+  border-color: var(--lcs-cta-hover, #0062bf);
 }
 
 .lcs-header-cta:focus-visible {

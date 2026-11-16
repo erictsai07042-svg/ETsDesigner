@@ -13,6 +13,9 @@
   --lcs-ink: #111111;
   --lcs-stone: #5a6a78;
   --lcs-white: #ffffff;
+  /* CTA 專用亮天藍（2026-11-17 Eric 指定試用，品牌色票以外）；hover 為同色相加深 */
+  --lcs-cta: #0077e6;
+  --lcs-cta-hover: #0062bf;
 }
 
 /* ---- 區塊底色（一律不透明：Hero 固定在後面，透明會透出來） ---- */
@@ -49,6 +52,8 @@
   color: var(--lcs-sky);
 }
 
+/* 2026-11-17：主底色是純白，Snow White 只用在間隔的區塊，讓相鄰兩段底色一定不同：
+   深藍 → 白（旅客）→ Snow（對比）→ 深藍（教練）→ Snow（雪場）→ 白（評價）→ 深藍（CTA）。 */
 .lcs-band--ice {
   background-color: var(--lcs-snow);
   color: var(--lcs-navy);
@@ -74,10 +79,29 @@
   text-wrap: balance;
 }
 
+/* 每段標題上方的亮藍短線：每一段的開頭都有同一個記號，捲動時看得出換段。 */
+.lcs-band .lcs-home-title::before,
+[id^="shopify-section-template--"][id$="__178343181799faef2a"]:not(#lcs-id-specificity) .jdgm-title::before {
+  content: "";
+  display: block;
+  width: 3rem;
+  height: 4px;
+  margin-block-end: 1rem;
+  border-radius: 2px;
+  background-color: var(--lcs-cta);
+}
+
+/* 置中的標題（最終 CTA、評價）短線也置中 */
+.lcs-cta .lcs-home-title::before,
+[id^="shopify-section-template--"][id$="__178343181799faef2a"]:not(#lcs-id-specificity) .jdgm-title::before {
+  margin-inline: auto;
+}
+
 /* 首頁「學員評價」（Judge.me 外掛）：只調整外框的標題字級與上方間距，與其他 lcs- 區塊一致；
    外掛內部排版不動。以 ID 後綴比對，:not(#id) 補回 ID 等級的優先權。 */
 [id^="shopify-section-template--"][id$="__178343181799faef2a"]:not(#lcs-id-specificity) {
   padding-block-start: 1.5rem;
+  background-color: var(--lcs-white);
 }
 
 [id^="shopify-section-template--"][id$="__178343181799faef2a"]:not(#lcs-id-specificity) .jdgm-title {
@@ -147,11 +171,11 @@
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   color: var(--lcs-white);
-  background-color: var(--lcs-navy);
-  border: 1px solid var(--lcs-navy);
+  background-color: var(--lcs-cta);
+  border: 1px solid var(--lcs-cta);
   border-radius: var(--style-border-radius-buttons-primary, 8px);
   text-decoration: none;
   cursor: pointer;
@@ -160,8 +184,8 @@
 
 .lcs-home-btn:hover {
   color: var(--lcs-white);
-  background-color: var(--lcs-mountain);
-  border-color: var(--lcs-mountain);
+  background-color: var(--lcs-cta-hover);
+  border-color: var(--lcs-cta-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(26, 46, 74, 0.2);
 }
@@ -176,21 +200,68 @@
   outline-offset: 2px;
 }
 
-/* 深底版本：反白按鈕，避免 Deep Navy 按鈕融入 Deep Navy 底 */
+/* 深底版本：同樣用亮天藍，在 Deep Navy 底上夠跳，不需要反白 */
 .lcs-band--dark .lcs-home-btn {
-  color: var(--lcs-navy);
-  background-color: var(--lcs-white);
-  border-color: var(--lcs-white);
+  color: var(--lcs-white);
+  background-color: var(--lcs-cta);
+  border-color: var(--lcs-cta);
 }
 
 .lcs-band--dark .lcs-home-btn:hover {
   color: var(--lcs-white);
-  background-color: var(--lcs-sky);
-  border-color: var(--lcs-sky);
+  background-color: var(--lcs-cta-hover);
+  border-color: var(--lcs-cta-hover);
 }
 
 .lcs-band--dark .lcs-home-btn:focus-visible {
   outline-color: var(--lcs-ice);
+}
+
+/* 首屏主要按鈕（Horizon 的 .button）：只在首頁 Hero 內改用亮天藍，不動色彩計畫，
+   其他頁面與購物車、BTA 的按鈕不受影響。 */
+.hero-wrapper .button:not(.button-secondary, .button-unstyled) {
+  --button-color: var(--lcs-white);
+  --button-background-color: var(--lcs-cta);
+  --button-border-color: var(--lcs-cta);
+  font-weight: 700;
+}
+
+.hero-wrapper .button:not(.button-secondary, .button-unstyled):hover {
+  --button-color: var(--lcs-white);
+  --button-background-color: var(--lcs-cta-hover);
+  --button-border-color: var(--lcs-cta-hover);
+}
+
+/* ==========================================================================
+   全站 CTA 統一為亮天藍（2026-11-17，Eric 指定）
+   1) Horizon 主要按鈕（.button）：覆寫色彩計畫輸出的按鈕變數，不改 settings_data.json。
+      色彩計畫的規則是 .color-scheme-N（一個 class），這裡多一個 body 讓優先權較高。
+      次要按鈕（.button-secondary）與表單送出按鈕不在此列。
+   2) 寫在頁面模板 custom_liquid 裡的三種按鈕：課程介紹 .lcs-btn、裝備租借 .er-btn、
+      商品列表 .ntv-cta-btn。它們在頁面內用 background 簡寫定義，這裡用 !important 蓋過。
+   ========================================================================== */
+body,
+body [class*="color-scheme-"] {
+  --color-primary-button-text: var(--lcs-white);
+  --color-primary-button-background: var(--lcs-cta);
+  --color-primary-button-border: var(--lcs-cta);
+  --color-primary-button-hover-text: var(--lcs-white);
+  --color-primary-button-hover-background: var(--lcs-cta-hover);
+  --color-primary-button-hover-border: var(--lcs-cta-hover);
+}
+
+.lcs-btn,
+.er-btn,
+main[data-template="collection"] .product-card .ntv-cta-btn {
+  color: var(--lcs-white) !important;
+  background-color: var(--lcs-cta) !important;
+  font-weight: 700 !important;
+}
+
+.lcs-btn:hover,
+.er-btn:hover,
+main[data-template="collection"] .product-card .ntv-cta-btn:hover {
+  background-color: var(--lcs-cta-hover) !important;
 }
 
 /* ---- 進場動畫（只在 JS 加上 .lcs-motion 後才隱藏；JS 沒載入內容預設可見） ---- */

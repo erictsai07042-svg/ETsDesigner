@@ -2,6 +2,21 @@
 
 最後更新：2026-11-11
 
+## 📌 2026-11-17：首頁試做「底色更白、CTA 更亮」（僅副本主題 190500634707，未提交、未上正式站）
+
+- **現象／需求**：Eric 覺得畫面偏暗沉，想要專業之外多一點生動感。參考 chaseforsnow.com 與 iski.com.tw 後，先試兩點：主底色用純白、CTA 改亮天藍 `#0077E6` 配白色粗體字。
+- **根因**：首頁只有藍色系，沒有對比色；「對比」「雪場」兩段整段鋪 Snow White，CTA 是 Deep Navy，跟深藍區塊同色系不跳。Judge.me 區塊沿用色彩計畫的半透明白（0.89），會透出後面固定的 Hero。
+- **修法**：
+  - `assets/lcs-home.css`：新增 `--lcs-cta: #0077e6`、`--lcs-cta-hover: #0062bf`；`.lcs-band--ice` 一度改白，Eric 看後要求每段要有明顯區分，改回 Snow White，讓相鄰兩段底色一定不同（深藍 → 白 → Snow → 深藍 → Snow → 白 → 深藍）；每段標題上方加 48×4px 的 `--lcs-cta` 短線作為換段記號（置中標題的短線也置中）；Judge.me 區塊補不透明白底；`.lcs-home-btn`（含深底版本）與 Hero 主要按鈕改用 `--lcs-cta`、字重 700。
+  - `sections/lcs-persona-cards.liquid`：卡片內按鈕改用 `--lcs-cta`。
+  - `assets/base.css`：導覽列 `.lcs-header-cta` 改用 `--lcs-cta`；Hero 主標「讓您的北海道滑雪之旅更安心、更享受！」由 Sky Blue `#3a7ab5` 改為 `--lcs-cta`。
+  - `layout/theme.liquid`：右下角懸浮對話鈕 `.fab-main-btn` 由 Deep Navy 改為 `--lcs-cta`；回到頂部 `.top-btn` 由 `#333` 改為白底、2px `--lcs-cta` 外框與同色箭頭（原本在 Deep Navy 頁尾上看不清楚）。這兩顆按鈕是全站共用。
+  - 全站 CTA 統一（同日後續）：`assets/lcs-home.css` 以 `body, body [class*="color-scheme-"]` 覆寫色彩計畫的主要按鈕變數（不改 `config/settings_data.json`），並用 `!important` 蓋過三種寫在模板 custom_liquid 裡的按鈕：課程介紹 `.lcs-btn`、裝備租借 `.er-btn`、商品列表 `.ntv-cta-btn`。之後 Eric 決定這兩類也改：BTA 送出按鈕（`snippets/course-booking-form.liquid` 注入樣式）、第二階段 `.cs2-btn-primary`（`assets/course-stage2-module.js`）、聯絡表單與部落格留言送出按鈕都改為 `#0077E6`／hover `#0062BF`，只換顏色值；AGENTS.md 尚未同步。預約流程已實測（副本預覽，桌機 Chromium 1440，2027/2/25、1~2 人，帳號欄填 `test_verify_1117`）：第一步「下一頁」、第二步「立即預訂」、購物車第三步「確認加購」與「結帳」皆為 rgb(0,119,230) 白字 700；送出後購物車 1 件、屬性齊全，隨後以 `/cart/clear.js` 清空。這次送出會讓 BTA 暫時保留 2027/2/25 的名額，會自動逾時釋放。iPhone 14 WebKit 只走到第二步、未送出。原先**沒有改的**：`snippets/course-booking-form.liquid` 裡 BTA 預約流程的按鈕（規則是不碰 BTA）、聯絡表單「提交」與部落格「發布留言」（AGENTS.md 規定表單送出按鈕為 Deep Navy）。
+- **規範同步（11-17 補）**：`.agents/AGENTS.md` 色票新增 CTA `#0077E6`／Hover `#0062BF`，提交按鈕規範由 Deep Navy 改為 CTA 藍，Sky Blue 的用途拿掉「CTA」。
+- **theme check（11-17 補，全部修改完成後重跑）**：338 檔、37 件（7 errors／30 warnings），與改動前相同。本次修改的檔案只有 `snippets/course-booking-form.liquid` 有 1 件 `LiquidHTMLSyntaxError`（L992 主要 `<script>`），在 `9fb760f` 就已存在，本次只改了一行色碼。
+- **注意**：`#0077E6` 是 Eric 指定的品牌色票以外的顏色。白字對 `#0077E6` 對比約 4.4:1，略低於 WCAG AA 一般文字的 4.5:1。
+- **驗證**（副本預覽網址，Playwright 1.63 Chromium 1440 與 WebKit iPhone 14）：導覽列、Hero、旅客卡、最終 CTA 的主要按鈕計算色皆為 rgb(0,119,230)、白字、700；七段底色依序為深藍／白／Snow／深藍／Snow／白／深藍，七個標題的短線皆為 48×4px rgb(0,119,230)；兩種寬度皆無橫向捲動；手機導覽列按鈕仍為 display:none；全站統一後逐頁量測（首頁、課程介紹、購物車空車、關於我們、裝備租借、商品列表）主要按鈕皆為 rgb(0,119,230)；iPhone 14 四個頁面無橫向捲動。有商品的購物車與結帳按鈕、BTA 預約流程內的按鈕未實測。捲到頁尾時，對話鈕 60×60 rgb(0,119,230)、回到頂部 48×48 白底藍框，兩種寬度皆清楚可見。
+
 ## 📌 2026-11-14：首頁「教練團隊」重做為獨立區塊，解決窄視窗教練欄位變長條（僅副本主題 190500634707，未上正式站）
 
 - **現象**：視窗變窄時教練欄位被擠成長條。834px 時四位教練各約 105px 寬，介紹文字一個字一行、卡片超高；390px 時外框淺色面板裡再包四張卡，區塊高 1,806px。
